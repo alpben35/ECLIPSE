@@ -1,0 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-handwriting: "Caveat", cursive;
+  --color-royal-red: #7B0000;
+  --color-gold: #FFD700;
+}
+
+body {
+  @apply font-sans;
+}
+
+.handwriting {
+  @apply font-handwriting;
+}

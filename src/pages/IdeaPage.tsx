@@ -1,0 +1,354 @@
+import React, { useState, useEffect, useContext } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Lightbulb, Send, CheckCircle2, XCircle, ChevronRight, User as UserIcon, Shield, Award, Star, FileText, Save } from 'lucide-react';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { collection, addDoc, query, onSnapshot, orderBy, doc, updateDoc, where, getDoc, setDoc } from 'firebase/firestore';
+import { AuthContext } from '../App';
+import { OWNER_EMAIL, RANKS } from '../constants';
+import { Link } from 'react-router-dom';
+
+interface Idea {
+  id: string;
+  uid: string;
+  authorName: string;
+  authorEmail: string;
+  title: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  currentReviewerRank: string;
+}
+
+const RANK_WORKFLOW = RANKS.map((r, i) => ({
+  rank: r.name,
+  nextStatus: `approved_by_${r.name.toLowerCase().replace(/\s+/g, '_')}`,
+  nextReviewer: RANKS[i + 1]?.name || 'Owner'
+})).filter(r => r.rank !== 'Owner');
+
+export default function IdeaPage() {
+  const { user, profile } = useContext(AuthContext);
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [newIdea, setNewIdea] = useState({ title: '', description: '' });
+  const [notepad, setNotepad] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingNotepad, setIsSavingNotepad] = useState(false);
+  const [activeTab, setActiveTab] = useState<'my' | 'review' | 'notepad'>('my');
+
+  const userRank = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner' ? 'Owner' : profile?.rank || 'Welcome';
+  const isOwner = userRank === 'Owner';
+
+  useEffect(() => {
+    if (isOwner) setActiveTab('notepad');
+  }, [isOwner]);
+
+  useEffect(() => {
+    if (!user || !profile) return;
+
+    const q = query(collection(db, 'ideas'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loadedIdeas = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as Idea[];
+      setIdeas(loadedIdeas);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'ideas'));
+
+    // Load notepad if owner
+    if (isOwner) {
+      const notepadRef = doc(db, 'users', user.uid, 'private', 'notepad');
+      getDoc(notepadRef).then(snap => {
+        if (snap.exists()) setNotepad(snap.data().content || '');
+      });
+    }
+
+    return () => unsubscribe();
+  }, [user, profile, isOwner]);
+
+  const handleSaveNotepad = async () => {
+    if (!user || !isOwner) return;
+    setIsSavingNotepad(true);
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'private', 'notepad'), {
+        content: notepad,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/private/notepad`);
+    } finally {
+      setIsSavingNotepad(false);
+    }
+  };
+
+  const handleSubmitIdea = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newIdea.title || !newIdea.description || !user) return;
+
+    setIsSubmitting(true);
+    try {
+      const currentRankIndex = RANKS.findIndex(r => r.name === profile?.rank);
+      const nextRank = RANKS[currentRankIndex + 1]?.name || 'Owner';
+
+      await addDoc(collection(db, 'ideas'), {
+        uid: user.uid,
+        authorName: profile?.displayName || 'Anonymous',
+        authorEmail: profile?.email,
+        title: newIdea.title,
+        description: newIdea.description,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        currentReviewerRank: nextRank
+      });
+      setNewIdea({ title: '', description: '' });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'ideas');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReview = async (ideaId: string, approve: boolean) => {
+    const idea = ideas.find(i => i.id === ideaId);
+    if (!idea) return;
+
+    const currentStep = RANK_WORKFLOW.find(step => step.rank === userRank);
+    if (!currentStep && userRank !== 'Owner') return;
+
+    try {
+      if (approve) {
+        if (userRank === 'Owner') {
+          // Final approval
+          await updateDoc(doc(db, 'ideas', ideaId), { status: 'approved_by_owner' });
+        } else {
+          await updateDoc(doc(db, 'ideas', ideaId), {
+            status: currentStep?.nextStatus,
+            currentReviewerRank: currentStep?.nextReviewer
+          });
+        }
+      } else {
+        await updateDoc(doc(db, 'ideas', ideaId), { status: 'rejected' });
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `ideas/${ideaId}`);
+    }
+  };
+
+  const myIdeas = ideas.filter(i => i.uid === user?.uid);
+  const reviewIdeas = ideas.filter(i => i.currentReviewerRank === userRank && i.status !== 'rejected');
+
+  const currentRankIndex = RANKS.findIndex(r => r.name === profile?.rank);
+  const nextRank = RANKS[currentRankIndex + 1]?.name || 'Owner';
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-12 space-y-12">
+      <div className="text-center space-y-4">
+        <h1 className="text-5xl font-black tracking-tighter italic">IDEA HUB</h1>
+        <p className="opacity-50 max-w-xl mx-auto text-lg leading-relaxed">
+          The forge of Eclipse. Propose your vision and let the hierarchy refine it into reality.
+        </p>
+      </div>
+
+      <div className="flex flex-col items-center gap-6">
+        <div className="flex justify-center gap-4">
+          {!isOwner && (
+            <button 
+              onClick={() => setActiveTab('my')}
+              className={`px-8 py-3 rounded-full font-bold transition-all ${activeTab === 'my' ? 'bg-black text-white dark:bg-white dark:text-black shadow-lg' : 'bg-black/5 dark:bg-white/5 opacity-50 hover:opacity-100'}`}
+            >
+              My Ideas
+            </button>
+          )}
+          {isOwner && (
+            <button 
+              onClick={() => setActiveTab('notepad')}
+              className={`px-8 py-3 rounded-full font-bold transition-all ${activeTab === 'notepad' ? 'bg-black text-white dark:bg-white dark:text-black shadow-lg' : 'bg-black/5 dark:bg-white/5 opacity-50 hover:opacity-100'}`}
+            >
+              Owner Notepad
+            </button>
+          )}
+          {(userRank !== 'Welcome' && userRank !== 'Member') && (
+            <button 
+              onClick={() => setActiveTab('review')}
+              className={`px-8 py-3 rounded-full font-bold transition-all ${activeTab === 'review' ? 'bg-black text-white dark:bg-white dark:text-black shadow-lg' : 'bg-black/5 dark:bg-white/5 opacity-50 hover:opacity-100'}`}
+            >
+              Review Queue {reviewIdeas.length > 0 && <span className="ml-2 px-2 py-0.5 bg-orange-500 text-white text-[10px] rounded-full">{reviewIdeas.length}</span>}
+            </button>
+          )}
+        </div>
+
+        {(userRank === 'Welcome' || userRank === 'Member') && activeTab === 'my' && (
+          <Link 
+            to="/ranks"
+            className="flex items-center gap-3 px-6 py-3 bg-orange-500/10 text-orange-500 rounded-2xl text-xs font-black tracking-widest uppercase hover:bg-orange-500/20 transition-all border border-orange-500/20"
+          >
+            <Shield size={14} />
+            Upgrade to Elder to Review Ideas
+            <ChevronRight size={14} />
+          </Link>
+        )}
+      </div>
+
+      <AnimatePresence mode="wait">
+        {activeTab === 'notepad' && isOwner ? (
+          <motion.div 
+            key="notepad"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-8"
+          >
+            <div className="bg-black/5 dark:bg-white/5 p-8 rounded-[2.5rem] space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <FileText size={20} className="text-orange-500" />
+                  Owner's Private Notepad
+                </h3>
+                <button 
+                  onClick={handleSaveNotepad}
+                  disabled={isSavingNotepad}
+                  className="flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black rounded-xl text-xs font-bold disabled:opacity-50"
+                >
+                  <Save size={14} />
+                  {isSavingNotepad ? 'Saving...' : 'Save Notes'}
+                </button>
+              </div>
+              <textarea 
+                value={notepad}
+                onChange={e => setNotepad(e.target.value)}
+                placeholder="Write your private thoughts, plans, or system notes here..."
+                rows={15}
+                className="w-full px-6 py-4 bg-white dark:bg-black text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40 rounded-2xl focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 resize-none font-mono text-sm"
+              />
+            </div>
+          </motion.div>
+        ) : activeTab === 'my' ? (
+          <motion.div 
+            key="my"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-8"
+          >
+            <form onSubmit={handleSubmitIdea} className="bg-black/5 dark:bg-white/5 p-10 rounded-[3rem] space-y-8 border border-black/5 dark:border-white/5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-black tracking-tight flex items-center gap-3">
+                  <Lightbulb size={28} className="text-orange-500" />
+                  PROPOSE VISION
+                </h3>
+                <div className="px-4 py-1.5 bg-black/5 dark:bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest opacity-50">
+                  Reviewer: {nextRank}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <input 
+                  type="text"
+                  placeholder="Title of your idea"
+                  value={newIdea.title}
+                  onChange={e => setNewIdea({ ...newIdea, title: e.target.value })}
+                  className="w-full px-8 py-5 bg-white dark:bg-black text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40 rounded-[2rem] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
+                />
+                <textarea 
+                  placeholder="Describe your idea in detail..."
+                  value={newIdea.description}
+                  onChange={e => setNewIdea({ ...newIdea, description: e.target.value })}
+                  rows={4}
+                  className="w-full px-8 py-5 bg-white dark:bg-black text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40 rounded-[2rem] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 resize-none transition-all"
+                />
+              </div>
+              <button 
+                type="submit"
+                disabled={isSubmitting || !newIdea.title || !newIdea.description}
+                className="w-full py-5 bg-black text-white dark:bg-white dark:text-black rounded-[2rem] font-black uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-50 hover:scale-[1.02] active:scale-95 transition-all shadow-xl"
+              >
+                {isSubmitting ? 'Transmitting...' : <><Send size={20} /> Submit to {nextRank}</>}
+              </button>
+            </form>
+
+            <div className="space-y-4">
+              {myIdeas.map(idea => (
+                <IdeaCard key={idea.id} idea={idea} />
+              ))}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="review"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-4"
+          >
+            {reviewIdeas.length === 0 ? (
+              <div className="text-center py-20 opacity-30">
+                <CheckCircle2 size={48} className="mx-auto mb-4" />
+                <p className="text-lg font-medium">Your review queue is clear.</p>
+              </div>
+            ) : (
+              reviewIdeas.map(idea => (
+                <IdeaCard 
+                  key={idea.id} 
+                  idea={idea} 
+                  onReview={handleReview}
+                  canReview
+                />
+              ))
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function IdeaCard({ idea, onReview, canReview }: { idea: Idea, onReview?: (id: string, approve: boolean) => void, canReview?: boolean }) {
+  const getStatusLabel = (status: string) => {
+    if (status === 'pending') return `Awaiting ${idea.currentReviewerRank}s`;
+    if (status === 'rejected') return 'Rejected';
+    if (status.startsWith('approved_by_')) {
+      const rank = status.replace('approved_by_', '').replace(/_/g, ' ');
+      return `Approved by ${rank.charAt(0).toUpperCase() + rank.slice(1)}`;
+    }
+    return status;
+  };
+
+  const getStatusColor = (status: string) => {
+    if (status === 'pending') return 'bg-yellow-500/10 text-yellow-500';
+    if (status === 'rejected') return 'bg-red-500/10 text-red-500';
+    return 'bg-green-500/10 text-green-500';
+  };
+
+  return (
+    <div className="bg-black/5 dark:bg-white/5 p-8 rounded-[2.5rem] space-y-4 border border-transparent hover:border-black/10 dark:hover:border-white/10 transition-all">
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${getStatusColor(idea.status)}`}>
+            {getStatusLabel(idea.status)}
+          </div>
+          <h4 className="text-2xl font-bold tracking-tight text-black dark:text-white">{idea.title}</h4>
+          <p className="text-xs opacity-50 flex items-center gap-2 text-black dark:text-white">
+            <UserIcon size={12} /> {idea.authorName} • {new Date(idea.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+      
+      <p className="opacity-70 leading-relaxed text-black dark:text-white">{idea.description}</p>
+
+      {canReview && onReview && (
+        <div className="flex gap-3 pt-4 border-t border-black/5 dark:border-white/5">
+          <button 
+            onClick={() => onReview(idea.id, true)}
+            className="flex-1 py-3 bg-green-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
+          >
+            <CheckCircle2 size={18} /> Approve
+          </button>
+          <button 
+            onClick={() => onReview(idea.id, false)}
+            className="flex-1 py-3 bg-red-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
+          >
+            <XCircle size={18} /> Reject
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

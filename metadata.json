@@ -1,0 +1,5 @@
+{
+  "name": "Eclipse",
+  "description": "An AI-powered schoolwork tutor and progress tracker for students from Year 1 to University.",
+  "requestFramePermissions": ["microphone"]
+}

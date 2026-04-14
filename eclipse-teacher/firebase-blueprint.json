@@ -1,0 +1,171 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user preferences and basic information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "theme": { "type": "string", "enum": ["light", "dark"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "streak": { "type": "number" },
+        "lastActive": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "theme", "xp", "level", "streak"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "A single message in a tutor conversation.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "ai"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["role", "content", "timestamp"]
+    },
+    "TestScore": {
+      "title": "Test Score",
+      "description": "Represents a single test score for a subject.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "subject": { "type": "string" },
+        "percentage": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" }
+      },
+      "required": ["uid", "subject", "percentage", "date"]
+    },
+    "StudyPaper": {
+      "title": "Study Paper",
+      "description": "Stores metadata for uploaded study papers.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "subject": { "type": "string" },
+        "fileName": { "type": "string" },
+        "paperUrl": { "type": "string", "format": "uri" },
+        "markSchemeUrl": { "type": "string", "format": "uri" },
+        "uploadedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "subject", "fileName", "uploadedAt"]
+    },
+    "Idea": {
+      "title": "Idea",
+      "description": "A proposal for application improvement.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorEmail": { "type": "string", "format": "email" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved_by_elder", "approved_by_champion", "approved_by_olympian", "approved_by_admin", "approved_by_supreme", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "currentReviewerRank": { "type": "string" }
+      },
+      "required": ["uid", "authorName", "authorEmail", "title", "description", "status", "createdAt", "currentReviewerRank"]
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "Records administrative actions for accountability.",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string" },
+        "adminEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "targetUid": { "type": "string" },
+        "targetEmail": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminUid", "adminEmail", "action", "timestamp"]
+    },
+    "StudyGroup": {
+      "title": "Study Group",
+      "description": "A collaborative group for students to study together.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "subject": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "isPrivate": { "type": "boolean" },
+        "inviteCode": { "type": "string" }
+      },
+      "required": ["name", "subject", "createdBy", "createdAt", "members", "isPrivate"]
+    },
+    "GroupMessage": {
+      "title": "Group Message",
+      "description": "A message sent within a study group.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["text", "progress_share", "file", "image", "audio"] }
+      },
+      "required": ["senderId", "senderName", "content", "timestamp", "type"]
+    },
+    "GroupAssignment": {
+      "title": "Group Assignment",
+      "description": "A shared task or assignment within a study group.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "sharedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "sharedBy", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document."
+    },
+    "/users/{userId}/scores/{scoreId}": {
+      "schema": "TestScore",
+      "description": "Individual test scores for a user."
+    },
+    "/users/{userId}/papers/{paperId}": {
+      "schema": "StudyPaper",
+      "description": "Uploaded study papers for a user."
+    },
+    "/users/{userId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Chat history for a user."
+    },
+    "/ideas/{ideaId}": {
+      "schema": "Idea",
+      "description": "Global collection of user ideas and proposals."
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "System-wide audit logs for administrative actions."
+    },
+    "/groups/{groupId}": {
+      "schema": "StudyGroup",
+      "description": "Study group document."
+    },
+    "/groups/{groupId}/messages/{messageId}": {
+      "schema": "GroupMessage",
+      "description": "Messages within a study group."
+    },
+    "/groups/{groupId}/assignments/{assignmentId}": {
+      "schema": "GroupAssignment",
+      "description": "Shared assignments within a study group."
+    }
+  }
+}
