@@ -4,19 +4,19 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, MessageSquare, BarChart2, CheckSquare, 
   Send, Plus, Trash2, ChevronLeft, MoreVertical, 
-  UserPlus, LogOut, Shield, Clock, Hash, Loader2,
+  UserPlus, LogOut, Shield, Clock, Hash, Loader2, Camera,
   Share2, FileText, Calendar, Image as ImageIcon, Mic, StopCircle, AtSign, Play, Pause,
   ArrowLeft, Info, ChevronRight, Lock, Globe, Check, X, User as UserIcon, Settings, UserMinus
 } from 'lucide-react';
-import { db, handleFirestoreError, OperationType, storage } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, storage, encryptData, decryptData } from '../lib/firebase';
 import { 
   doc, onSnapshot, collection, query, orderBy, 
   addDoc, serverTimestamp, deleteDoc, updateDoc, 
   arrayRemove, getDoc, limit, where, getDocs, arrayUnion
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { AuthContext } from '../App';
-import { SUBJECTS, GRADE_LEVELS } from '../lib/constants';
+import { AuthContext } from '../lib/contexts';
+import { SUBJECTS, GRADE_LEVELS, OWNER_EMAIL } from '../lib/constants';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format } from 'date-fns';
@@ -30,7 +30,7 @@ type Tab = 'chat' | 'progress' | 'assignments' | 'members';
 export default function GroupDetailPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
-  const { user, profile, isOwner } = useContext(AuthContext);
+  const { user, profile, isOwner, isAdmin } = useContext(AuthContext);
   const [group, setGroup] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -44,6 +44,27 @@ export default function GroupDetailPage() {
   
   // Media states
   const [isRecording, setIsRecording] = useState(false);
+  const [isProctoring, setIsProctoring] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (isProctoring) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          if (videoRef.current) videoRef.current.srcObject = stream;
+        })
+        .catch(err => {
+          console.error("Camera error:", err);
+          setIsProctoring(false);
+        });
+    } else {
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+    }
+  }, [isProctoring]);
   const [recordingTime, setRecordingTime] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -97,7 +118,7 @@ export default function GroupDetailPage() {
         })
       );
       setFriends(friendProfiles.filter(p => p !== null));
-    });
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'friendships'));
 
     return () => unsubFriends();
   }, [user]);
@@ -105,40 +126,89 @@ export default function GroupDetailPage() {
   useEffect(() => {
     if (!groupId || !user) return;
 
+    let unsubGroup: (() => void) | undefined;
     const groupRef = doc(db, 'groups', groupId);
-    const unsubGroup = onSnapshot(groupRef, (doc) => {
-      if (!doc.exists()) {
+    const isAdminPlus = profile?.email === OWNER_EMAIL || 
+                        profile?.rank === 'Owner' || 
+                        profile?.rank === 'Temporary Owner' || 
+                        profile?.rank === 'Admin';
+
+    if (groupId === 'admin_council') {
+      if (!isAdmin) {
         navigate('/groups');
         return;
       }
-      const data = doc.data();
-      if (!data.members.includes(user.uid) && !isOwner) {
-        navigate('/groups');
-        return;
-      }
-      setGroup({ id: doc.id, ...data });
-      setEditData({
-        name: data.name,
-        description: data.description,
-        subject: data.subject,
-        gradeLevel: data.gradeLevel,
-        isPrivate: data.isPrivate
+      setGroup({
+        id: 'admin_council',
+        name: 'Admin Council',
+        description: 'Private group for Admins and Owners to discuss system vision.',
+        subject: 'System',
+        gradeLevel: 'All',
+        isPrivate: true,
+        members: [user.uid], // Simplified for UI
+        createdBy: 'system'
       });
       setLoading(false);
-    }, (err) => handleFirestoreError(err, OperationType.GET, `groups/${groupId}`));
+    } else {
+      unsubGroup = onSnapshot(groupRef, (doc) => {
+        if (!doc.exists()) {
+          navigate('/groups');
+          return;
+        }
+        const data = doc.data();
+        if (!data.members.includes(user.uid) && !isAdmin) {
+          navigate('/groups');
+          return;
+        }
+        setGroup({ id: doc.id, ...data });
+        setEditData({
+          name: data.name,
+          description: data.description,
+          subject: data.subject,
+          gradeLevel: data.gradeLevel,
+          isPrivate: data.isPrivate
+        });
+        setLoading(false);
+      }, (err) => handleFirestoreError(err, OperationType.GET, `groups/${groupId}`));
+    }
 
-    const messagesQ = query(collection(db, 'groups', groupId, 'messages'), orderBy('timestamp', 'asc'), limit(100));
+    const messagesQ = query(collection(db, 'groups', groupId, 'messages'), orderBy('timestamp', 'desc'), limit(100));
     const unsubMessages = onSnapshot(messagesQ, (snapshot) => {
-      setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+      const loadedMessages = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let timestamp = data.timestamp;
+        
+        if (timestamp && typeof timestamp.toDate === 'function') {
+          timestamp = timestamp.toDate().toISOString();
+        } else if (!timestamp) {
+          timestamp = new Date().toISOString();
+        }
+
+        return {
+          id: doc.id,
+          ...data,
+          timestamp,
+          content: data.type === 'text' ? decryptData(data.content) : data.content
+        };
+      });
+      setMessages(loadedMessages.reverse());
+    }, (err) => handleFirestoreError(err, OperationType.GET, `groups/${groupId}/messages`));
 
     const assignmentsQ = query(collection(db, 'groups', groupId, 'assignments'), orderBy('createdAt', 'desc'));
     const unsubAssignments = onSnapshot(assignmentsQ, (snapshot) => {
-      setAssignments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+      setAssignments(snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          title: decryptData(data.title),
+          description: decryptData(data.description)
+        };
+      }));
+    }, (err) => handleFirestoreError(err, OperationType.GET, `groups/${groupId}/assignments`));
 
     return () => {
-      unsubGroup();
+      if (unsubGroup) unsubGroup();
       unsubMessages();
       unsubAssignments();
     };
@@ -158,8 +228,8 @@ export default function GroupDetailPage() {
       await addDoc(collection(db, 'groups', groupId, 'messages'), {
         senderId: user.uid,
         senderName: profile?.displayName || 'Anonymous',
-        content: newMessage.trim(),
-        timestamp: new Date().toISOString(),
+        content: encryptData(newMessage.trim()),
+        timestamp: serverTimestamp(),
         type: 'text'
       });
       setNewMessage('');
@@ -185,7 +255,7 @@ export default function GroupDetailPage() {
         senderName: profile?.displayName || 'Anonymous',
         content: 'Sent a photo',
         imageUrl: url,
-        timestamp: new Date().toISOString(),
+        timestamp: serverTimestamp(),
         type: 'image'
       });
     } catch (error) {
@@ -297,7 +367,9 @@ export default function GroupDetailPage() {
 
     try {
       await addDoc(collection(db, 'groups', groupId, 'assignments'), {
-        ...newAssignment,
+        title: encryptData(newAssignment.title),
+        description: encryptData(newAssignment.description),
+        dueDate: newAssignment.dueDate,
         sharedBy: user.uid,
         sharedByName: profile?.displayName || 'Anonymous',
         createdAt: new Date().toISOString()
@@ -364,17 +436,17 @@ export default function GroupDetailPage() {
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight">{group.name}</h1>
-              <span className="px-3 py-1 bg-black/5 dark:bg-white/5 rounded-full text-[10px] font-bold uppercase tracking-widest opacity-50">
+              <h1 className="text-3xl font-bold tracking-tight text-black dark:text-white">{group.name}</h1>
+              <span className="px-3 py-1 bg-black/5 dark:bg-white/5 rounded-full text-[10px] font-bold uppercase tracking-widest text-black/50 dark:text-white/50">
                 {group.subject}
               </span>
             </div>
-            <p className="opacity-50 text-sm mt-1">{group.members.length} Members • {group.gradeLevel}</p>
+            <p className="text-black/50 dark:text-white/50 text-sm mt-1">{group.members.length} Members • {group.gradeLevel}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {(isOwner || group.createdBy === user?.uid) && (
+          {isAdmin && (
             <button 
               onClick={() => setIsEditing(true)}
               className="flex items-center gap-2 px-6 py-3 bg-black/5 dark:bg-white/5 rounded-2xl font-bold text-sm hover:bg-black/10 dark:hover:bg-white/10 transition-all"
@@ -383,6 +455,16 @@ export default function GroupDetailPage() {
               Edit
             </button>
           )}
+          <button 
+            onClick={() => setIsProctoring(!isProctoring)}
+            className={cn(
+              "flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all",
+              isProctoring ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10"
+            )}
+          >
+            <Camera size={18} />
+            {isProctoring ? 'Stop Camera' : 'Test Camera'}
+          </button>
           <button 
             onClick={() => setShowInvite(true)}
             className="flex items-center gap-2 px-6 py-3 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-bold text-sm hover:scale-105 transition-transform shadow-lg"
@@ -401,25 +483,50 @@ export default function GroupDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 p-1 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 w-fit">
-        {[
-          { id: 'chat', icon: MessageSquare, label: 'Chat' },
-          { id: 'progress', icon: BarChart2, label: 'Progress' },
-          { id: 'assignments', icon: CheckSquare, label: 'Assignments' },
-          { id: 'members', icon: Users, label: 'Members' }
-        ].map(tab => (
-          <button 
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as Tab)}
-            className={cn(
-              "flex items-center gap-2 px-6 py-2 rounded-xl font-bold text-sm transition-all",
-              activeTab === tab.id ? "bg-black text-white dark:bg-white dark:text-black shadow-lg" : "opacity-50 hover:opacity-100"
-            )}
-          >
-            <tab.icon size={16} />
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-2 p-1 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 w-fit">
+          {[
+            { id: 'chat', icon: MessageSquare, label: 'Chat' },
+            { id: 'progress', icon: BarChart2, label: 'Progress' },
+            { id: 'assignments', icon: CheckSquare, label: 'Assignments' },
+            { id: 'members', icon: Users, label: 'Members' }
+          ].map(tab => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as Tab)}
+              className={cn(
+                "flex items-center gap-2 px-6 py-2 rounded-xl font-bold text-sm transition-all",
+                activeTab === tab.id ? "bg-black text-white dark:bg-white dark:text-black shadow-lg" : "opacity-50 hover:opacity-100"
+              )}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <AnimatePresence>
+          {isProctoring && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="relative w-48 h-32 bg-black rounded-2xl overflow-hidden border-2 border-red-500 shadow-2xl shadow-red-500/20"
+            >
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className="w-full h-full object-cover mirror"
+              />
+              <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[8px] font-bold text-white uppercase tracking-widest">Live Monitoring</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Content Area */}
@@ -648,8 +755,9 @@ export default function GroupDetailPage() {
                   key={memberId} 
                   userId={memberId} 
                   isCreator={memberId === group.createdBy} 
-                  canKick={(isOwner || group.createdBy === user?.uid) && memberId !== group.createdBy}
+                  canKick={isAdmin && memberId !== group.createdBy}
                   onKick={() => kickMember(memberId)}
+                  hideAvatar={group.id === 'admin_council'}
                 />
               ))}
             </div>
@@ -885,30 +993,34 @@ export default function GroupDetailPage() {
   );
 }
 
-function MemberCard({ userId, isCreator, canKick, onKick }: { userId: string, isCreator: boolean, canKick?: boolean, onKick?: () => void }) {
+function MemberCard({ userId, isCreator, canKick, onKick, hideAvatar }: { userId: string, isCreator: boolean, canKick?: boolean, onKick?: () => void, hideAvatar?: boolean }) {
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     getDoc(doc(db, 'users', userId)).then(snap => {
       if (snap.exists()) setProfile(snap.data());
-    });
+    }).catch(err => handleFirestoreError(err, OperationType.GET, `users/${userId}`));
   }, [userId]);
 
   if (!profile) return <div className="p-4 bg-black/5 dark:bg-white/5 rounded-2xl animate-pulse h-16" />;
 
   return (
     <div className="flex items-center gap-4 p-4 bg-white dark:bg-black rounded-2xl border border-black/5 dark:border-white/5 group">
-      <img 
-        src={profile.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`} 
-        alt="Avatar" 
-        className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5"
-      />
+      {!hideAvatar && (
+        <img 
+          src={profile.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`} 
+          alt="Avatar" 
+          className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5"
+        />
+      )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="font-bold text-sm truncate">{profile.displayName || 'Anonymous'}</p>
+          <p className="font-bold text-sm truncate text-black dark:text-white">{profile.displayName || 'Anonymous'}</p>
           {isCreator && <Shield size={12} className="text-orange-500" />}
         </div>
-        <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 dark:opacity-40">Level {profile.level || 1} • {profile.rank || 'Welcome'}</p>
+        {!hideAvatar && (
+          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40">Level {profile.level || 1} • {profile.rank || 'Welcome'}</p>
+        )}
       </div>
       {canKick && (
         <button 

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Lightbulb, Send, CheckCircle2, XCircle, ChevronRight, User as UserIcon, Shield, Award, Star, FileText, Save } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, query, onSnapshot, orderBy, doc, updateDoc, where, getDoc, setDoc } from 'firebase/firestore';
-import { AuthContext } from '../../../src/App';
+import { AuthContext } from '../../../src/lib/contexts';
 import { OWNER_EMAIL, RANKS } from '../constants';
 import { Link } from 'react-router-dom';
 

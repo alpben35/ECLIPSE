@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'motion/react';
-import { Search, Trash2, Shield, User as UserIcon, Loader2, ArrowUp, ArrowDown, Ban, UserPlus, UserMinus, Bug, Settings, Sparkles, X } from 'lucide-react';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { Search, Trash2, Shield, User as UserIcon, Loader2, ArrowUp, ArrowDown, Ban, UserPlus, UserMinus, Bug, Settings, Sparkles, X, Mail, CheckCircle } from 'lucide-react';
+import { db, handleFirestoreError, OperationType, decryptData, encryptData } from '../lib/firebase';
 import { collection, query, onSnapshot, doc, deleteDoc, where, updateDoc, addDoc, orderBy, limit, setDoc, getDoc } from 'firebase/firestore';
-import { AuthContext } from '../App';
+import { AuthContext } from '../lib/contexts';
 import { OWNER_EMAIL, RANKS } from '../constants';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -22,6 +22,7 @@ interface UserProfile {
   rank?: string;
   banned?: boolean;
   createdAt: string;
+  emailVerified?: boolean;
 }
 
 interface AuditLog {
@@ -53,7 +54,9 @@ export default function AdminPage() {
   const [maintenance, setMaintenance] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'bugs'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'bugs' | 'settings'>('users');
+  const [bankAccount, setBankAccount] = useState('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
   const [summary, setSummary] = useState('');
 
@@ -72,19 +75,27 @@ export default function AdminPage() {
 
     const logsQ = query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(50));
     const unsubscribeLogs = onSnapshot(logsQ, (snapshot) => {
-      const loadedLogs = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as AuditLog[];
+      const loadedLogs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          details: decryptData(data.details),
+          id: doc.id
+        } as AuditLog;
+      });
       setLogs(loadedLogs);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'audit_logs'));
 
     const bugsQ = query(collection(db, 'bugs'), orderBy('createdAt', 'desc'));
     const unsubscribeBugs = onSnapshot(bugsQ, (snapshot) => {
-      const loadedBugs = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as BugReport[];
+      const loadedBugs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          description: decryptData(data.description),
+          id: doc.id
+        } as BugReport;
+      });
       setBugs(loadedBugs);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'bugs'));
 
@@ -92,15 +103,35 @@ export default function AdminPage() {
       if (doc.exists()) {
         setMaintenance(doc.data().active || false);
       }
-    });
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'system/maintenance'));
+
+    const unsubscribeSettings = onSnapshot(doc(db, 'system', 'settings'), (doc) => {
+      if (doc.exists()) {
+        setBankAccount(doc.data().bankAccount || '');
+      }
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'system/settings'));
 
     return () => {
       unsubscribeUsers();
       unsubscribeLogs();
       unsubscribeBugs();
       unsubscribeMaintenance();
+      unsubscribeSettings();
     };
   }, [currentUser]);
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      await setDoc(doc(db, 'system', 'settings'), { bankAccount }, { merge: true });
+      alert('Settings saved successfully!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Failed to save settings.');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const addAuditLog = async (action: string, targetUid: string, targetEmail: string, details: string) => {
     try {
@@ -110,7 +141,7 @@ export default function AdminPage() {
         action,
         targetUid,
         targetEmail,
-        details,
+        details: encryptData(details),
         timestamp: new Date().toISOString()
       });
     } catch (error) {
@@ -167,7 +198,10 @@ export default function AdminPage() {
     if (!isOwner && !isTempOwner) return;
 
     const currentIndex = RANKS.findIndex(r => r.name === currentRank);
-    let nextIndex = direction === 'up' ? currentIndex + 1 : currentIndex - 1;
+    let fallbackIndex = currentRank === 'Welcome' ? 0 : -1;
+    let indexToUse = currentIndex === -1 ? fallbackIndex : currentIndex;
+    
+    let nextIndex = direction === 'up' ? indexToUse + 1 : indexToUse - 1;
 
     // Boundary checks
     if (nextIndex < 0 || nextIndex >= RANKS.length) return;
@@ -180,7 +214,16 @@ export default function AdminPage() {
 
     try {
       const newRank = RANKS[nextIndex].name;
-      await updateDoc(doc(db, 'users', userId), { rank: newRank });
+      const updates: any = { rank: newRank };
+      
+      // If promoting to Admin or Owner, also update the tier
+      if (newRank === 'Admin' || newRank === 'Owner' || newRank === 'Temporary Owner') {
+        updates.tier = 'admin';
+      } else if (newRank === 'Free') {
+        updates.tier = 'free';
+      }
+
+      await updateDoc(doc(db, 'users', userId), updates);
       await updateDoc(doc(db, 'public_profiles', userId), { rank: newRank });
       await addAuditLog('RANK_CHANGE', userId, userEmail, `Rank changed from ${currentRank} to ${newRank}.`);
       
@@ -220,7 +263,7 @@ export default function AdminPage() {
     }
 
     const isTemp = currentRank === 'Temporary Owner';
-    const newRank = isTemp ? 'Welcome' : 'Temporary Owner';
+    const newRank = isTemp ? 'Free' : 'Temporary Owner';
     try {
       await updateDoc(doc(db, 'users', userId), { 
         rank: newRank 
@@ -231,9 +274,31 @@ export default function AdminPage() {
     }
   };
 
+  const handleToggleEmailVerification = async (userId: string, userEmail: string, currentStatus: boolean) => {
+    try {
+      const newStatus = !currentStatus;
+      await updateDoc(doc(db, 'users', userId), { emailVerified: newStatus });
+      await addAuditLog('EMAIL_VERIFY_TOGGLE', userId, userEmail, `Email verification forced to ${newStatus}.`);
+      
+      if (newStatus) {
+        await sendEmail(userEmail, "Your email has been verified!", "Hello,\n\nYour email address has been manually verified by an administrator on Eclipse AI.\n\nBest regards,\nThe Eclipse Team");
+      }
+      alert(`Email for ${userEmail} is now ${newStatus ? 'Verified' : 'Unverified'}.`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+    }
+  };
+
   const handleToggleMaintenance = async () => {
-    const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
-    if (!isOwner) return;
+    const isAdmin = profile?.email === OWNER_EMAIL || 
+                    profile?.rank === 'Owner' || 
+                    profile?.rank === 'Temporary Owner' || 
+                    profile?.rank === 'Admin';
+
+    if (!isAdmin) {
+      alert("Access Denied: Only admins can toggle maintenance mode.");
+      return;
+    }
 
     const action = maintenance ? 'disable' : 'enable';
     if (!window.confirm(`Are you sure you want to ${action} maintenance mode? This will restrict access for all non-admin users.`)) {
@@ -248,8 +313,18 @@ export default function AdminPage() {
         updatedAt: new Date().toISOString()
       }, { merge: true });
       await addAuditLog('MAINTENANCE_TOGGLE', 'system', 'system', `Maintenance mode ${newStatus ? 'enabled' : 'disabled'}.`);
+      alert(`Maintenance mode successfully ${newStatus ? 'enabled' : 'disabled'}.`);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'system/maintenance');
+    }
+  };
+
+  const handleCompleteBug = async (bugId: string) => {
+    try {
+      await updateDoc(doc(db, 'bugs', bugId), { status: 'completed' });
+      alert("Bug marked as completed.");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `bugs/${bugId}`);
     }
   };
 
@@ -273,16 +348,18 @@ export default function AdminPage() {
     u.displayName?.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading) {
+  const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
+  const isTempOwner = profile?.rank === 'Temporary Owner';
+
+  if (!isOwner && !isTempOwner) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="animate-spin opacity-20" size={48} />
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
+        <Shield className="text-red-500 opacity-20" size={64} />
+        <h2 className="text-2xl font-bold">Access Denied</h2>
+        <p className="opacity-50">Only the system owners can access the Admin Console.</p>
       </div>
     );
   }
-
-  const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
-  const isTempOwner = profile?.rank === 'Temporary Owner';
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 space-y-8">
@@ -348,6 +425,17 @@ export default function AdminPage() {
                 Bugs
               </button>
             )}
+            {(isOwner || isTempOwner) && (
+              <button 
+                onClick={() => setActiveTab('settings')}
+                className={cn(
+                  "px-6 py-2 rounded-xl font-bold text-sm transition-all whitespace-nowrap",
+                  activeTab === 'settings' ? "bg-black text-white dark:bg-white dark:text-black" : "opacity-50 hover:opacity-100"
+                )}
+              >
+                Settings
+              </button>
+            )}
           </div>
 
           {activeTab === 'users' && (
@@ -391,8 +479,14 @@ export default function AdminPage() {
                       "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
                       user.banned ? "bg-red-500 text-white" : "bg-black/10 dark:bg-white/10 opacity-50"
                     )}>
-                      {user.rank || 'Welcome'} {user.banned && '• BANNED'}
+                      {user.rank || 'Free'} {user.banned && '• BANNED'}
                     </span>
+                    {user.emailVerified && (
+                      <span className="text-[10px] text-green-500 flex items-center gap-0.5">
+                        <CheckCircle size={10} />
+                        Verified
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm opacity-50">{user.email}</p>
                 </div>
@@ -402,14 +496,14 @@ export default function AdminPage() {
                 {user.email !== OWNER_EMAIL && (
                   <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
                     <button 
-                      onClick={() => handleUpdateRank(user.uid, user.email, user.rank || 'Welcome', 'down')}
+                      onClick={() => handleUpdateRank(user.uid, user.email, user.rank || 'Free', 'down')}
                       className="p-2 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors"
                       title="Demote"
                     >
                       <ArrowDown size={14} />
                     </button>
                     <button 
-                      onClick={() => handleUpdateRank(user.uid, user.email, user.rank || 'Welcome', 'up')}
+                      onClick={() => handleUpdateRank(user.uid, user.email, user.rank || 'Free', 'up')}
                       className="p-2 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors"
                       title="Promote"
                     >
@@ -425,9 +519,9 @@ export default function AdminPage() {
                     >
                       <Ban size={14} />
                     </button>
-                    {(profile?.email === OWNER_EMAIL || profile?.rank === 'Owner') && (
+                    {(profile?.email === OWNER_EMAIL || profile?.rank === 'Owner' || currentUser?.email === OWNER_EMAIL) && (
                       <button 
-                        onClick={() => handleToggleTempOwner(user.uid, user.email, user.rank || 'Welcome')}
+                        onClick={() => handleToggleTempOwner(user.uid, user.email, user.rank || 'Free')}
                         className={cn(
                           "p-2 rounded-lg transition-colors",
                           user.rank === 'Temporary Owner' ? "bg-blue-500 text-white" : "hover:bg-black/10 dark:hover:bg-white/10"
@@ -437,6 +531,16 @@ export default function AdminPage() {
                         {user.rank === 'Temporary Owner' ? <UserMinus size={14} /> : <UserPlus size={14} />}
                       </button>
                     )}
+                    <button 
+                      onClick={() => handleToggleEmailVerification(user.uid, user.email, !!user.emailVerified)}
+                      className={cn(
+                        "p-2 rounded-lg transition-colors",
+                        user.emailVerified ? "text-green-500" : "opacity-30 hover:opacity-100"
+                      )}
+                      title={user.emailVerified ? "Unverify Email" : "Enable Email (Verify)"}
+                    >
+                      {user.emailVerified ? <CheckCircle size={14} /> : <Mail size={14} />}
+                    </button>
                   </div>
                 )}
 
@@ -484,7 +588,7 @@ export default function AdminPage() {
           ))}
           {logs.length === 0 && <div className="text-center py-20 opacity-30">No logs found.</div>}
         </div>
-      ) : (
+      ) : activeTab === 'bugs' ? (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">Bug Reports ({bugs.length})</h2>
@@ -523,23 +627,90 @@ export default function AdminPage() {
 
           <div className="grid grid-cols-1 gap-4">
             {bugs.map((bug) => (
-              <div key={bug.id} className="p-6 bg-black/5 dark:bg-white/5 rounded-3xl border border-black/5 dark:border-white/5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-black/10 dark:bg-white/10 rounded-xl">
-                      <Bug size={18} />
+              <div key={bug.id} className={cn(
+                "p-6 rounded-3xl border flex items-center justify-between gap-4 transition-all",
+                bug.status === 'completed' ? "bg-green-500/5 border-green-500/10 opacity-60" : "bg-black/5 dark:bg-white/5 border-black/5 dark:border-white/5"
+              )}>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "p-2 rounded-xl",
+                        bug.status === 'completed' ? "bg-green-500/20 text-green-500" : "bg-black/10 dark:bg-white/10"
+                      )}>
+                        <Bug size={18} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm uppercase tracking-tight flex items-center gap-2 text-black dark:text-white">
+                          {bug.type}
+                          {bug.status === 'completed' && <span className="text-[8px] bg-green-500 text-white px-1.5 py-0.5 rounded-full">FIXED</span>}
+                        </p>
+                        <p className="text-[10px] opacity-50 text-black dark:text-white">{format(new Date(bug.createdAt), 'MMM d, yyyy HH:mm')}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-sm uppercase tracking-tight">{bug.type}</p>
-                      <p className="text-[10px] opacity-50">{format(new Date(bug.createdAt), 'MMM d, yyyy HH:mm')}</p>
-                    </div>
+                    <span className="text-xs font-medium opacity-50 text-black dark:text-white">{bug.email}</span>
                   </div>
-                  <span className="text-xs font-medium opacity-50">{bug.email}</span>
+                  <p className="text-sm opacity-80 leading-relaxed text-black dark:text-white">{decryptData(bug.description)}</p>
                 </div>
-                <p className="text-sm opacity-80 leading-relaxed">{bug.description}</p>
+                {bug.status !== 'completed' && (
+                  <button 
+                    onClick={() => handleCompleteBug(bug.id)}
+                    className="px-4 py-2 bg-green-500 text-white rounded-xl text-xs font-bold hover:scale-105 transition-all whitespace-nowrap shadow-lg shadow-green-500/20"
+                  >
+                    Completed
+                  </button>
+                )}
               </div>
             ))}
             {bugs.length === 0 && <div className="text-center py-20 opacity-30">No bug reports found.</div>}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          <div className="p-8 bg-black/5 dark:bg-white/5 rounded-[2rem] border border-black/10 dark:border-white/10">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <Settings size={20} />
+              System Settings
+            </h3>
+            
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-black/5 dark:border-white/5">
+                <div>
+                  <p className="font-bold">Maintenance Mode</p>
+                  <p className="text-sm opacity-50">Restrict access to the platform for maintenance.</p>
+                </div>
+                <button 
+                  onClick={handleToggleMaintenance}
+                  className={cn(
+                    "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+                    maintenance ? "bg-red-500 text-white" : "bg-green-500 text-white"
+                  )}
+                >
+                  {maintenance ? 'Disable' : 'Enable'}
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold opacity-50 ml-1">Owner Bank Account (Stripe ID)</label>
+                <div className="flex gap-4">
+                  <input 
+                    type="text"
+                    value={bankAccount}
+                    onChange={(e) => setBankAccount(e.target.value)}
+                    placeholder="acct_..."
+                    className="flex-1 px-6 py-4 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                  />
+                  <button 
+                    onClick={handleSaveSettings}
+                    disabled={isSavingSettings}
+                    className="px-8 py-4 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-bold hover:scale-105 transition-all disabled:opacity-50"
+                  >
+                    {isSavingSettings ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+                <p className="text-[10px] opacity-40 ml-1">Enter your Stripe account ID to receive platform payouts.</p>
+              </div>
+            </div>
           </div>
         </div>
       )}

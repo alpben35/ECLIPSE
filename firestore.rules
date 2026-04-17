@@ -9,93 +9,62 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    function isPrimaryOwner() {
+      return isAuthenticated() && 
+             (request.auth.token.email == 'alp.ben@gmail.com' || request.auth.uid == 'GTk39aFMkFTSARasXr2F4XgdtMM2');
+    }
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-    
-    // Check if the user is an admin (Owner or Temporary Owner)
     function isAdmin() {
-      return isAuthenticated() &&
-        (request.auth.token.email == "alp.ben@gmail.com" || 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('rank', 'Welcome') in ['Owner', 'Temporary Owner']);
-    }
-
-    function isRecent(timeStr) {
-      return timestamp(timeStr) > request.time - duration.value(5, 'm') &&
-             timestamp(timeStr) < request.time + duration.value(5, 'm');
-    }
-
-    function isValidUserProfile(data, userId) {
-      return data.get('uid', userId) == userId &&
-             (data.get('email', '') == '' || (data.email is string && isValidEmail(data.email))) &&
-             data.get('theme', 'light') in ['light', 'dark'] &&
-             (data.get('displayName', null) == null || data.displayName is string) &&
-             data.get('xp', 0) is number && data.get('xp', 0) >= 0 &&
-             data.get('level', 1) is number && data.get('level', 1) >= 1 &&
-             data.get('streak', 0) is number && data.get('streak', 0) >= 0 &&
-             (data.get('rank', 'Welcome') is string) &&
-             (data.get('banned', false) is bool);
-    }
-
-    function isValidTestScore(data) {
-      return data.uid == request.auth.uid &&
-             data.subject is string && data.subject.size() > 0 &&
-             data.percentage is number && data.percentage >= 0 && data.percentage <= 100 &&
-             data.date is string;
-    }
-
-    function isValidStudyPaper(data) {
-      return data.uid == request.auth.uid &&
-             data.subject is string &&
-             data.fileName is string &&
-             data.uploadedAt is string;
-    }
-
-    function isValidIdea(data) {
-      return data.uid == request.auth.uid &&
-             data.authorName is string &&
-             data.authorEmail == request.auth.token.email &&
-             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
-             data.description is string && data.description.size() > 0 && data.description.size() < 2000 &&
-             data.status in ['pending', 'approved_by_elder', 'approved_by_champion', 'approved_by_olympian', 'approved_by_admin', 'approved_by_supreme', 'rejected'] &&
-             data.createdAt is string &&
-             data.currentReviewerRank is string;
-    }
-
-    function getUserRank() {
-      return request.auth.token.email == "alp.ben@gmail.com" ? "Owner" : 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('rank', 'Welcome');
-    }
-
-    function isGroupMember(groupId) {
-      return isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members || isAdmin());
-    }
-
-    function isValidGroup(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.subject is string &&
-             data.createdBy == request.auth.uid &&
-             data.members is list && data.members.size() > 0 &&
-             data.members[0] == request.auth.uid &&
-             data.isPrivate is bool &&
-             data.createdAt is string;
+      return isAuthenticated() && 
+             (isPrimaryOwner() || 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'admin');
     }
 
     // ===============================================================
     // Rules
     // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
+      
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      }
+      
+      match /scores/{scoreId} {
+        allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      }
+      
+      match /papers/{paperId} {
+        allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      }
+    }
+
+    match /friendships/{friendshipId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /friend_requests/{requestId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    match /public_profiles/{userId} {
+      allow read: if true;
+      allow write: if isOwner(userId) || isAdmin();
+    }
 
     match /system/{docId} {
       allow read: if true;
@@ -108,131 +77,37 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    match /sent_emails/{emailId} {
-      allow read, create: if isAdmin();
-    }
-
-    match /friend_requests/{requestId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.from || request.auth.uid == resource.data.to);
-      allow create: if isAuthenticated() && request.resource.data.from == request.auth.uid;
-      allow update: if isAuthenticated() && request.auth.uid == resource.data.to && 
-                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
-                    request.resource.data.status in ['accepted', 'rejected'];
-      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.from || request.auth.uid == resource.data.to);
-    }
-
-    match /friendships/{friendshipId} {
-      allow read: if isAuthenticated() && request.auth.uid in resource.data.users;
-      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.users;
-      allow delete: if isAuthenticated() && request.auth.uid in resource.data.users;
-    }
-
-    match /audit_logs/{logId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin() && 
-                    request.resource.data.adminUid == request.auth.uid &&
-                    request.resource.data.adminEmail == request.auth.token.email &&
-                    request.resource.data.timestamp is string;
+    match /ideas/{ideaId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
     }
 
     match /groups/{groupId} {
-      allow read: if isAuthenticated() && (!resource.data.isPrivate || request.auth.uid in resource.data.members);
-      allow create: if isAuthenticated() && isValidGroup(request.resource.data);
-      allow update: if isAuthenticated() && (
-        // Only creator or admin can update group settings
-        (request.auth.uid == resource.data.createdBy || isAdmin()) ||
-        // Allow users to join themselves
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) && 
-         request.resource.data.members.size() == resource.data.members.size() + 1 &&
-         request.auth.uid in request.resource.data.members)
-      );
-      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.createdBy || isAdmin());
-
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+      
       match /messages/{messageId} {
-        allow read: if isGroupMember(groupId);
-        allow create: if isGroupMember(groupId) && 
-                      request.resource.data.senderId == request.auth.uid &&
-                      request.resource.data.timestamp is string &&
-                      request.resource.data.type in ['text', 'progress_share', 'file', 'image', 'audio'];
-        allow delete: if isGroupMember(groupId) && (resource.data.senderId == request.auth.uid || isAdmin());
+        allow read, write: if isAuthenticated();
       }
-
+      
       match /assignments/{assignmentId} {
-        allow read: if isGroupMember(groupId);
-        allow create: if isGroupMember(groupId) && 
-                      request.resource.data.sharedBy == request.auth.uid &&
-                      request.resource.data.createdAt is string;
-        allow update, delete: if isGroupMember(groupId) && (resource.data.sharedBy == request.auth.uid || isAdmin());
+        allow read, write: if isAuthenticated();
       }
     }
 
-    match /ideas/{ideaId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidIdea(request.resource.data) && request.resource.data.status == 'pending';
-      allow update: if isAuthenticated() && (
-        // Reviewers can update status and next reviewer
-        (getUserRank() == resource.data.currentReviewerRank || getUserRank() == 'Owner' || getUserRank() == 'Temporary Owner') &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'currentReviewerRank'])
-      );
+    match /notifications/{notifId} {
+      allow read, write: if isAuthenticated();
     }
 
-    match /public_profiles/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isOwner(userId) || isAdmin();
+    match /sent_emails/{emailId} {
+      allow read, write: if isAdmin();
     }
 
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data, userId);
-      allow update: if (isOwner(userId) || isAdmin()) && 
-                    isValidUserProfile(request.resource.data, userId) && 
-                    request.resource.data.get('uid', userId) == userId &&
-                    (isOwner(userId) ? (
-                      // Owners cannot change their own rank or ban status
-                      request.resource.data.get('rank', resource.data.get('rank', 'Welcome')) == resource.data.get('rank', 'Welcome') &&
-                      request.resource.data.get('banned', resource.data.get('banned', false)) == resource.data.get('banned', false)
-                    ) : (
-                      // Admin (Owner or Temp Owner) updating someone else
-                      // 1. Cannot affect the primary owner
-                      resource.data.email != "alp.ben@gmail.com" &&
-                      // 2. Temp Owners cannot assign Owner or Temp Owner ranks
-                      (getUserRank() == 'Temporary Owner' ? (
-                        !(request.resource.data.get('rank', 'Welcome') in ['Owner', 'Temporary Owner']) &&
-                        resource.data.get('rank', 'Welcome') != 'Owner' &&
-                        resource.data.get('rank', 'Welcome') != 'Temporary Owner'
-                      ) : true)
-                    ));
-
-      allow delete: if isAdmin() && resource.data.email != "alp.ben@gmail.com";
-
-      match /private/notepad {
-        allow read, write: if isAuthenticated() && (request.auth.token.email == "alp.ben@gmail.com" || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rank == 'Owner');
-      }
-
-      match /scores/{scoreId} {
-        allow read: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && isValidTestScore(request.resource.data);
-        allow update: if isOwner(userId) && isValidTestScore(request.resource.data) &&
-                      request.resource.data.uid == resource.data.uid;
-        allow delete: if isOwner(userId) || isAdmin();
-      }
-
-      match /papers/{paperId} {
-        allow read: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && isValidStudyPaper(request.resource.data);
-        allow update: if isOwner(userId) && isValidStudyPaper(request.resource.data) &&
-                      request.resource.data.uid == resource.data.uid;
-        allow delete: if isOwner(userId) || isAdmin();
-      }
-
-      match /messages/{messageId} {
-        allow read: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && 
-                      request.resource.data.role in ['user', 'ai'] &&
-                      request.resource.data.content is string &&
-                      request.resource.data.timestamp is string;
-        allow delete: if isOwner(userId) || isAdmin();
-      }
+    match /posts/{postId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
   }
 }

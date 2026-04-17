@@ -4,16 +4,21 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
-import { Plus, Upload, FileText, Trash2, TrendingUp, Award, Clock, Loader2, Folder } from 'lucide-react';
-import { db, auth, storage, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, addDoc, query, onSnapshot, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { 
+  Plus, Upload, FileText, Trash2, TrendingUp, Award, 
+  Clock, Loader2, Folder, Shield, Lock, Eye, EyeOff, BrainCircuit, X, CheckCircle2, AlertTriangle, Sparkles
+} from 'lucide-react';
+import { db, auth, storage, handleFirestoreError, OperationType, encryptData, decryptData } from '../lib/firebase';
+import { collection, addDoc, query, onSnapshot, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { SUBJECTS } from '../lib/constants';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { AuthContext } from '../App';
+import { AuthContext } from '../lib/contexts';
 import confetti from 'canvas-confetti';
+import { analyzeStudyPaper, PaperDiagnostic } from '../lib/gemini';
 
 // --- Utils ---
 function cn(...inputs: ClassValue[]) {
@@ -35,6 +40,13 @@ export default function ProgressPage() {
   const [uploadSubject, setUploadSubject] = useState(SUBJECTS[0].name);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterSubject, setFilterSubject] = useState<string>('All');
+  
+  // AI Diagnostics State
+  const [analyzingPaperId, setAnalyzingPaperId] = useState<string | null>(null);
+  const [diagnostic, setDiagnostic] = useState<PaperDiagnostic | null>(null);
+  const [isDiagnosticModalOpen, setIsDiagnosticModalOpen] = useState(false);
+  const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const openAddScore = (subjectName?: string) => {
@@ -59,11 +71,25 @@ export default function ProgressPage() {
     );
 
     const unsubScores = onSnapshot(scoresQuery, (snap) => {
-      setScores(snap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      setScores(snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          percentage: Number(decryptData(data.percentage)),
+          id: doc.id
+        };
+      }));
     }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}/scores`));
 
     const unsubPapers = onSnapshot(papersQuery, (snap) => {
-      setPapers(snap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      setPapers(snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          fileName: decryptData(data.fileName),
+          id: doc.id
+        };
+      }));
     }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}/papers`));
 
     return () => {
@@ -83,7 +109,7 @@ export default function ProgressPage() {
       await addDoc(collection(db, 'users', user.uid, 'scores'), {
         uid: user.uid,
         subject: newScore.subject,
-        percentage: scorePercentage,
+        percentage: encryptData(String(scorePercentage)),
         date: testDate
       });
 
@@ -134,7 +160,7 @@ export default function ProgressPage() {
       await addDoc(collection(db, 'users', user.uid, 'papers'), {
         uid: user.uid,
         subject: uploadSubject,
-        fileName: file.name,
+        fileName: encryptData(file.name),
         paperUrl: downloadURL,
         storagePath: storageRef.fullPath,
         uploadedAt: new Date().toISOString()
@@ -158,6 +184,49 @@ export default function ProgressPage() {
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/papers/${paper.id}`);
     }
+  };
+
+  const handleAnalyzePaper = async (paper: any) => {
+    if (!user) return;
+    setAnalyzingPaperId(paper.id);
+    setDiagnosticError(null);
+    setDiagnostic(null);
+
+    try {
+      // 1. Check/Increment Prompt Limit via Server
+      const idToken = await user.getIdToken();
+      const limitRes = await fetch('/api/increment-prompts', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${idToken}` }
+      });
+      
+      const limitData = await limitRes.json();
+      if (!limitRes.ok) {
+        throw new Error(limitData.message || limitData.error || 'Daily AI limit reached.');
+      }
+
+      // 2. Perform Analysis
+      const result = await analyzeStudyPaper(paper.paperUrl, paper.subject);
+      
+      // 3. Save Diagnostic to Firestore so it's persisted
+      await updateDoc(doc(db, 'users', user.uid, 'papers', paper.id), {
+        diagnostic: result
+      });
+
+      setDiagnostic(result);
+      setIsDiagnosticModalOpen(true);
+    } catch (error: any) {
+      console.error("AI Diagnostic Error:", error);
+      setDiagnosticError(error.message || 'An error occurred during analysis.');
+      setIsDiagnosticModalOpen(true);
+    } finally {
+      setAnalyzingPaperId(null);
+    }
+  };
+
+  const openDiagnostic = (paper: any) => {
+    setDiagnostic(paper.diagnostic);
+    setIsDiagnosticModalOpen(true);
   };
 
   const latestScoresPerSubject = SUBJECTS.map(s => {
@@ -203,6 +272,45 @@ export default function ProgressPage() {
         ? Number(filteredScores[filteredScores.length - 1].percentage) 
         : 0);
 
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (password !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+    if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    setPasswordError('');
+    setPasswordSuccess(false);
+
+    try {
+      await updatePassword(user, password);
+      setPasswordSuccess(true);
+      setPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      if (error.code === 'auth/requires-recent-login') {
+        setPasswordError('Please sign out and sign back in to change your password for security.');
+      } else {
+        setPasswordError(error.message);
+      }
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 space-y-12">
       {/* Header & Filter */}
@@ -233,10 +341,7 @@ export default function ProgressPage() {
       </div>
 
       {/* Stats Overview */}
-      <div className={cn(
-        "grid gap-6",
-        filterSubject === 'All' ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 md:grid-cols-3"
-      )}>
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
         <div className="p-8 bg-black/5 dark:bg-white/5 rounded-3xl">
           <TrendingUp className="mb-4 opacity-50" />
           <h3 className="text-3xl font-bold">{filteredScores.length}</h3>
@@ -333,8 +438,7 @@ export default function ProgressPage() {
           viewMode === 'grid' ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-6" : "grid-cols-1"
         )}>
           {SUBJECTS.filter(s => {
-            const hasData = scores.some(score => score.subject === s.name) || papers.some(paper => paper.subject === s.name);
-            return (filterSubject === 'All' || s.name === filterSubject) && hasData;
+            return (filterSubject === 'All' || s.name === filterSubject);
           }).map(s => {
             const subjectScores = scores.filter(score => score.subject === s.name);
             const avg = subjectScores.length > 0 
@@ -429,13 +533,45 @@ export default function ProgressPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {paper.diagnostic ? (
+                    <button 
+                      onClick={() => openDiagnostic(paper)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 text-green-500 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-green-500/20 transition-all border border-green-500/20"
+                    >
+                      <Sparkles size={12} />
+                      View AI Result
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => handleAnalyzePaper(paper)}
+                      disabled={analyzingPaperId === paper.id}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border",
+                        analyzingPaperId === paper.id 
+                          ? "bg-black/5 dark:bg-white/5 opacity-50 border-black/10 dark:border-white/10" 
+                          : "bg-black text-white dark:bg-white dark:text-black hover:scale-105 border-transparent shadow-sm"
+                      )}
+                    >
+                      {analyzingPaperId === paper.id ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" />
+                          Analyzing
+                        </>
+                      ) : (
+                        <>
+                          <BrainCircuit size={12} />
+                          AI Diagnostic
+                        </>
+                      )}
+                    </button>
+                  )}
                   <a 
                     href={paper.paperUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
                   >
-                    <FileText size={18} />
+                    <Eye size={18} />
                   </a>
                   <button 
                     onClick={() => deletePaper(paper)}
@@ -474,6 +610,141 @@ export default function ProgressPage() {
           </div>
         </div>
       </div>
+
+      {/* AI Diagnostic Modal */}
+      <AnimatePresence>
+        {isDiagnosticModalOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDiagnosticModalOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-[3rem] p-8 md:p-12 shadow-2xl overflow-hidden"
+            >
+              {/* Decorative AI blobs */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px] -mr-32 -mt-32" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 blur-[80px] -ml-32 -mb-32" />
+
+              <div className="relative">
+                <div className="flex items-center justify-between mb-10">
+                  <div className="flex items-center gap-4">
+                    <div className="p-4 bg-black dark:bg-white rounded-3xl shadow-xl">
+                      <BrainCircuit className="text-white dark:text-black" size={32} />
+                    </div>
+                    <div>
+                      <h3 className="text-3xl font-black italic tracking-tighter uppercase leading-none">AI Diagnostic</h3>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mt-1">Eclipse Cognitive Engine v3.0</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsDiagnosticModalOpen(false)}
+                    className="p-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl transition-all"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {diagnosticError ? (
+                  <div className="py-12 text-center space-y-4">
+                    <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto text-red-500">
+                      <AlertTriangle size={40} />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-xl font-bold">Analysis Failed</h4>
+                      <p className="opacity-60 max-w-sm mx-auto">{diagnosticError}</p>
+                    </div>
+                    <button 
+                      onClick={() => setIsDiagnosticModalOpen(false)}
+                      className="px-8 py-3 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-bold"
+                    >
+                      Understood
+                    </button>
+                  </div>
+                ) : diagnostic ? (
+                  <div className="space-y-8 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
+                    {/* Overall Summary Card */}
+                    <div className="p-6 bg-black/5 dark:bg-white/5 rounded-[2rem] border border-black/5 dark:border-white/5">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40">Overall Assessment</h4>
+                        <div className="px-3 py-1 bg-blue-500 text-white rounded-full text-[10px] font-black">
+                          {diagnostic.overallGrade || 'COMPLETED'}
+                        </div>
+                      </div>
+                      <p className="text-sm font-medium leading-relaxed opacity-80">{diagnostic.summary}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Strengths */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="text-green-500" size={18} />
+                          <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40">Core Strengths</h4>
+                        </div>
+                        <div className="space-y-2">
+                          {diagnostic.strengths.map((s, i) => (
+                            <div key={i} className="flex gap-2 p-3 bg-green-500/5 dark:bg-green-500/10 rounded-xl border border-green-500/10">
+                              <span className="text-xs font-medium leading-normal">{s}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Weaknesses */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="text-amber-500" size={18} />
+                          <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40">Areas for Growth</h4>
+                        </div>
+                        <div className="space-y-2">
+                          {diagnostic.weaknesses.map((w, i) => (
+                            <div key={i} className="flex gap-2 p-3 bg-amber-500/5 dark:bg-amber-500/10 rounded-xl border border-amber-500/10">
+                              <span className="text-xs font-medium leading-normal text-amber-700 dark:text-amber-400">{w}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Improvement Tips */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="text-blue-500" size={18} />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40">Strategic Action Plan</h4>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3">
+                        {diagnostic.improvementTips.map((tip, i) => (
+                          <div key={i} className="flex items-center gap-4 p-4 bg-blue-500/5 dark:bg-blue-500/10 rounded-2xl border border-blue-500/10 group hover:border-blue-500/30 transition-all">
+                            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-black text-xs shrink-0">
+                              {i + 1}
+                            </div>
+                            <span className="text-sm font-medium">{tip}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-8 border-t border-black/5 dark:border-white/5 text-center">
+                      <p className="text-[10px] opacity-40 font-medium">Diagnostic generated using AI. Always consult your teacher for formal grading.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-20 flex flex-col items-center justify-center gap-4">
+                    <Loader2 className="animate-spin opacity-20" size={48} />
+                    <p className="font-bold opacity-40">Loading assessment...</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Add Score Modal */}
       <AnimatePresence>

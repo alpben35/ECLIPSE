@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Users, Plus, Search, ChevronRight, Lock, Globe, Hash, Filter, Loader2 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../../../src/lib/firebase';
 import { collection, query, onSnapshot, where, addDoc, updateDoc, doc, arrayUnion, orderBy, or } from 'firebase/firestore';
-import { AuthContext } from '../../../src/App';
+import { AuthContext } from '../../../src/lib/contexts';
 import { SUBJECTS, GRADE_LEVELS } from '../../../src/lib/constants';
 import { Link } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
@@ -14,7 +14,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function GroupsPage() {
-  const { user, profile } = useContext(AuthContext);
+  const { user, profile, isOwner } = useContext(AuthContext);
   const [groups, setGroups] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -33,24 +33,33 @@ export default function GroupsPage() {
   useEffect(() => {
     if (!user) return;
 
-    const q = query(
-      collection(db, 'groups'), 
-      or(
-        where('isPrivate', '==', false),
-        where('members', 'array-contains', user.uid)
-      ),
-      orderBy('createdAt', 'desc')
-    );
+    const groupsRef = collection(db, 'groups');
+    const q = isOwner 
+      ? query(groupsRef)
+      : query(groupsRef, or(where('isPrivate', '==', false), where('members', 'array-contains', user.uid)));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loadedGroups = snapshot.docs.map(doc => ({
+      let loadedGroups = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })) as any[];
+
+      // Filter in memory to avoid complex index requirements
+      loadedGroups = loadedGroups.filter(g => !g.isPrivate || g.members?.includes(user.uid));
+
+      // Sort by createdAt desc
+      loadedGroups.sort((a, b) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
       
       setGroups(loadedGroups);
       setLoading(false);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'groups'));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.LIST, 'groups');
+      setLoading(false);
+    });
 
     return () => unsubscribe();
   }, [user]);

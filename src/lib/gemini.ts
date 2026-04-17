@@ -1,82 +1,112 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
-let genAI: GoogleGenAI | null = null;
-
-function getGenAI() {
-  if (!genAI) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not set. Please check your environment variables.");
-    }
-    genAI = new GoogleGenAI({ apiKey });
-  }
-  return genAI;
-}
-
-export const tutorModel = "gemini-3-flash-preview";
+const ai = new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY 
+});
 
 export async function askTutor(prompt: string, mode: 'teach' | 'solve' | 'revise' | 'question' | 'test' | 'assignment', subject: string) {
-  const systemInstruction = `
-    You are "Eclipse", a friendly AI tutor.
-    Subject: ${subject}
-    Mode: ${mode}
-    
-    Guidelines:
-    - Be concise and direct.
-    - If "teach", guide the student step-by-step.
-    - If "solve", give the answer immediately.
-    - If "revise", provide a quick summary or synonyms.
-    - If "question", create a challenging question for the student.
-    - If "test", create a short test (3-5 questions).
-    - If "assignment", create a homework assignment.
-    - IMPORTANT: Remove all structural symbols like "#", "*", "-", "1.", "2.", and "$" from your answers. Use plain text and spacing for structure.
-    - DO NOT use LaTeX delimiters like "$" or "$$". Use plain text for mathematical expressions.
-    - Avoid complex LaTeX unless needed.
-    - Keep responses brief to ensure speed.
-  `;
-
   try {
-    const ai = getGenAI();
-    const response = await ai.models.generateContent({
-      model: tutorModel,
-      contents: prompt,
-      config: {
-        systemInstruction: systemInstruction
-      }
-    });
+    const systemPrompt = `You are Eclipse AI, a world-class academic tutor. You are currently teaching ${subject}.
+    Your mode is: ${mode}.
+    - "teach": Explain concepts clearly and simply. Use analogies.
+    - "solve": Help solve a specific problem step-by-step. Don't just give the answer, guide the student.
+    - "revise": Help the student review key points.
+    - "question": Ask the student deep questions to test their understanding.
+    - "test": Provide a practice question and grade their response.
+    - "assignment": Help structure or brainstorm for an assignment.
+    
+    Keep responses academic, encouraging, and clear. Use Markdown for formatting.`;
 
-    const text = response.text || "";
-    return text.replace(/\$/g, '');
+    const result = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [systemPrompt, prompt]
+    });
+    return result.text;
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw error;
+    console.error("Gemini Tutor Error:", error);
+    throw new Error("Tutor is currently offline. Please try again later.");
   }
 }
 
 export async function summarizeChat(messages: { role: string, content: string }[]) {
-  const history = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
-  const prompt = `
-    Please provide a concise summary of the following chat history between a student and an AI tutor.
-    Highlight the key concepts discussed and any specific problems solved.
-    
-    Chat History:
-    ${history}
-  `;
-
   try {
-    const ai = getGenAI();
-    const response = await ai.models.generateContent({
-      model: tutorModel,
-      contents: prompt,
+    const chatText = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+    const prompt = `Please provide a concise summary of the following educational chat session. Highlight the key concepts discussed and the student's progress.\n\n${chatText}`;
+    
+    const result = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt
+    });
+    return result.text;
+  } catch (error) {
+    console.error("Gemini Summary Error:", error);
+    throw new Error("Unable to summarize chat at this time.");
+  }
+}
+
+export interface PaperDiagnostic {
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  improvementTips: string[];
+  overallGrade?: string;
+}
+
+export const analyzeStudyPaper = async (imageUrl: string, subject: string): Promise<PaperDiagnostic> => {
+  try {
+    // We need to fetch the image and convert to base64 for Gemini
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    const reader = new FileReader();
+    
+    const base64Promise = new Promise<string>((resolve, reject) => {
+      reader.onloadend = () => {
+        const base64String = (reader.result as string).split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = reject;
+    });
+    
+    reader.readAsDataURL(blob);
+    const base64Data = await base64Promise;
+
+    const result = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: blob.type || "image/jpeg",
+              data: base64Data
+            }
+          },
+          {
+            text: `Analyze this study paper/worksheet related to the subject: ${subject}. 
+            Provide a diagnostic assessment including a summary of the work, specific strengths, areas for improvement, and actionable tips for the student.
+            Return the response in JSON format.`
+          }
+        ]
+      },
       config: {
-        systemInstruction: "You are a helpful assistant that summarizes educational chat sessions. Keep it structured and brief."
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            summary: { type: Type.STRING, description: "A brief overview of the student's work or the homework solution." },
+            strengths: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Specific things the student did well." },
+            weaknesses: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Specific mistakes or concepts they struggled with." },
+            improvementTips: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Actionable advice for next time." },
+            overallGrade: { type: Type.STRING, description: "An estimated grade or performance level (e.g., A, Satisfactory, Needs Work)." }
+          },
+          required: ["summary", "strengths", "weaknesses", "improvementTips"]
+        }
       }
     });
 
-    const text = response.text || "";
-    return text.replace(/\$/g, '');
+    const diagnostic = JSON.parse(result.text || '{}');
+    return diagnostic;
   } catch (error) {
-    console.error("Gemini Summarization Error:", error);
-    throw error;
+    console.error("Gemini Analysis Error:", error);
+    throw new Error("AI was unable to analyze the paper at this time. Please ensure the image is clear.");
   }
-}
+};

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'motion/react';
 import { Search, Trash2, Shield, User as UserIcon, Loader2, ArrowUp, ArrowDown, Ban, UserPlus, UserMinus, Bug, Settings, Sparkles } from 'lucide-react';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, decryptData } from '../lib/firebase';
 import { collection, query, onSnapshot, doc, deleteDoc, where, updateDoc, addDoc, orderBy, limit, setDoc, getDoc } from 'firebase/firestore';
-import { AuthContext } from '../../../src/App';
+import { AuthContext } from '../../../src/lib/contexts';
 import { OWNER_EMAIL, RANKS } from '../constants';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -232,8 +232,15 @@ export default function AdminPage() {
   };
 
   const handleToggleMaintenance = async () => {
-    const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
-    if (!isOwner) return;
+    const isAdmin = profile?.email === OWNER_EMAIL || 
+                    profile?.rank === 'Owner' || 
+                    profile?.rank === 'Temporary Owner' || 
+                    profile?.rank === 'Admin';
+
+    if (!isAdmin) {
+      alert("Access Denied: Only admins can toggle maintenance mode.");
+      return;
+    }
 
     const action = maintenance ? 'disable' : 'enable';
     if (!window.confirm(`Are you sure you want to ${action} maintenance mode? This will restrict access for all non-admin users.`)) {
@@ -248,8 +255,18 @@ export default function AdminPage() {
         updatedAt: new Date().toISOString()
       }, { merge: true });
       await addAuditLog('MAINTENANCE_TOGGLE', 'system', 'system', `Maintenance mode ${newStatus ? 'enabled' : 'disabled'}.`);
+      alert(`Maintenance mode successfully ${newStatus ? 'enabled' : 'disabled'}.`);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'system/maintenance');
+    }
+  };
+
+  const handleCompleteBug = async (bugId: string) => {
+    try {
+      await updateDoc(doc(db, 'bugs', bugId), { status: 'completed' });
+      alert("Bug marked as completed.");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `bugs/${bugId}`);
     }
   };
 
@@ -288,8 +305,8 @@ export default function AdminPage() {
   const isTempOwner = profile?.rank === 'Temporary Owner';
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12 space-y-8">
-      <div className="flex flex-col gap-6">
+    <div className="max-w-6xl mx-auto px-4 py-12 space-y-8 text-center">
+      <div className="flex flex-col gap-6 text-left">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-4xl font-bold tracking-tight text-gold">Teacher Admin Console</h1>
@@ -547,40 +564,48 @@ export default function AdminPage() {
           )}
 
           <div className="grid grid-cols-1 gap-4">
-            {bugs.map((bug) => (
+            {bugs.filter(b => b.status !== 'completed').map((bug) => (
               <motion.div 
                 key={bug.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-6 bg-gold/5 border border-gold/10 rounded-3xl space-y-4"
+                className="p-6 bg-gold/5 border border-gold/10 rounded-3xl space-y-4 flex items-center justify-between gap-4"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gold/10 rounded-xl text-gold">
-                      <Bug size={20} />
+                <div className="flex-1 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gold/10 rounded-xl text-gold">
+                        <Bug size={20} />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-gold/20 text-gold rounded-full">
+                          {bug.type}
+                        </span>
+                        <p className="text-xs opacity-50 text-gold mt-1">
+                          {format(new Date(bug.createdAt), 'MMM d, yyyy HH:mm')}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-gold/20 text-gold rounded-full">
-                        {bug.type}
-                      </span>
-                      <p className="text-xs opacity-50 text-gold mt-1">
-                        {format(new Date(bug.createdAt), 'MMM d, yyyy HH:mm')}
-                      </p>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-gold">{bug.email}</p>
+                      <p className="text-[10px] opacity-30 text-gold uppercase font-black">Reporter</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-gold">{bug.email}</p>
-                    <p className="text-[10px] opacity-30 text-gold uppercase font-black">Reporter</p>
-                  </div>
+                  <p className="text-gold leading-relaxed">
+                    {decryptData(bug.description)}
+                  </p>
                 </div>
-                <p className="text-gold leading-relaxed">
-                  {bug.description}
-                </p>
+                <button 
+                  onClick={() => handleCompleteBug(bug.id)}
+                  className="px-4 py-2 bg-gold text-royal-red rounded-xl text-xs font-bold hover:scale-105 transition-all whitespace-nowrap"
+                >
+                  Complete
+                </button>
               </motion.div>
             ))}
-            {bugs.length === 0 && (
+            {bugs.filter(b => b.status !== 'completed').length === 0 && (
               <div className="text-center py-20 opacity-30">
-                <p className="text-lg">No bugs reported yet. System is stable.</p>
+                <p className="text-lg">No active bugs reported yet. System is stable.</p>
               </div>
             )}
           </div>

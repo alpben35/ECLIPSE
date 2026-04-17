@@ -2,26 +2,31 @@ import React, { useState, useContext } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  LogOut, Menu, X, Users, MessageSquare, BarChart2, Lightbulb, Award
+  LogOut, Menu, X, Users, MessageSquare, BarChart2, Lightbulb, Award, Shield, Lock, Zap
 } from 'lucide-react';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { auth } from '../../src/lib/firebase';
 import { OWNER_EMAIL } from '../../src/constants';
-import { AuthContext, ProtectedRoute } from '../../src/App';
+import { AuthContext } from '../../src/lib/contexts';
+import { ProtectedRoute } from '../../src/components/ProtectedRoute';
 import { cn } from '../../src/lib/utils';
+import Logo from '../../src/components/ui/Logo';
 
 import SupportModal from '../../src/components/SupportModal';
 import BugReportModal from '../../src/components/BugReportModal';
+import ProfileSettingsModal from '../../src/components/ProfileSettingsModal';
 
-import TutorPage from './pages/TutorPage';
-import ProgressPage from './pages/ProgressPage';
-import LandingPage from './pages/LandingPage';
-import AdminPage from './pages/AdminPage';
-import IdeaPage from './pages/IdeaPage';
-import RankPage from './pages/RankPage';
-import AuthPage from './pages/AuthPage';
-import GroupsPage from './pages/GroupsPage';
-import GroupDetailPage from './pages/GroupDetailPage';
+// --- Components ---
+const TutorPage = React.lazy(() => import('./pages/TutorPage'));
+const ProgressPage = React.lazy(() => import('./pages/ProgressPage'));
+const LandingPage = React.lazy(() => import('./pages/LandingPage'));
+const AdminPage = React.lazy(() => import('./pages/AdminPage'));
+const IdeaPage = React.lazy(() => import('./pages/IdeaPage'));
+const RankPage = React.lazy(() => import('./pages/RankPage'));
+const GroupsPage = React.lazy(() => import('./pages/GroupsPage'));
+const GroupDetailPage = React.lazy(() => import('./pages/GroupDetailPage'));
+const AuthPage = React.lazy(() => import('./pages/AuthPage'));
+const SubscriptionPage = React.lazy(() => import('../../src/pages/SubscriptionPage'));
 
 export default function TeacherApp() {
   const { user, profile } = useContext(AuthContext);
@@ -29,13 +34,15 @@ export default function TeacherApp() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [showProfilePopover, setShowProfilePopover] = useState(false);
 
   const navItems = [
     { name: 'Assistant', path: '/teacher/tutor', icon: MessageSquare },
     { name: 'Groups', path: '/teacher/groups', icon: Users },
     { name: 'Class Progress', path: '/teacher/progress', icon: BarChart2 },
     { name: 'Ideas', path: '/teacher/ideas', icon: Lightbulb },
-    { name: 'Teacher Ranks', path: '/teacher/ranks', icon: Award },
+    { name: 'Shop', path: '/teacher/subscription', icon: Zap },
   ];
 
   const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
@@ -76,15 +83,9 @@ export default function TeacherApp() {
         <header className="sticky top-0 z-50 border-b border-gold/20 bg-royal-red/80 backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-8">
-              <div className="flex flex-col">
-                <Link to="/" className="flex items-center gap-2 group">
-                  <div className="relative w-8 h-8">
-                    <div className="absolute inset-0 bg-gold rounded-full" />
-                    <motion.div 
-                      animate={{ x: 4 }}
-                      className="absolute inset-0 bg-royal-red rounded-full translate-x-1 translate-y-1" 
-                    />
-                  </div>
+              <div className="flex flex-col justify-center">
+                <Link to="/" className="flex items-center gap-3 group">
+                  <Logo size="sm" variant="teacher" />
                   <div className="flex flex-col leading-none">
                     <span className="font-bold text-2xl tracking-tighter text-gold">ECLIPSE</span>
                     <span className="text-lg handwriting text-gold ml-1 -mt-1">Teacher</span>
@@ -92,10 +93,15 @@ export default function TeacherApp() {
                 </Link>
                 <Link 
                   to="/"
-                  className="text-[10px] font-bold uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity text-left mt-1 ml-10"
+                  className="text-[10px] font-bold uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity text-left ml-11"
                 >
-                  Switch
+                  Switch to Student
                 </Link>
+              </div>
+
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full ml-4">
+                <Shield size={10} className="text-gold" />
+                <span className="text-[10px] font-bold text-gold uppercase tracking-widest">Secure Connection</span>
               </div>
 
               {user && (
@@ -146,14 +152,112 @@ export default function TeacherApp() {
             <div className="flex items-center gap-4">
               {user ? (
                 <div className="flex items-center gap-4">
-                  <img 
-                    src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} 
-                    alt="Avatar" 
-                    className="w-8 h-8 rounded-full border border-gold/20"
-                  />
+                  <div className="relative">
+                    <button 
+                      onClick={() => setShowProfilePopover(!showProfilePopover)}
+                      className="relative group"
+                    >
+                      <img 
+                        src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} 
+                        alt="Avatar" 
+                        className="w-8 h-8 rounded-full border border-gold/20 group-hover:border-gold/50 transition-colors"
+                      />
+                    </button>
+
+                    <AnimatePresence>
+                      {showProfilePopover && (
+                        <>
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowProfilePopover(false)}
+                            className="fixed inset-0 z-40"
+                          />
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="absolute right-0 w-72 pt-4 z-50"
+                          >
+                            <div className="bg-royal-red border border-gold/20 rounded-[2rem] shadow-2xl p-6 overflow-hidden">
+                            <div className="space-y-6">
+                              <div className="flex items-center gap-4 pb-6 border-b border-gold/10">
+                                <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center">
+                                  <Award size={24} className="text-gold opacity-50" />
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-30 text-gold">Teacher Profile</p>
+                                  <p className="font-bold truncate text-lg tracking-tight text-gold">{profile?.displayName || user.displayName || 'Anonymous'}</p>
+                                </div>
+                              </div>
+
+                              <div className="space-y-3">
+                                <p className="text-[10px] font-bold uppercase tracking-widest opacity-30 ml-1 text-gold">Account Security</p>
+                                <div className="p-4 bg-gold/5 rounded-2xl flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center">
+                                      <Lock size={14} className="text-gold opacity-50" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-bold text-gold">Password</span>
+                                      <span className="text-[10px] opacity-30 tracking-widest text-gold">••••••••</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <button 
+                                  onClick={() => {
+                                    setShowProfileSettings(true);
+                                    setShowProfilePopover(false);
+                                  }}
+                                  className="w-full py-4 text-[10px] font-black uppercase tracking-widest bg-gold text-royal-red rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-gold/10"
+                                >
+                                  Manage Account
+                                </button>
+                              </div>
+
+                              <div className="pt-4 border-t border-gold/10 flex flex-col gap-2">
+                                <button 
+                                  onClick={() => {
+                                    handleLogout();
+                                    setShowProfilePopover(false);
+                                  }}
+                                  className="w-full flex items-center justify-center gap-2 py-3 text-xs font-bold opacity-50 hover:opacity-100 transition-opacity text-gold"
+                                >
+                                  <LogOut size={16} />
+                                  Sign Out
+                                </button>
+
+                                <button 
+                                  onClick={() => {
+                                    if (window.confirm("Are you absolutely sure? This will permanently delete your account and all your progress. This action cannot be undone.")) {
+                                      user.delete()
+                                        .then(() => window.location.reload())
+                                        .catch(err => {
+                                          if (err.code === 'auth/requires-recent-login') {
+                                            alert("Please sign out and sign back in to delete your account for security reasons.");
+                                          } else {
+                                            alert(err.message);
+                                          }
+                                        });
+                                    }
+                                  }}
+                                  className="text-[10px] font-bold text-gold/30 hover:text-gold/60 transition-colors uppercase tracking-widest"
+                                >
+                                  Delete Account
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  
                   <button 
                     onClick={handleLogout}
-                    className="hidden md:flex items-center gap-2 text-sm font-medium opacity-50 hover:opacity-100 transition-opacity"
+                    className="hidden md:flex items-center gap-2 text-sm font-medium opacity-50 hover:opacity-100 transition-opacity text-gold"
                   >
                     <LogOut size={16} />
                     Sign Out
@@ -187,17 +291,24 @@ export default function TeacherApp() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-              <Routes>
-                <Route path="/" element={user ? <Navigate to="/teacher/tutor" /> : <LandingPage />} />
-                <Route path="/auth" element={user ? <Navigate to="/teacher/tutor" /> : <AuthPage />} />
-                <Route path="/tutor" element={<ProtectedRoute><TutorPage /></ProtectedRoute>} />
-                <Route path="/groups" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
-                <Route path="/groups/:groupId" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
-                <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
-                <Route path="/ideas" element={<ProtectedRoute><IdeaPage /></ProtectedRoute>} />
-                <Route path="/ranks" element={<ProtectedRoute><RankPage /></ProtectedRoute>} />
-                <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
-              </Routes>
+              <React.Suspense fallback={
+                <div className="flex items-center justify-center p-12">
+                  <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                </div>
+              }>
+                <Routes>
+                  <Route path="/" element={user ? <Navigate to="/teacher/tutor" /> : <LandingPage />} />
+                  <Route path="/auth" element={user ? <Navigate to="/teacher/tutor" /> : <AuthPage />} />
+                  <Route path="/tutor" element={<ProtectedRoute><TutorPage /></ProtectedRoute>} />
+                  <Route path="/groups" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
+                  <Route path="/groups/:groupId" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
+                  <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
+                  <Route path="/ideas" element={<ProtectedRoute><IdeaPage /></ProtectedRoute>} />
+                  <Route path="/ranks" element={<ProtectedRoute><RankPage /></ProtectedRoute>} />
+                  <Route path="/subscription" element={<SubscriptionPage />} />
+                  <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
+                </Routes>
+              </React.Suspense>
             </motion.div>
           </AnimatePresence>
         </main>
@@ -205,6 +316,7 @@ export default function TeacherApp() {
         <footer className="py-12 border-t border-gold/10">
           <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-6">
             <div className="flex items-center gap-4">
+              <Link to="/privacy" className="text-xs font-bold opacity-50 hover:opacity-100 transition-opacity">Privacy Policy</Link>
               <button 
                 onClick={() => setShowBugReport(true)}
                 className="px-4 py-2 bg-gold/10 hover:bg-gold/20 text-gold rounded-xl text-xs font-bold transition-all border border-gold/20"
@@ -224,6 +336,14 @@ export default function TeacherApp() {
 
         <SupportModal isOpen={showSupport} onClose={() => setShowSupport(false)} isTeacher />
         <BugReportModal isOpen={showBugReport} onClose={() => setShowBugReport(false)} isTeacher />
+
+        <ProfileSettingsModal 
+          isOpen={showProfileSettings}
+          onClose={() => setShowProfileSettings(false)}
+          currentUsername={profile?.displayName || user?.displayName || ''}
+          currentPhone={profile?.phone || ''}
+          currentBankAccount={profile?.bankAccount || ''}
+        />
 
         <AnimatePresence>
           {isMenuOpen && (

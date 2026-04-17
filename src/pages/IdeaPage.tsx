@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lightbulb, Send, CheckCircle2, XCircle, ChevronRight, User as UserIcon, Shield, Award, Star, FileText, Save } from 'lucide-react';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, encryptData, decryptData } from '../lib/firebase';
 import { collection, addDoc, query, onSnapshot, orderBy, doc, updateDoc, where, getDoc, setDoc } from 'firebase/firestore';
-import { AuthContext } from '../App';
+import { AuthContext } from '../lib/contexts';
 import { OWNER_EMAIL, RANKS } from '../constants';
 import { Link } from 'react-router-dom';
 
@@ -19,11 +19,12 @@ interface Idea {
   currentReviewerRank: string;
 }
 
-const RANK_WORKFLOW = RANKS.map((r, i) => ({
-  rank: r.name,
-  nextStatus: `approved_by_${r.name.toLowerCase().replace(/\s+/g, '_')}`,
-  nextReviewer: RANKS[i + 1]?.name || 'Owner'
-})).filter(r => r.rank !== 'Owner');
+const RANK_WORKFLOW = [
+  { rank: 'Champion', nextStatus: 'approved_by_champion', nextReviewer: 'Master' },
+  { rank: 'Master', nextStatus: 'approved_by_master', nextReviewer: 'Admin' },
+  { rank: 'Admin', nextStatus: 'approved_by_admin', nextReviewer: 'Temporary Owner' },
+  { rank: 'Temporary Owner', nextStatus: 'approved_by_temp_owner', nextReviewer: 'Owner' },
+];
 
 export default function IdeaPage() {
   const { user, profile } = useContext(AuthContext);
@@ -46,10 +47,15 @@ export default function IdeaPage() {
 
     const q = query(collection(db, 'ideas'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loadedIdeas = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as Idea[];
+      const loadedIdeas = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          title: decryptData(data.title),
+          description: decryptData(data.description),
+          id: doc.id
+        };
+      }) as Idea[];
       setIdeas(loadedIdeas);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'ideas'));
 
@@ -57,8 +63,8 @@ export default function IdeaPage() {
     if (isOwner) {
       const notepadRef = doc(db, 'users', user.uid, 'private', 'notepad');
       getDoc(notepadRef).then(snap => {
-        if (snap.exists()) setNotepad(snap.data().content || '');
-      });
+        if (snap.exists()) setNotepad(decryptData(snap.data().content || ''));
+      }).catch(err => handleFirestoreError(err, OperationType.GET, `ideas/notepad/${user.uid}`));
     }
 
     return () => unsubscribe();
@@ -69,7 +75,7 @@ export default function IdeaPage() {
     setIsSavingNotepad(true);
     try {
       await setDoc(doc(db, 'users', user.uid, 'private', 'notepad'), {
-        content: notepad,
+        content: encryptData(notepad),
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
@@ -92,8 +98,8 @@ export default function IdeaPage() {
         uid: user.uid,
         authorName: profile?.displayName || 'Anonymous',
         authorEmail: profile?.email,
-        title: newIdea.title,
-        description: newIdea.description,
+        title: encryptData(newIdea.title),
+        description: encryptData(newIdea.description),
         status: 'pending',
         createdAt: new Date().toISOString(),
         currentReviewerRank: nextRank

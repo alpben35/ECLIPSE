@@ -5,7 +5,7 @@ import {
   Moon, Sun, BookOpen, BarChart2, MessageSquare, 
   Settings, LogOut, Menu, X, Mic, Send, 
   Upload, FileText, Plus, ChevronRight, Share2, Users, Search, Trash2,
-  Lightbulb, CheckCircle2, XCircle, CreditCard, Award
+  Lightbulb, CheckCircle2, XCircle, CreditCard, Award, Zap
 } from 'lucide-react';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, increment, onSnapshot } from 'firebase/firestore';
@@ -32,6 +32,7 @@ import AdminPage from './pages/AdminPage';
 import IdeaPage from './pages/IdeaPage';
 import RankPage from './pages/RankPage';
 import AuthPage from './pages/AuthPage';
+import SubscriptionPage from '../../src/pages/SubscriptionPage';
 
 export default function App() {
   const [isDark, setIsDark] = useState(false);
@@ -45,7 +46,7 @@ export default function App() {
       if (doc.exists()) {
         setMaintenance(doc.data().active || false);
       }
-    });
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'system/maintenance'));
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -217,6 +218,7 @@ export default function App() {
                   <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
                   <Route path="/ideas" element={<ProtectedRoute><IdeaPage /></ProtectedRoute>} />
                   <Route path="/ranks" element={<ProtectedRoute><RankPage /></ProtectedRoute>} />
+                  <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
                 </Routes>
               </Layout>
@@ -298,6 +300,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Class Progress', path: '/progress', icon: BarChart2 },
     { name: 'Ideas', path: '/ideas', icon: Lightbulb },
     { name: 'Teacher Ranks', path: '/ranks', icon: Award },
+    { name: 'Shop', path: '/subscription', icon: Zap },
   ];
 
   const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';

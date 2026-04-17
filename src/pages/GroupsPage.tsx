@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Users, Plus, Search, ChevronRight, Lock, Globe, Hash, Filter, Loader2, UserPlus, UserCheck, UserMinus, UserX, Check, X, User as UserIcon, Trash2 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, onSnapshot, where, addDoc, updateDoc, doc, arrayUnion, orderBy, or, deleteDoc, getDocs, limit } from 'firebase/firestore';
-import { AuthContext } from '../App';
-import { SUBJECTS, GRADE_LEVELS } from '../lib/constants';
+import { AuthContext } from '../lib/contexts';
+import { SUBJECTS, GRADE_LEVELS, OWNER_EMAIL } from '../lib/constants';
 import { Link } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -14,7 +14,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function GroupsPage() {
-  const { user, profile, isOwner } = useContext(AuthContext);
+  const { user, profile, isOwner, isAdmin } = useContext(AuthContext);
   const [groups, setGroups] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -51,7 +51,7 @@ export default function GroupsPage() {
         })
       );
       setFriends(friendProfiles.filter(p => p !== null));
-    });
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'friendships'));
 
     // Listen to friend requests
     const requestsQ = query(
@@ -70,7 +70,7 @@ export default function GroupsPage() {
         };
       }));
       setRequests(reqData.filter(r => r.user !== null));
-    });
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'friend_requests'));
 
     return () => {
       unsubFriends();
@@ -79,7 +79,7 @@ export default function GroupsPage() {
   }, [user]);
 
   useEffect(() => {
-    if (userSearch.length < 3) {
+    if (userSearch.length < 2) {
       setSearchResults([]);
       return;
     }
@@ -87,11 +87,12 @@ export default function GroupsPage() {
     const searchUsers = async () => {
       setSearchingUsers(true);
       try {
+        const searchTerm = userSearch.toLowerCase().trim();
         const q = query(
           collection(db, 'public_profiles'),
-          where('displayName', '>=', userSearch),
-          where('displayName', '<=', userSearch + '\uf8ff'),
-          limit(5)
+          where('displayName_lowercase', '>=', searchTerm),
+          where('displayName_lowercase', '<=', searchTerm + '\uf8ff'),
+          limit(10)
         );
         const snap = await getDocs(q);
         setSearchResults(snap.docs
@@ -168,36 +169,57 @@ export default function GroupsPage() {
   useEffect(() => {
     if (!user) return;
 
-    // Listen to all public groups OR groups where the user is a member OR all groups if owner
-    let q;
-    if (isOwner) {
-      q = query(
-        collection(db, 'groups'),
-        orderBy('createdAt', 'desc')
-      );
-    } else {
-      q = query(
-        collection(db, 'groups'), 
-        or(
-          where('isPrivate', '==', false),
-          where('members', 'array-contains', user.uid)
-        ),
-        orderBy('createdAt', 'desc')
-      );
-    }
+    // Listen to all public groups OR groups where the user is a member OR all groups if admin
+    const groupsRef = collection(db, 'groups');
+    const q = isAdmin 
+      ? query(groupsRef)
+      : query(groupsRef, or(where('isPrivate', '==', false), where('members', 'array-contains', user.uid)));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loadedGroups = snapshot.docs.map(doc => ({
+      let loadedGroups = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })) as any[];
+
+      // Filter in memory to avoid complex index requirements for 'or' queries with 'orderBy'
+      if (!isAdmin) {
+        loadedGroups = loadedGroups.filter(g => !g.isPrivate || g.members?.includes(user.uid));
+      }
+
+      // Sort by createdAt desc
+      loadedGroups.sort((a, b) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
       
+      const isAdminPlus = profile?.email === OWNER_EMAIL || 
+                          profile?.rank === 'Owner' || 
+                          profile?.rank === 'Temporary Owner' || 
+                          profile?.rank === 'Admin';
+
+      if (isAdminPlus && !loadedGroups.some(g => g.id === 'admin_council')) {
+        loadedGroups.unshift({
+          id: 'admin_council',
+          name: 'Admin Council',
+          description: 'Private group for Admins and Owners to discuss system vision.',
+          subject: 'System',
+          gradeLevel: 'All',
+          isPrivate: true,
+          members: [], // Will be handled in GroupDetailPage
+          createdAt: new Date().toISOString()
+        });
+      }
+
       setGroups(loadedGroups);
       setLoading(false);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'groups'));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.LIST, 'groups');
+      setLoading(false);
+    });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, isOwner, profile]);
 
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,7 +372,7 @@ export default function GroupsPage() {
                       key={group.id} 
                       group={group} 
                       isMember={true} 
-                      isAdmin={isOwner}
+                      isAdmin={isAdmin}
                       currentUserId={user?.uid}
                       onDelete={() => handleDeleteGroup(group.id)}
                     />
@@ -371,7 +393,7 @@ export default function GroupsPage() {
                       key={group.id} 
                       group={group} 
                       isMember={false} 
-                      isAdmin={isOwner}
+                      isAdmin={isAdmin}
                       currentUserId={user?.uid}
                       onJoin={() => joinGroup(group.id)} 
                       onDelete={() => handleDeleteGroup(group.id)}
@@ -640,8 +662,8 @@ function GroupCard({ group, isMember, isAdmin, currentUserId, onJoin, onDelete }
       </div>
 
       <div className="space-y-2 mb-8">
-        <h3 className="text-2xl font-bold tracking-tight truncate">{group.name}</h3>
-        <p className="text-sm opacity-80 dark:opacity-70 line-clamp-2 min-h-[2.5rem]">{group.description || 'No description provided.'}</p>
+        <h3 className="text-2xl font-bold tracking-tight truncate text-black dark:text-white">{group.name}</h3>
+        <p className="text-sm text-black/60 dark:text-white/60 line-clamp-2 min-h-[2.5rem]">{group.description || 'No description provided.'}</p>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-8">

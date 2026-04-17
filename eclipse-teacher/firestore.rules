@@ -136,7 +136,7 @@ service cloud.firestore {
     }
 
     match /groups/{groupId} {
-      allow read: if isAuthenticated() && (!resource.data.isPrivate || request.auth.uid in resource.data.members);
+      allow read: if isAuthenticated() && (!resource.data.isPrivate || request.auth.uid in resource.data.members || isAdmin());
       allow create: if isAuthenticated() && isValidGroup(request.resource.data);
       allow update: if isAuthenticated() && (
         // Only creator or admin can update group settings
@@ -153,7 +153,7 @@ service cloud.firestore {
         allow create: if isGroupMember(groupId) && 
                       request.resource.data.senderId == request.auth.uid &&
                       request.resource.data.timestamp is string &&
-                      request.resource.data.type in ['text', 'progress_share', 'file', 'image', 'audio'];
+                      request.resource.data.type in ['text', 'progress_share', 'file', 'image', 'audio', 'encouragement'];
         allow delete: if isGroupMember(groupId) && (resource.data.senderId == request.auth.uid || isAdmin());
       }
 

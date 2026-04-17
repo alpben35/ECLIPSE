@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Send, Mic, Sparkles, Brain, ChevronDown, Share2, Copy, Check, MessageSquare, BookOpen, ListRestart, X, Download, Calculator as CalculatorIcon, Upload, Trash2 } from 'lucide-react';
 import { askTutor, summarizeChat } from '../lib/gemini';
 import { SUBJECTS } from '../lib/constants';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, addDoc, query, onSnapshot, orderBy, limit, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
-import { AuthContext } from '../../../src/App';
+import { db, handleFirestoreError, OperationType, encryptData, decryptData } from '../lib/firebase';
+import { collection, addDoc, query, onSnapshot, orderBy, limit, deleteDoc, doc, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { AuthContext } from '../../../src/lib/contexts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { clsx, type ClassValue } from 'clsx';
@@ -31,7 +31,17 @@ function Calculator() {
   const calculate = () => {
     try {
       const fullEquation = equation + display;
-      const result = eval(fullEquation.replace('×', '*').replace('÷', '/'));
+      // Safer alternative to eval for basic arithmetic
+      const tokens = fullEquation.replace(/×/g, '*').replace(/÷/g, '/').split(/([+\-*/])/).map(t => t.trim()).filter(t => t);
+      let result = parseFloat(tokens[0]);
+      for (let i = 1; i < tokens.length; i += 2) {
+        const op = tokens[i];
+        const val = parseFloat(tokens[i + 1]);
+        if (op === '+') result += val;
+        if (op === '-') result -= val;
+        if (op === '*') result *= val;
+        if (op === '/') result /= val;
+      }
       setDisplay(String(result));
       setEquation('');
     } catch (e) {
@@ -104,16 +114,31 @@ export default function TutorPage() {
 
     const q = query(
       collection(db, 'users', user.uid, 'messages'),
-      orderBy('timestamp', 'asc'),
+      orderBy('timestamp', 'desc'),
       limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loadedMessages = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as Message[];
-      setMessages(loadedMessages);
+      const loadedMessages = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let timestamp = data.timestamp;
+        
+        // Handle Firestore Timestamp or ISO string
+        if (timestamp && typeof timestamp.toDate === 'function') {
+          timestamp = timestamp.toDate().toISOString();
+        } else if (!timestamp) {
+          timestamp = new Date().toISOString();
+        }
+
+        return {
+          id: doc.id,
+          role: data.role,
+          content: decryptData(data.content),
+          timestamp
+        } as Message;
+      }) as Message[];
+      // Reverse to show in chronological order
+      setMessages(loadedMessages.reverse());
     }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}/messages`));
 
     return () => unsubscribe();
@@ -126,34 +151,35 @@ export default function TutorPage() {
   }, [messages, isTyping]);
 
   const handleSend = async () => {
-    if (!input.trim() || isTyping || !user) return;
+    const messageText = input.trim();
+    if (!messageText || isTyping || !user) return;
 
-    const currentInput = input;
-    const userMsg = { 
-      role: 'user' as const, 
-      content: currentInput, 
-      timestamp: new Date().toISOString() 
-    };
-    
     setInput('');
     setIsTyping(true);
 
     try {
-      await addDoc(collection(db, 'users', user.uid, 'messages'), userMsg);
+      // Save user message to Firestore
+      await addDoc(collection(db, 'users', user.uid, 'messages'), {
+        role: 'user',
+        content: encryptData(messageText),
+        timestamp: serverTimestamp()
+      });
+      
       if (addXp) await addXp(15);
 
       let responseText = '';
       try {
-        responseText = await askTutor(currentInput, mode, subject.name);
+        responseText = await askTutor(messageText, mode, subject.name);
       } catch (geminiError: any) {
         console.error("Gemini Error:", geminiError);
         responseText = `⚠️ AI Error: ${geminiError.message || "Failed to get a response from the AI. Please check your API key and connection."}`;
       }
       
+      // Save AI response to Firestore
       await addDoc(collection(db, 'users', user.uid, 'messages'), {
-        role: 'ai' as const,
-        content: responseText,
-        timestamp: new Date().toISOString()
+        role: 'ai',
+        content: encryptData(responseText),
+        timestamp: serverTimestamp()
       });
     } catch (error) {
       console.error("Firestore Error in handleSend:", error);

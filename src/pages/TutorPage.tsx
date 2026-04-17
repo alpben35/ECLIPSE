@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Mic, Sparkles, Brain, ChevronDown, Share2, Copy, Check, MessageSquare, BookOpen, ListRestart, X, Download, Calculator as CalculatorIcon, Trash2 } from 'lucide-react';
+import { Send, Mic, Sparkles, Brain, ChevronDown, Share2, Copy, Check, MessageSquare, BookOpen, ListRestart, X, AlertCircle, Download, Calculator as CalculatorIcon, Trash2, Lock } from 'lucide-react';
 import { askTutor, summarizeChat } from '../lib/gemini';
 import { SUBJECTS } from '../lib/constants';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, addDoc, query, onSnapshot, orderBy, limit, deleteDoc, doc, writeBatch, getDocs } from 'firebase/firestore';
-import { AuthContext } from '../App';
+import { db, handleFirestoreError, OperationType, encryptData, decryptData } from '../lib/firebase';
+import { collection, addDoc, query, onSnapshot, orderBy, limit, deleteDoc, doc, writeBatch, getDocs, serverTimestamp } from 'firebase/firestore';
+import { AuthContext } from '../lib/contexts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { clsx, type ClassValue } from 'clsx';
@@ -31,8 +31,17 @@ function Calculator() {
   const calculate = () => {
     try {
       const fullEquation = equation + display;
-      // Simple eval for basic calculator
-      const result = eval(fullEquation.replace('×', '*').replace('÷', '/'));
+      // Safer alternative to eval for basic arithmetic
+      const tokens = fullEquation.replace(/×/g, '*').replace(/÷/g, '/').split(/([+\-*/])/).map(t => t.trim()).filter(t => t);
+      let result = parseFloat(tokens[0]);
+      for (let i = 1; i < tokens.length; i += 2) {
+        const op = tokens[i];
+        const val = parseFloat(tokens[i + 1]);
+        if (op === '+') result += val;
+        if (op === '-') result -= val;
+        if (op === '*') result *= val;
+        if (op === '/') result /= val;
+      }
       setDisplay(String(result));
       setEquation('');
     } catch (e) {
@@ -46,33 +55,33 @@ function Calculator() {
   };
 
   return (
-    <div className="bg-black/5 dark:bg-white/5 p-6 rounded-3xl border border-black/10 dark:border-white/10 max-w-xs mx-auto">
+    <div className="bg-black/5 dark:bg-white/5 p-4 md:p-6 rounded-3xl border border-black/10 dark:border-white/10 w-full max-w-[320px] mx-auto">
       <div className="mb-4 text-right">
-        <div className="text-[10px] opacity-40 h-4 font-mono">{equation}</div>
-        <div className="text-3xl font-bold font-mono truncate">{display}</div>
+        <div className="text-[10px] opacity-40 h-4 font-mono overflow-hidden">{equation}</div>
+        <div className="text-2xl md:text-3xl font-bold font-mono truncate">{display}</div>
       </div>
-      <div className="grid grid-cols-4 gap-2">
-        <button onClick={clear} className="p-3 bg-red-500/10 text-red-500 rounded-xl font-bold hover:bg-red-500/20 transition-colors">C</button>
-        <button onClick={() => handleOperator('÷')} className="p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors">÷</button>
-        <button onClick={() => handleOperator('×')} className="p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors">×</button>
-        <button onClick={() => handleOperator('-')} className="p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors">-</button>
+      <div className="grid grid-cols-4 gap-1.5 md:gap-2">
+        <button onClick={clear} className="p-2 md:p-3 bg-red-500/10 text-red-500 rounded-xl font-bold hover:bg-red-500/20 transition-colors text-sm md:text-base">C</button>
+        <button onClick={() => handleOperator('÷')} className="p-2 md:p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm md:text-base">÷</button>
+        <button onClick={() => handleOperator('×')} className="p-2 md:p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm md:text-base">×</button>
+        <button onClick={() => handleOperator('-')} className="p-2 md:p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm md:text-base">-</button>
         
         {[7, 8, 9].map(n => (
-          <button key={n} onClick={() => handleNumber(String(n))} className="p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors">{n}</button>
+          <button key={n} onClick={() => handleNumber(String(n))} className="p-2 md:p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm md:text-base">{n}</button>
         ))}
-        <button onClick={() => handleOperator('+')} className="p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors">+</button>
+        <button onClick={() => handleOperator('+')} className="p-2 md:p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm md:text-base">+</button>
         
         {[4, 5, 6].map(n => (
-          <button key={n} onClick={() => handleNumber(String(n))} className="p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors">{n}</button>
+          <button key={n} onClick={() => handleNumber(String(n))} className="p-2 md:p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm md:text-base">{n}</button>
         ))}
-        <button onClick={calculate} className="row-span-3 p-3 bg-black text-white dark:bg-white dark:text-black rounded-xl font-bold hover:scale-105 transition-all">=</button>
+        <button onClick={calculate} className="row-span-3 p-2 md:p-3 bg-black text-white dark:bg-white dark:text-black rounded-xl font-bold hover:scale-105 transition-all text-sm md:text-base">=</button>
         
         {[1, 2, 3].map(n => (
-          <button key={n} onClick={() => handleNumber(String(n))} className="p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors">{n}</button>
+          <button key={n} onClick={() => handleNumber(String(n))} className="p-2 md:p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm md:text-base">{n}</button>
         ))}
         
-        <button onClick={() => handleNumber('0')} className="col-span-2 p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors">0</button>
-        <button onClick={() => handleNumber('.')} className="p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors">.</button>
+        <button onClick={() => handleNumber('0')} className="col-span-2 p-2 md:p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm md:text-base">0</button>
+        <button onClick={() => handleNumber('.')} className="p-2 md:p-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm md:text-base">.</button>
       </div>
     </div>
   );
@@ -97,6 +106,7 @@ export default function TutorPage() {
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const dailyGoal = 5;
@@ -108,17 +118,35 @@ export default function TutorPage() {
 
     const q = query(
       collection(db, 'users', user.uid, 'messages'),
-      orderBy('timestamp', 'asc'),
+      orderBy('timestamp', 'desc'),
       limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loadedMessages = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as Message[];
-      setMessages(loadedMessages);
-    }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}/messages`));
+      const loadedMessages = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let timestamp = data.timestamp;
+        
+        // Handle Firestore Timestamp or ISO string
+        if (timestamp && typeof timestamp.toDate === 'function') {
+          timestamp = timestamp.toDate().toISOString();
+        } else if (!timestamp) {
+          timestamp = new Date().toISOString();
+        }
+
+        return {
+          id: doc.id,
+          role: data.role,
+          content: decryptData(data.content),
+          timestamp
+        } as Message;
+      }) as Message[];
+      // Reverse to show in chronological order
+      setMessages(loadedMessages.reverse());
+    }, (err) => {
+      setErrorMessage("Failed to load chat history. Please check your connection.");
+      handleFirestoreError(err, OperationType.GET, `users/${user.uid}/messages`);
+    });
 
     return () => unsubscribe();
   }, [user]);
@@ -130,34 +158,39 @@ export default function TutorPage() {
   }, [messages, isTyping]);
 
   const handleSend = async () => {
-    if (!input.trim() || isTyping || !user) return;
+    const messageText = input.trim();
+    if (!messageText || isTyping || !user) return;
 
-    const userMsg = { 
-      role: 'user' as const, 
-      content: input, 
-      timestamp: new Date().toISOString() 
-    };
-    
+    setErrorMessage(null);
     setInput('');
     setIsTyping(true);
 
     try {
       // Save user message to Firestore
-      await addDoc(collection(db, 'users', user.uid, 'messages'), userMsg);
+      await addDoc(collection(db, 'users', user.uid, 'messages'), {
+        role: 'user',
+        content: encryptData(messageText),
+        timestamp: serverTimestamp()
+      });
       
       // Add XP for engagement
       addXp(15);
 
-      const response = await askTutor(input, mode, subject.name);
+      const response = await askTutor(messageText, mode, subject.name);
       
       // Save AI response to Firestore
       await addDoc(collection(db, 'users', user.uid, 'messages'), {
-        role: 'ai' as const,
-        content: response,
-        timestamp: new Date().toISOString()
+        role: 'ai',
+        content: encryptData(response),
+        timestamp: serverTimestamp()
       });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/messages`);
+    } catch (error: any) {
+      if (error.message?.includes('Limit reached')) {
+        // Limit modal will be shown by StudentApp listener
+        return;
+      }
+      setErrorMessage(error.message || "Failed to get AI response.");
+      console.error("Chat Error:", error);
     } finally {
       setIsTyping(false);
     }
@@ -306,6 +339,11 @@ export default function TutorPage() {
             </button>
           </div>
 
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-500/5 border border-green-500/10 rounded-full">
+            <Lock size={12} className="text-green-500" />
+            <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">End-to-End Encrypted</span>
+          </div>
+
           {messages.length > 0 && (
             <button
               onClick={handleSummarize}
@@ -395,7 +433,26 @@ export default function TutorPage() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto space-y-10 mb-6 pr-2 scrollbar-thin scrollbar-thumb-black/10 dark:scrollbar-thumb-white/10"
       >
-        {messages.length === 0 && (
+        {errorMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="sticky top-0 z-10 bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center justify-between gap-4 mb-4"
+          >
+            <div className="flex items-center gap-3 text-red-500">
+              <AlertCircle size={20} />
+              <p className="text-sm font-medium">{errorMessage}</p>
+            </div>
+            <button 
+              onClick={() => setErrorMessage(null)}
+              className="p-1 hover:bg-red-500/10 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+
+        {messages.length === 0 && !errorMessage && (
           <div className="h-full flex flex-col items-center justify-center text-center gap-8 py-12">
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
@@ -425,10 +482,10 @@ export default function TutorPage() {
             )}
           >
             <div className={cn(
-              "px-6 py-4 rounded-3xl text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none",
+              "px-6 py-4 rounded-3xl text-sm leading-relaxed prose prose-sm max-w-none",
               msg.role === 'user' 
-                ? "bg-black text-white dark:bg-white dark:text-black rounded-tr-none" 
-                : "bg-black/5 dark:bg-white/5 rounded-tl-none"
+                ? "bg-black text-white prose-invert dark:bg-white dark:text-black dark:prose-slate rounded-tr-none" 
+                : "bg-black/5 dark:bg-white/5 dark:prose-invert rounded-tl-none"
             )}>
               {msg.role === 'user' ? (
                 msg.content
@@ -576,7 +633,7 @@ export default function TutorPage() {
               <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex justify-end">
                 <button 
                   onClick={() => setSummary(null)}
-                  className="px-6 py-2 bg-black text-white dark:bg-white dark:text-black rounded-xl font-bold text-sm"
+                  className="px-6 py-2 bg-black text-white dark:bg-white dark:text-black rounded-xl font-bold text-sm hover:scale-105 transition-all"
                 >
                   Got it
                 </button>

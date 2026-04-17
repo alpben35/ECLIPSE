@@ -5,19 +5,20 @@ import {
   Users, MessageSquare, BarChart2, CheckSquare, 
   Send, Plus, Trash2, ChevronLeft, MoreVertical, 
   UserPlus, LogOut, Shield, Clock, Hash, Loader2,
-  Share2, FileText, Calendar, Image as ImageIcon, Mic, StopCircle, AtSign, Play, Pause
+  Share2, FileText, Calendar, Image as ImageIcon, Mic, StopCircle, AtSign, Play, Pause, Award
 } from 'lucide-react';
-import { db, handleFirestoreError, OperationType, storage } from '../../../src/lib/firebase';
+import { db, handleFirestoreError, OperationType, storage, encryptData, decryptData } from '../../../src/lib/firebase';
 import { 
   doc, onSnapshot, collection, query, orderBy, 
   addDoc, serverTimestamp, deleteDoc, updateDoc, 
   arrayRemove, getDoc, limit 
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { AuthContext } from '../../../src/App';
+import { AuthContext } from '../../../src/lib/contexts';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format } from 'date-fns';
+import confetti from 'canvas-confetti';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -87,9 +88,26 @@ export default function GroupDetailPage() {
       setLoading(false);
     }, (err) => handleFirestoreError(err, OperationType.GET, `groups/${groupId}`));
 
-    const messagesQ = query(collection(db, 'groups', groupId, 'messages'), orderBy('timestamp', 'asc'), limit(100));
+    const messagesQ = query(collection(db, 'groups', groupId, 'messages'), orderBy('timestamp', 'desc'), limit(100));
     const unsubMessages = onSnapshot(messagesQ, (snapshot) => {
-      setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const loadedMessages = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let timestamp = data.timestamp;
+        
+        if (timestamp && typeof timestamp.toDate === 'function') {
+          timestamp = timestamp.toDate().toISOString();
+        } else if (!timestamp) {
+          timestamp = new Date().toISOString();
+        }
+
+        return {
+          id: doc.id,
+          ...data,
+          timestamp,
+          content: data.type === 'text' ? decryptData(data.content) : data.content
+        };
+      });
+      setMessages(loadedMessages.reverse());
     });
 
     const assignmentsQ = query(collection(db, 'groups', groupId, 'assignments'), orderBy('createdAt', 'desc'));
@@ -112,14 +130,15 @@ export default function GroupDetailPage() {
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!newMessage.trim() || !user || !groupId) return;
+    const messageText = newMessage.trim();
+    if (!messageText || !user || !groupId) return;
 
     try {
       await addDoc(collection(db, 'groups', groupId, 'messages'), {
         senderId: user.uid,
         senderName: profile?.displayName || 'Anonymous',
-        content: newMessage.trim(),
-        timestamp: new Date().toISOString(),
+        content: encryptData(messageText),
+        timestamp: serverTimestamp(),
         type: 'text'
       });
       setNewMessage('');
@@ -145,7 +164,7 @@ export default function GroupDetailPage() {
         senderName: profile?.displayName || 'Anonymous',
         content: 'Sent a photo',
         imageUrl: url,
-        timestamp: new Date().toISOString(),
+        timestamp: serverTimestamp(),
         type: 'image'
       });
     } catch (error) {
@@ -204,7 +223,7 @@ export default function GroupDetailPage() {
         senderName: profile?.displayName || 'Anonymous',
         content: 'Sent a voice note',
         audioUrl: url,
-        timestamp: new Date().toISOString(),
+        timestamp: serverTimestamp(),
         type: 'audio'
       });
     } catch (error) {
@@ -266,6 +285,37 @@ export default function GroupDetailPage() {
     }
   };
 
+  const handleSendEncouragement = async () => {
+    if (!user || !groupId) return;
+    const messages = [
+      "Keep up the great work, everyone! 🌟",
+      "You're making incredible progress! 🚀",
+      "Proud of the effort you're putting in! 👏",
+      "Stay focused, you've got this! 💪",
+      "Excellent teamwork in this group! 🤝",
+      "Remember: every small step leads to big success! ✨"
+    ];
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    
+    try {
+      await addDoc(collection(db, 'groups', groupId, 'messages'), {
+        senderId: user.uid,
+        senderName: profile?.displayName || 'Anonymous',
+        content: randomMessage,
+        timestamp: new Date().toISOString(),
+        type: 'encouragement'
+      });
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#FFD700', '#7B0000']
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `groups/${groupId}/messages`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -297,6 +347,13 @@ export default function GroupDetailPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button 
+            onClick={handleSendEncouragement}
+            className="flex items-center gap-2 px-6 py-3 bg-gold text-royal-red rounded-2xl font-bold text-sm hover:scale-105 transition-all shadow-lg"
+          >
+            <Award size={18} />
+            Encourage
+          </button>
           <button 
             onClick={leaveGroup}
             className="flex items-center gap-2 px-6 py-3 bg-red-500/10 text-red-500 rounded-2xl font-bold text-sm hover:bg-red-500/20 transition-all"
@@ -365,6 +422,11 @@ export default function GroupDetailPage() {
                             <Mic size={16} />
                           </div>
                           <audio src={msg.audioUrl} controls className="h-8 w-full max-w-[150px] filter invert" />
+                        </div>
+                      ) : msg.type === 'encouragement' ? (
+                        <div className="flex flex-col items-center text-center gap-2 py-2">
+                          <Award size={24} className="text-royal-red animate-bounce" />
+                          <p className="font-black italic text-lg tracking-tight">{msg.content}</p>
                         </div>
                       ) : (
                         <div className="whitespace-pre-wrap">

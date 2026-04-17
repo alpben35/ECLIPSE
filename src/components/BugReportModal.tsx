@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Bug, Send, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, encryptData } from '../lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 
 interface BugReportModalProps {
@@ -28,7 +28,7 @@ export default function BugReportModal({ isOpen, onClose, isTeacher, userEmail, 
         uid: userUid || 'anonymous',
         email: userEmail || 'anonymous',
         type: issueType,
-        description,
+        description: encryptData(description),
         status: 'new',
         createdAt: new Date().toISOString()
       });

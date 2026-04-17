@@ -2,19 +2,22 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Brain, TrendingUp, Shield, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Logo from '../components/ui/Logo';
 
 export default function LandingPage() {
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-20">
       <div className="text-center space-y-8 mb-32">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/5 dark:bg-white/5 text-sm font-medium"
+          className="flex flex-col items-center gap-6"
         >
-          <Sparkles size={16} />
-          <span>The future of learning is here</span>
+          <Logo size="xl" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/5 dark:bg-white/5 text-sm font-medium">
+            <Sparkles size={16} />
+            <span>The future of learning is here</span>
+          </div>
         </motion.div>
         
         <motion.h1 

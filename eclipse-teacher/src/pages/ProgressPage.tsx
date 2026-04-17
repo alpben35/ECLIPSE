@@ -12,7 +12,7 @@ import { SUBJECTS } from '../lib/constants';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { AuthContext } from '../../../src/App';
+import { AuthContext } from '../../../src/lib/contexts';
 import confetti from 'canvas-confetti';
 
 function cn(...inputs: ClassValue[]) {
@@ -205,21 +205,21 @@ export default function ProgressPage() {
           subject: s.subject
         }));
 
-  const filteredScores = !filterSubject ? [] : scores.filter(s => s.subject === filterSubject);
+  const filteredScores = !filterSubject || filterSubject === 'Overall' ? scores : scores.filter(s => s.subject === filterSubject);
   
   const absoluteLatestScore = scores.length > 0 
     ? [...scores].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
     : null;
 
-  const displayScore = !filterSubject
-    ? 0
+  const displayScore = !filterSubject || filterSubject === 'Overall'
+    ? (scores.length > 0 ? Math.round(scores.reduce((a, b) => a + (Number(b.percentage) || 0), 0) / scores.length) : 0)
     : (filteredScores.length > 0 
         ? Number(filteredScores[filteredScores.length - 1].percentage) 
         : 0);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12 space-y-12">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="max-w-6xl mx-auto px-4 py-12 space-y-12 text-center">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 text-left">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-gold">
             {!filterSubject ? 'Class Progress' : `${filterSubject} Progress`}

@@ -1,19 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
-
-let genAI: GoogleGenAI | null = null;
-
-function getGenAI() {
-  if (!genAI) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not set. Please check your environment variables.");
-    }
-    genAI = new GoogleGenAI({ apiKey });
-  }
-  return genAI;
-}
-
-export const tutorModel = "gemini-3-flash-preview";
+export const tutorModel = "gemini-2.0-flash";
 
 export async function askTutor(prompt: string, mode: 'teach' | 'solve' | 'revise' | 'question' | 'test' | 'assignment', subject: string) {
   const systemInstruction = `
@@ -36,16 +21,27 @@ export async function askTutor(prompt: string, mode: 'teach' | 'solve' | 'revise
   `;
 
   try {
-    const ai = getGenAI();
-    const response = await ai.models.generateContent({
-      model: tutorModel,
-      contents: prompt,
-      config: {
-        systemInstruction: systemInstruction
-      }
+    if (!navigator.onLine) {
+      throw new Error("You are offline. Please connect to the internet to use the AI teacher assistant.");
+    }
+
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        systemInstruction,
+        model: tutorModel
+      })
     });
 
-    const text = response.text || "";
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch from Gemini API');
+    }
+
+    const data = await response.json();
+    const text = data.text || "";
     if (!text) {
       throw new Error("The AI returned an empty response. Please try again.");
     }
@@ -53,34 +49,38 @@ export async function askTutor(prompt: string, mode: 'teach' | 'solve' | 'revise
     return text.replace(/\$/g, '');
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    if (error.message?.includes("API_KEY_INVALID")) {
-      throw new Error("Invalid Gemini API Key. Please check your configuration.");
-    }
     throw error;
   }
 }
 
 export async function summarizeChat(messages: { role: string, content: string }[]) {
-  const history = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
-  const prompt = `
-    Please provide a concise summary of the following chat history between a teacher and an AI assistant.
-    Highlight the key topics discussed and any specific resources generated.
-    
-    Chat History:
-    ${history}
-  `;
+  const contents = messages.map(m => ({
+    role: m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: m.content }]
+  }));
 
   try {
-    const ai = getGenAI();
-    const response = await ai.models.generateContent({
-      model: tutorModel,
-      contents: prompt,
-      config: {
-        systemInstruction: "You are a helpful assistant that summarizes educational chat sessions for teachers. Keep it structured and brief."
-      }
+    if (!navigator.onLine) {
+      throw new Error("You are offline. Please connect to the internet to summarize.");
+    }
+
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: "You are a helpful assistant that summarizes educational chat sessions for teachers. Keep it structured and brief.",
+        model: tutorModel
+      })
     });
 
-    const text = response.text || "";
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch from Gemini API');
+    }
+
+    const data = await response.json();
+    const text = data.text || "";
     return text.replace(/\$/g, '');
   } catch (error) {
     console.error("Gemini Summarization Error:", error);

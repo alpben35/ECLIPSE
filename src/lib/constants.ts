@@ -26,3 +26,5 @@ export const SUBJECTS = [
 export const GRADE_LEVELS = [
   "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "Year 13", "University"
 ];
+
+export const OWNER_EMAIL = 'alp.ben@gmail.com';
