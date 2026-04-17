@@ -205,12 +205,12 @@ export default function SubscriptionPage() {
     badge: "bg-white text-royal-red",
     icon: "text-gold"
   } : {
-    bg: "bg-white dark:bg-black",
-    text: "text-black dark:text-white",
+    bg: "bg-zinc-950",
+    text: "text-white",
     accent: "text-orange-500",
-    card: "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10",
-    cardHighlight: "bg-black text-white dark:bg-white dark:text-black border-transparent shadow-2xl scale-105 z-10",
-    button: "bg-black text-white dark:bg-white dark:text-black hover:scale-105",
+    card: "bg-white/5 border-white/10",
+    cardHighlight: "bg-white text-black border-transparent shadow-2xl scale-105 z-10",
+    button: "bg-white text-black hover:scale-105",
     buttonHighlight: "bg-orange-500 text-white hover:bg-orange-600",
     badge: "bg-orange-500 text-white",
     icon: "text-orange-500"

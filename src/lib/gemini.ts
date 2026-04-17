@@ -1,10 +1,25 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
+const getApiKey = () => {
+  try {
+    // Standard AI Studio production/dev access
+    if (typeof process !== 'undefined' && process && process.env && process.env.GEMINI_API_KEY) {
+      return process.env.GEMINI_API_KEY;
+    }
+  } catch (e) {
+    console.warn("Process env access failed, falling back.");
+  }
+  
+  // Fallbacks for browser environments
+  const metaEnv = (import.meta as any).env;
+  return metaEnv?.VITE_GEMINI_API_KEY || (window as any).GEMINI_API_KEY || "";
+};
+
 const ai = new GoogleGenAI({ 
-  apiKey: process.env.GEMINI_API_KEY 
+  apiKey: getApiKey()
 });
 
-export async function askTutor(prompt: string, mode: 'teach' | 'solve' | 'revise' | 'question' | 'test' | 'assignment', subject: string) {
+export async function askTutor(prompt: string, mode: 'teach' | 'solve' | 'revise' | 'question' | 'test' | 'assignment', subject: string, history: { role: 'user' | 'ai', content: string }[] = []) {
   try {
     const systemPrompt = `You are Eclipse AI, a world-class academic tutor. You are currently teaching ${subject}.
     Your mode is: ${mode}.
@@ -15,13 +30,27 @@ export async function askTutor(prompt: string, mode: 'teach' | 'solve' | 'revise
     - "test": Provide a practice question and grade their response.
     - "assignment": Help structure or brainstorm for an assignment.
     
+    IMPORTANT RULES:
+    1. Do NOT include any "scaffolding symbols" or internal step labels like "Step 1:", "Reasoning:", "Step Id:", or technical artifacts in your response.
+    2. Do NOT use dollar signs ($) or LaTeX delimiters for mathematical formulas or symbols UNLESS the user explicitly asks for LaTeX format. Always use plain text, words (e.g., "squared", "divided by"), or standard keyboard characters (e.g., ^ for power, * for multiply) when describing math.
+    3. Provide clean, conversational, and direct tutor feedback.
+    
     Keep responses academic, encouraging, and clear. Use Markdown for formatting.`;
 
-    const result = await ai.models.generateContent({
+    const chatContents = history.map(m => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.content }]
+    }));
+
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [systemPrompt, prompt]
+      contents: [
+        { role: 'user', parts: [{ text: systemPrompt }] },
+        ...chatContents,
+        { role: 'user', parts: [{ text: prompt }] }
+      ]
     });
-    return result.text;
+    return response.text;
   } catch (error) {
     console.error("Gemini Tutor Error:", error);
     throw new Error("Tutor is currently offline. Please try again later.");
@@ -33,11 +62,11 @@ export async function summarizeChat(messages: { role: string, content: string }[
     const chatText = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
     const prompt = `Please provide a concise summary of the following educational chat session. Highlight the key concepts discussed and the student's progress.\n\n${chatText}`;
     
-    const result = await ai.models.generateContent({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt
     });
-    return result.text;
+    return response.text;
   } catch (error) {
     console.error("Gemini Summary Error:", error);
     throw new Error("Unable to summarize chat at this time.");
@@ -55,8 +84,8 @@ export interface PaperDiagnostic {
 export const analyzeStudyPaper = async (imageUrl: string, subject: string): Promise<PaperDiagnostic> => {
   try {
     // We need to fetch the image and convert to base64 for Gemini
-    const response = await fetch(imageUrl);
-    const blob = await response.blob();
+    const imgResponse = await fetch(imageUrl);
+    const blob = await imgResponse.blob();
     const reader = new FileReader();
     
     const base64Promise = new Promise<string>((resolve, reject) => {
@@ -70,7 +99,7 @@ export const analyzeStudyPaper = async (imageUrl: string, subject: string): Prom
     reader.readAsDataURL(blob);
     const base64Data = await base64Promise;
 
-    const result = await ai.models.generateContent({
+    const geResponse = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
         parts: [
@@ -83,7 +112,9 @@ export const analyzeStudyPaper = async (imageUrl: string, subject: string): Prom
           {
             text: `Analyze this study paper/worksheet related to the subject: ${subject}. 
             Provide a diagnostic assessment including a summary of the work, specific strengths, areas for improvement, and actionable tips for the student.
-            Return the response in JSON format.`
+            Return the response in JSON format.
+            
+            IMPORTANT: Do NOT use dollar signs ($) or LaTeX delimiters in the text responses. Use plain text or standard academic terminology instead.`
           }
         ]
       },
@@ -103,7 +134,7 @@ export const analyzeStudyPaper = async (imageUrl: string, subject: string): Prom
       }
     });
 
-    const diagnostic = JSON.parse(result.text || '{}');
+    const diagnostic = JSON.parse(geResponse.text || '{}');
     return diagnostic;
   } catch (error) {
     console.error("Gemini Analysis Error:", error);

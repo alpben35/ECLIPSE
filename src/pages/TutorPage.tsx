@@ -176,7 +176,13 @@ export default function TutorPage() {
       // Add XP for engagement
       addXp(15);
 
-      const response = await askTutor(messageText, mode, subject.name);
+      // Pass the last 10 messages for context
+      const chatHistory = messages.slice(-10).map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+
+      const response = await askTutor(messageText, mode, subject.name, chatHistory);
       
       // Save AI response to Firestore
       await addDoc(collection(db, 'users', user.uid, 'messages'), {

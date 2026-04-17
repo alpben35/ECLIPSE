@@ -40,9 +40,8 @@ const RankPage = React.lazy(() => import('./pages/RankPage'));
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
 const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
 const SubscriptionPage = React.lazy(() => import('./pages/SubscriptionPage'));
-
-import StudentApp from './StudentApp';
-import TeacherApp from '../eclipse-teacher/src/TeacherApp';
+const TeacherApp = React.lazy(() => import('../eclipse-teacher/src/TeacherApp'));
+const StudentApp = React.lazy(() => import('./StudentApp'));
 import SplashScreen from './components/PWA/SplashScreen';
 import AddToHomeScreen from './components/PWA/AddToHomeScreen';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
