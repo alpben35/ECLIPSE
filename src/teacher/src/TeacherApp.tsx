@@ -2,34 +2,39 @@ import React, { useState, useContext } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  LogOut, Menu, X, Users, MessageSquare, BarChart2, Lightbulb, Award, Shield, Lock, Zap
+  LogOut, Menu, X, Users, MessageSquare, BarChart2, Lightbulb, Award, Shield, Lock, Zap,
+  Sun, Moon
 } from 'lucide-react';
-import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { auth } from '../../src/lib/firebase';
-import { OWNER_EMAIL } from '../../src/constants';
-import { AuthContext } from '../../src/lib/contexts';
-import { ProtectedRoute } from '../../src/components/ProtectedRoute';
-import { cn } from '../../src/lib/utils';
-import Logo from '../../src/components/ui/Logo';
+import { signOut } from 'firebase/auth';
+import { auth, useConnectivity } from '@/lib/firebase';
+import { OWNER_EMAIL } from '@/constants';
+import { AuthContext, ThemeContext } from '@/lib/contexts';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { cn } from '@/lib/utils';
+import Logo from '@/components/ui/Logo';
 
-import SupportModal from '../../src/components/SupportModal';
-import BugReportModal from '../../src/components/BugReportModal';
-import ProfileSettingsModal from '../../src/components/ProfileSettingsModal';
+import SupportModal from '@/components/SupportModal';
+import BugReportModal from '@/components/BugReportModal';
+import ProfileSettingsModal from '@/components/ProfileSettingsModal';
 
 // --- Components ---
 const TutorPage = React.lazy(() => import('./pages/TutorPage'));
 const ProgressPage = React.lazy(() => import('./pages/ProgressPage'));
-const LandingPage = React.lazy(() => import('./pages/LandingPage'));
+const LandingPage = React.lazy(() => import('@/pages/LandingPage'));
 const AdminPage = React.lazy(() => import('./pages/AdminPage'));
 const IdeaPage = React.lazy(() => import('./pages/IdeaPage'));
 const RankPage = React.lazy(() => import('./pages/RankPage'));
 const GroupsPage = React.lazy(() => import('./pages/GroupsPage'));
 const GroupDetailPage = React.lazy(() => import('./pages/GroupDetailPage'));
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
-const SubscriptionPage = React.lazy(() => import('../../src/pages/SubscriptionPage'));
+const SubscriptionPage = React.lazy(() => import('@/pages/SubscriptionPage'));
+const VisionPage = React.lazy(() => import('@/pages/VisionPage'));
+const DnsPage = React.lazy(() => import('@/pages/DnsPage'));
 
 export default function TeacherApp() {
+  const { isDark, toggleTheme } = useContext(ThemeContext);
   const { user, profile } = useContext(AuthContext);
+  const connectivity = useConnectivity();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
@@ -37,40 +42,31 @@ export default function TeacherApp() {
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showProfilePopover, setShowProfilePopover] = useState(false);
 
-  const navItems = [
-    { name: 'Assistant', path: '/teacher/tutor', icon: MessageSquare },
-    { name: 'Groups', path: '/teacher/groups', icon: Users },
-    { name: 'Class Progress', path: '/teacher/progress', icon: BarChart2 },
-    { name: 'Ideas', path: '/teacher/ideas', icon: Lightbulb },
-    { name: 'Shop', path: '/teacher/subscription', icon: Zap },
-  ];
-
-  const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
+  const isOwner = profile?.email === OWNER_EMAIL || user?.email === OWNER_EMAIL || profile?.rank === 'Owner' || profile?.rank === 'Temporary Owner';
   const isTempOwner = profile?.rank === 'Temporary Owner';
 
-  if (isOwner || isTempOwner) {
-    navItems.push({ name: 'Admin', path: '/teacher/admin', icon: Users });
-  }
+  const isAdminPlus = profile?.email === OWNER_EMAIL || 
+                      user?.email === OWNER_EMAIL ||
+                      profile?.rank === 'Owner' || 
+                      profile?.rank === 'Temporary Owner' || 
+                      profile?.rank === 'Admin' ||
+                      user?.uid === 'GTk39aFMkFTSARasXr2F4XgdtMM2';
 
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  const handleLogin = async () => {
-    if (isLoggingIn) return;
-    setIsLoggingIn(true);
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-        console.log('Login cancelled by user.');
-      } else {
-        console.error('Login error:', error);
-      }
-    } finally {
-      setTimeout(() => setIsLoggingIn(false), 2000);
+  const navItems = React.useMemo(() => {
+    const base = [
+      { name: 'Assistant', path: '/teacher/tutor', icon: MessageSquare },
+      { name: 'Groups', path: '/teacher/groups', icon: Users },
+      { name: 'Class Progress', path: '/teacher/progress', icon: BarChart2 },
+      { name: 'Ideas', path: '/teacher/ideas', icon: Lightbulb },
+      { name: 'Shop', path: '/teacher/subscription', icon: Zap },
+    ];
+    if (isOwner || isTempOwner || isAdminPlus) {
+      base.push({ name: 'Admin', path: '/teacher/admin', icon: Users });
+      base.push({ name: 'Council', path: '/teacher/groups/admin_council', icon: Shield });
     }
-  };
+    return base;
+  }, [isOwner, isTempOwner, isAdminPlus]);
+
   const handleLogout = () => signOut(auth);
 
   const xpForNextLevel = Math.pow(profile?.level || 1, 2) * 100;
@@ -78,25 +74,40 @@ export default function TeacherApp() {
   const progress = profile ? ((profile.xp - currentLevelXp) / (xpForNextLevel - currentLevelXp)) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-royal-red text-gold selection:bg-gold selection:text-royal-red dark">
+    <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red bg-royal-red text-gold")}>
+      <AnimatePresence>
+        {!connectivity.isAuthorized && window.location.hostname !== 'localhost' && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="bg-royal-red text-white py-2 px-4 text-center text-xs font-black uppercase tracking-widest z-[100] relative border-b border-gold/20"
+          >
+            Domain {window.location.hostname} is not authorized in Firebase. Features may not work.
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="flex flex-col min-h-screen">
-        <header className="sticky top-0 z-50 border-b border-gold/20 bg-royal-red/80 backdrop-blur-md">
+        <header className={cn("sticky top-0 z-50 border-b backdrop-blur-md transition-colors shadow-2xl border-gold/20 bg-royal-red/90")}>
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-8">
               <div className="flex flex-col justify-center">
-                <Link to="/" className="flex items-center gap-3 group">
-                  <Logo size="sm" variant="teacher" />
-                  <div className="flex flex-col leading-none">
-                    <span className="font-bold text-2xl tracking-tighter text-gold">ECLIPSE</span>
-                    <span className="text-lg handwriting text-gold ml-1 -mt-1">Teacher</span>
+                <div className="flex items-center gap-3">
+                  <Link to="/" className="group">
+                    <Logo size="sm" variant="teacher" />
+                  </Link>
+                  <div className="flex flex-col items-center">
+                    <Link to="/" className="flex items-center gap-1 hover:opacity-70 transition-opacity">
+                      <span className="font-bold text-xl tracking-tighter text-gold">ECLIPSE</span>
+                      <span className="text-base handwriting text-gold">Teacher</span>
+                    </Link>
+                    <Link 
+                      to={location.pathname.replace(/^\/teacher/, '') || '/'}
+                      className="text-[9px] font-black uppercase tracking-[0.2em] text-gold/40 hover:text-gold transition-all text-center"
+                    >
+                      Switch to Student
+                    </Link>
                   </div>
-                </Link>
-                <Link 
-                  to="/"
-                  className="text-[10px] font-bold uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity text-left ml-11"
-                >
-                  Switch to Student
-                </Link>
+                </div>
               </div>
 
               <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full ml-4">
@@ -134,14 +145,16 @@ export default function TeacherApp() {
               )}
             </div>
 
-            <nav className="hidden md:flex items-center gap-8">
-              {user && navItems.map((item) => (
+            <nav className="flex items-center gap-1 sm:gap-4 md:gap-8 overflow-x-auto no-scrollbar py-2">
+              {navItems.map((item) => (
                 <Link 
                   key={item.path} 
                   to={item.path}
                   className={cn(
-                    "text-sm font-medium transition-opacity hover:opacity-100",
-                    location.pathname === item.path ? "opacity-100" : "opacity-50"
+                    "text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-widest transition-all px-2 py-1 rounded-lg whitespace-nowrap",
+                    location.pathname === item.path 
+                      ? "bg-gold text-royal-red opacity-100 shadow-lg" 
+                      : "text-gold opacity-40 hover:opacity-100"
                   )}
                 >
                   {item.name}
@@ -150,6 +163,14 @@ export default function TeacherApp() {
             </nav>
 
             <div className="flex items-center gap-4">
+              <button 
+                onClick={toggleTheme}
+                className="p-2.5 rounded-xl bg-gold/10 hover:bg-gold/20 border border-gold/20 transition-all active:scale-95 shrink-0"
+                title="Toggle Theme"
+              >
+                {isDark ? <Sun size={22} strokeWidth={2.5} className="text-green-500" /> : <Moon size={22} strokeWidth={2.5} className="text-green-500" />}
+              </button>
+              
               {user ? (
                 <div className="flex items-center gap-4">
                   <div className="relative">
@@ -180,28 +201,28 @@ export default function TeacherApp() {
                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
                             className="absolute right-0 w-72 pt-4 z-50"
                           >
-                            <div className="bg-royal-red border border-gold/20 rounded-[2rem] shadow-2xl p-6 overflow-hidden">
+                            <div className={cn("border shadow-2xl p-6 overflow-hidden rounded-[2rem] bg-royal-red border-gold/20")}>
                             <div className="space-y-6">
-                              <div className="flex items-center gap-4 pb-6 border-b border-gold/10">
-                                <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center">
+                              <div className={cn("flex items-center gap-4 pb-6 border-b border-gold/10")}>
+                                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center bg-gold/10")}>
                                   <Award size={24} className="text-gold opacity-50" />
                                 </div>
                                 <div className="flex flex-col min-w-0">
-                                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-30 text-gold">Teacher Profile</p>
-                                  <p className="font-bold truncate text-lg tracking-tight text-gold">{profile?.displayName || user.displayName || 'Anonymous'}</p>
+                                  <p className={cn("text-[10px] font-bold uppercase tracking-widest opacity-30 text-gold")}>Teacher Profile</p>
+                                  <p className={cn("font-bold truncate text-lg tracking-tight text-gold")}>{profile?.displayName || user.displayName || 'Anonymous'}</p>
                                 </div>
                               </div>
 
-                              <div className="space-y-3">
-                                <p className="text-[10px] font-bold uppercase tracking-widest opacity-30 ml-1 text-gold">Account Security</p>
-                                <div className="p-4 bg-gold/5 rounded-2xl flex items-center justify-between">
+                              <div className={cn("space-y-3")}>
+                                <p className={cn("text-[10px] font-bold uppercase tracking-widest opacity-30 ml-1 text-gold")}>Account Security</p>
+                                <div className={cn("p-4 rounded-2xl flex items-center justify-between bg-gold/5")}>
                                   <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center">
-                                      <Lock size={14} className="text-gold opacity-50" />
+                                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center bg-gold/10")}>
+                                      <Lock size={14} className={cn("text-gold opacity-50")} />
                                     </div>
                                     <div className="flex flex-col">
-                                      <span className="text-xs font-bold text-gold">Password</span>
-                                      <span className="text-[10px] opacity-30 tracking-widest text-gold">••••••••</span>
+                                      <span className={cn("text-xs font-bold text-gold")}>Password</span>
+                                      <span className={cn("text-[10px] opacity-30 tracking-widest text-gold")}>••••••••</span>
                                     </div>
                                   </div>
                                 </div>
@@ -210,19 +231,22 @@ export default function TeacherApp() {
                                     setShowProfileSettings(true);
                                     setShowProfilePopover(false);
                                   }}
-                                  className="w-full py-4 text-[10px] font-black uppercase tracking-widest bg-gold text-royal-red rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-gold/10"
+                                  className={cn(
+                                    "w-full py-4 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg",
+                                    isDark ? "bg-gold text-royal-red shadow-gold/10" : "bg-gold text-royal-red shadow-gold/20"
+                                  )}
                                 >
                                   Manage Account
                                 </button>
                               </div>
 
-                              <div className="pt-4 border-t border-gold/10 flex flex-col gap-2">
+                              <div className={cn("pt-4 border-t flex flex-col gap-2", isDark ? "border-gold/10" : "border-royal-red/10")}>
                                 <button 
                                   onClick={() => {
                                     handleLogout();
                                     setShowProfilePopover(false);
                                   }}
-                                  className="w-full flex items-center justify-center gap-2 py-3 text-xs font-bold opacity-50 hover:opacity-100 transition-opacity text-gold"
+                                  className={cn("w-full flex items-center justify-center gap-2 py-3 text-xs font-bold opacity-50 hover:opacity-100 transition-opacity", isDark ? "text-gold" : "text-royal-red")}
                                 >
                                   <LogOut size={16} />
                                   Sign Out
@@ -272,6 +296,7 @@ export default function TeacherApp() {
                 </Link>
               )}
 
+              {/* Standard Mobile Menu Trigger */}
               <button 
                 className="md:hidden p-2"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -306,6 +331,8 @@ export default function TeacherApp() {
                   <Route path="/ideas" element={<ProtectedRoute><IdeaPage /></ProtectedRoute>} />
                   <Route path="/ranks" element={<ProtectedRoute><RankPage /></ProtectedRoute>} />
                   <Route path="/subscription" element={<SubscriptionPage />} />
+                  <Route path="/vision" element={<ProtectedRoute><VisionPage /></ProtectedRoute>} />
+                  <Route path="/dns" element={<ProtectedRoute adminOnly><DnsPage /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
                 </Routes>
               </React.Suspense>
@@ -341,8 +368,8 @@ export default function TeacherApp() {
           isOpen={showProfileSettings}
           onClose={() => setShowProfileSettings(false)}
           currentUsername={profile?.displayName || user?.displayName || ''}
+          currentPhotoURL={profile?.photoURL || user?.photoURL || ''}
           currentPhone={profile?.phone || ''}
-          currentBankAccount={profile?.bankAccount || ''}
         />
 
         <AnimatePresence>

@@ -3,111 +3,149 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // ===============================================================
-    // Helper Functions
+    // GLOBALS & HELPERS
     // ===============================================================
-    function isAuthenticated() {
-      return request.auth != null;
-    }
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isVerified() { return request.auth.token.email_verified == true; }
     
-    function isPrimaryOwner() {
-      return isAuthenticated() && 
-             (request.auth.token.email == 'alp.ben@gmail.com' || request.auth.uid == 'GTk39aFMkFTSARasXr2F4XgdtMM2');
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() && 
-             (isPrimaryOwner() || 
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'admin');
+    // Primary Admin check using a trusted source
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'alp.ben@gmail.com' || 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
     // ===============================================================
-    // Rules
+    // ENTITY VALIDATORS
     // ===============================================================
 
-    match /users/{userId} {
-      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      allow create: if isAuthenticated() && isOwner(userId);
-      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      allow delete: if isAdmin();
-      
-      match /messages/{messageId} {
-        allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      }
-      
-      match /scores/{scoreId} {
-        allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      }
-      
-      match /papers/{paperId} {
-        allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      }
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'theme', 'xp', 'level', 'streak']) &&
+             data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 256 &&
+             data.theme in ['light', 'dark'] &&
+             data.xp is number && data.level is number && data.streak is number;
     }
 
-    match /friendships/{friendshipId} {
-      allow read, write: if isAuthenticated();
+    function isValidChatMessage(data) {
+      return data.keys().hasAll(['role', 'content', 'timestamp']) &&
+             data.role in ['user', 'ai'] &&
+             data.content is string && data.content.size() <= 10000 &&
+             data.timestamp is timestamp;
     }
 
-    match /friend_requests/{requestId} {
-      allow read, write: if isAuthenticated();
+    function isValidTestScore(data) {
+      return data.keys().hasAll(['uid', 'subject', 'percentage', 'date']) &&
+             data.uid == request.auth.uid &&
+             data.subject is string && data.subject.size() <= 100 &&
+             data.percentage is number && data.percentage >= 0 && data.percentage <= 100 &&
+             data.date is timestamp;
     }
 
-    match /audit_logs/{logId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
+    function isValidIdea(data) {
+      return data.keys().hasAll(['uid', 'authorName', 'authorEmail', 'title', 'description', 'status', 'createdAt', 'currentReviewerRank']) &&
+             data.uid == request.auth.uid &&
+             data.title is string && data.title.size() <= 200 &&
+             data.description is string && data.description.size() <= 10000 &&
+             data.status is string &&
+             data.createdAt is string;
     }
 
-    match /public_profiles/{userId} {
-      allow read: if true;
-      allow write: if isOwner(userId) || isAdmin();
-    }
+    // ===============================================================
+    // RESOURCE MATCHES
+    // ===============================================================
 
+    // SYSTEM & CONFIG (ALLOW READ FOR ALL)
     match /system/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /bugs/{bugId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if (isOwner(userId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'theme', 'xp', 'level', 'streak', 'lastActive', 
+          'rank', 'tier', 'promptsToday', 'lastPromptDate', 'imagesToday', 
+          'lastImageDate', 'consents', 'username', 'loginDays', 'photoURL', 'phone', 'updatedAt'
+        ])
+      )) || isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow update, delete: if isAdmin();
+      }
+      
+      match /scores/{scoreId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+      
+      match /papers/{paperId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    match /public_profiles/{userId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create, update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
     }
 
     match /ideas/{ideaId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && isValidIdea(incoming());
+      allow update: if (isSignedIn() && (
+        (isOwner(incoming().uid) && existing().status == 'pending' && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description'])) ||
+        isAdmin()
+      ));
       allow delete: if isAdmin();
     }
 
     match /groups/{groupId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-      
+      allow get: if isSignedIn() && (existing().isPrivate == false || request.auth.uid in existing().members);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (request.auth.uid in existing().members || isAdmin());
+
       match /messages/{messageId} {
-        allow read, write: if isAuthenticated();
-      }
-      
-      match /assignments/{assignmentId} {
-        allow read, write: if isAuthenticated();
+        allow get, list: if isSignedIn() && (get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]));
+        allow create: if isSignedIn() && (get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]));
       }
     }
 
-    match /notifications/{notifId} {
-      allow read, write: if isAuthenticated();
+    match /audit_logs/{logId} {
+      allow get, list: if isAdmin();
+      allow create: if isSignedIn(); 
+    }
+
+    match /bugs/{bugId} {
+      allow get, list: if isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
     }
 
     match /sent_emails/{emailId} {
-      allow read, write: if isAdmin();
+      allow read, list: if isAdmin();
+      allow create: if isSignedIn();
     }
 
-    match /posts/{postId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+    // ===============================================================
+    // DEFAULT DENY (LAST RESORT)
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

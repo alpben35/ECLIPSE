@@ -5,14 +5,14 @@ import {
   Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 import { Plus, Upload, FileText, Trash2, TrendingUp, Award, Clock, Loader2, Folder } from 'lucide-react';
-import { db, auth, storage, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, storage, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { collection, addDoc, query, onSnapshot, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { SUBJECTS } from '../lib/constants';
+import { SUBJECTS } from '@/lib/constants';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { AuthContext } from '../../../src/lib/contexts';
+import { AuthContext } from '@/lib/contexts';
 import confetti from 'canvas-confetti';
 
 function cn(...inputs: ClassValue[]) {

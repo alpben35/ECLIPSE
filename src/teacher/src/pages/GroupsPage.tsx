@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, Plus, Search, ChevronRight, Lock, Globe, Hash, Filter, Loader2 } from 'lucide-react';
-import { db, handleFirestoreError, OperationType } from '../../../src/lib/firebase';
+import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, addDoc, updateDoc, doc, arrayUnion, orderBy, or } from 'firebase/firestore';
-import { AuthContext } from '../../../src/lib/contexts';
-import { SUBJECTS, GRADE_LEVELS } from '../../../src/lib/constants';
+import { AuthContext } from '@/lib/contexts';
+import { SUBJECTS, GRADE_LEVELS } from '@/lib/constants';
 import { Link } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';

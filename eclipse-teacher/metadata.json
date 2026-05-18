@@ -1,5 +1,0 @@
-{
-  "name": "Eclipse Teacher",
-  "description": "An AI-powered teaching assistant and class progress tracker for educators.",
-  "requestFramePermissions": ["microphone"]
-}

@@ -2,12 +2,12 @@ import React, { useState, useContext } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Moon, Sun, BarChart2, MessageSquare, 
+  BarChart2, MessageSquare, 
   LogOut, Menu, X, Users, Lightbulb, Award, Zap, Shield,
-  User, Lock
+  User, Lock, Sun, Moon, Wand2
 } from 'lucide-react';
-import { GoogleAuthProvider, signInWithPopup, signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from './lib/firebase';
+import { signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { auth, useConnectivity } from './lib/firebase';
 import { OWNER_EMAIL } from './constants';
 import { ThemeContext, AuthContext } from './lib/contexts';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -30,10 +30,13 @@ const GroupsPage = React.lazy(() => import('./pages/GroupsPage'));
 const GroupDetailPage = React.lazy(() => import('./pages/GroupDetailPage'));
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
 const SubscriptionPage = React.lazy(() => import('./pages/SubscriptionPage'));
+const VisionPage = React.lazy(() => import('./pages/VisionPage'));
+const DnsPage = React.lazy(() => import('./pages/DnsPage'));
 
 export default function StudentApp() {
   const { isDark, toggleTheme } = useContext(ThemeContext);
   const { user, profile } = useContext(AuthContext);
+  const connectivity = useConnectivity();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
@@ -42,7 +45,7 @@ export default function StudentApp() {
   const [showProfilePopover, setShowProfilePopover] = useState(false);
   const [limitInfo, setLimitInfo] = useState<{ isOpen: boolean; limit: number; tier: string }>({
     isOpen: false,
-    limit: 40,
+    limit: 20,
     tier: 'free'
   });
 
@@ -58,58 +61,101 @@ export default function StudentApp() {
     return () => window.removeEventListener('prompt-limit-reached', handleLimitReached);
   }, []);
 
-  const navItems = [
-    { name: 'Tutor', path: '/tutor', icon: MessageSquare },
-    { name: 'Groups', path: '/groups', icon: Users },
-    { name: 'Progress', path: '/progress', icon: BarChart2 },
-    { name: 'Ideas', path: '/ideas', icon: Lightbulb },
-    { name: 'Shop', path: '/subscription', icon: Zap },
-  ];
-
   const isAdminPlus = profile?.email === OWNER_EMAIL || 
+                      user?.email === OWNER_EMAIL ||
                       profile?.rank === 'Owner' || 
                       profile?.rank === 'Temporary Owner' || 
-                      profile?.rank === 'Admin';
+                      profile?.rank === 'Admin' ||
+                      user?.uid === 'GTk39aFMkFTSARasXr2F4XgdtMM2';
 
-  if (isAdminPlus) {
-    navItems.splice(2, 0, { name: 'Council', path: '/groups/admin_council', icon: Shield });
-  }
+  const isOwner = profile?.email === OWNER_EMAIL || user?.email === OWNER_EMAIL || profile?.rank === 'Owner' || profile?.rank === 'Temporary Owner';
 
-  const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
-  const isTempOwner = profile?.rank === 'Temporary Owner';
+  const navItems = React.useMemo(() => {
+    const base = [
+      { name: 'Tutor', path: '/tutor', icon: MessageSquare },
+      { name: 'Teams', path: '/groups', icon: Users },
+      { name: 'Progress', path: '/progress', icon: BarChart2 },
+      { name: 'Ideas', path: '/ideas', icon: Lightbulb },
+      { name: 'Shop', path: '/subscription', icon: Zap },
+      { name: 'Profile', path: '#profile', icon: User },
+    ];
+    if (isAdminPlus || isOwner) {
+      base.push({ name: 'Admin', path: '/admin', icon: Users });
+      base.push({ name: 'Council', path: '/groups/admin_council', icon: Shield });
+    }
+    return base;
+  }, [isAdminPlus, isOwner]);
 
-  if (isOwner || isTempOwner) {
-    navItems.push({ name: 'Admin', path: '/admin', icon: Users });
-  }
-
-  const handleLogin = () => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    signInWithPopup(auth, provider);
-  };
   const handleLogout = () => signOut(auth);
 
   const xpForNextLevel = Math.pow(profile?.level || 1, 2) * 100;
   const currentLevelXp = Math.pow((profile?.level || 1) - 1, 2) * 100;
   const progress = profile ? ((profile.xp - currentLevelXp) / (xpForNextLevel - currentLevelXp)) * 100 : 0;
 
+  const [easterEggs, setEasterEggs] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    const handleEasterEgg = (e: any) => {
+      const id = Math.random().toString(36).substring(7);
+      setEasterEggs(prev => [...prev, { id, ...e.detail }]);
+      setTimeout(() => {
+        setEasterEggs(prev => prev.filter(egg => egg.id !== id));
+      }, 3000);
+    };
+    window.addEventListener('easter-egg-sparkle', handleEasterEgg);
+    return () => window.removeEventListener('easter-egg-sparkle', handleEasterEgg);
+  }, []);
+
   return (
     <div className={cn("min-h-screen transition-colors duration-500", isDark ? "dark bg-black text-white" : "bg-white text-black")}>
+      <AnimatePresence>
+        {!connectivity.isAuthorized && window.location.hostname !== 'localhost' && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="bg-royal-red text-white py-2 px-4 text-center text-xs font-black uppercase tracking-widest z-[100] relative"
+          >
+            Domain {window.location.hostname} is not authorized in Firebase. Features may not work.
+          </motion.div>
+        )}
+        {easterEggs.map(egg => (
+          <motion.div
+            key={egg.id}
+            initial={{ opacity: 0, scale: 0.5, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: -100 }}
+            exit={{ opacity: 0, scale: 1.5, y: -200 }}
+            className="fixed bottom-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none"
+          >
+            <div 
+              style={{ color: egg.color }}
+              className="text-6xl font-black italic uppercase tracking-tighter drop-shadow-2xl whitespace-nowrap"
+            >
+              {egg.message}
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
       <div className="flex flex-col min-h-screen">
         <header className="sticky top-0 z-50 border-b border-black/10 dark:border-white/10 bg-inherit/80 backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-8">
                 <div className="flex flex-col justify-center">
-                  <Link to="/" className="flex items-center gap-3 group">
-                    <Logo size="sm" />
-                    <span className="font-bold text-xl tracking-tighter leading-none">ECLIPSE</span>
-                  </Link>
-                  <Link 
-                    to="/teacher"
-                    className="text-[10px] font-bold uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity text-left -mt-1.5 ml-11"
-                  >
-                    Switch to Teacher
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <Link to="/" className="flex items-center gap-3 group">
+                      <Logo size="sm" />
+                    </Link>
+                    <div className="flex flex-col items-center">
+                      <Link to="/" className="font-bold text-xl tracking-tighter leading-none hover:opacity-70 transition-opacity">
+                        ECLIPSE
+                      </Link>
+                      <Link 
+                        to={"/teacher" + (location.pathname === '/' ? '' : location.pathname)}
+                        className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100 transition-all text-center"
+                      >
+                        Switch to Teacher
+                      </Link>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full ml-4">
@@ -125,13 +171,13 @@ export default function StudentApp() {
                         <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
                           {profile?.email === OWNER_EMAIL ? 'Owner' : profile?.rank || 'Welcome'}
                         </span>
-                        <span className="text-[8px] font-bold text-orange-500 uppercase tracking-widest">
+                        <span className="text-[8px] font-bold text-black dark:text-white uppercase tracking-widest">
                           Level {profile?.level || 1}
                         </span>
                       </div>
                       <div className="flex gap-0.5">
                         {[...Array(5)].map((_, i) => (
-                          <div key={i} className={cn("w-1 h-1 rounded-full", i < (profile?.streak % 5 || 0) ? "bg-orange-500" : "bg-black/10 dark:bg-white/10")} />
+                          <div key={i} className={cn("w-1 h-1 rounded-full", i < (profile?.streak % 5 || 0) ? "bg-black dark:bg-white" : "bg-black/10 dark:bg-white/10")} />
                         ))}
                       </div>
                     </div>
@@ -139,7 +185,7 @@ export default function StudentApp() {
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
-                        className="h-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]" 
+                        className="h-full bg-black dark:bg-white" 
                       />
                     </div>
                   </div>
@@ -147,40 +193,64 @@ export default function StudentApp() {
               )}
             </div>
 
-            <nav className="hidden md:flex items-center gap-8">
-              {user && navItems.map((item) => (
-                <Link 
-                  key={item.path} 
-                  to={item.path}
-                  className={cn(
-                    "text-sm font-medium transition-opacity hover:opacity-100",
-                    location.pathname === item.path ? "opacity-100" : "opacity-50"
-                  )}
-                >
-                  {item.name}
-                </Link>
-              ))}
+            <nav className="flex items-center gap-1 sm:gap-4 md:gap-8 overflow-x-auto no-scrollbar py-2">
+              {navItems.map((item) => {
+                const isActive = item.path === '#profile' ? showProfilePopover : location.pathname === item.path;
+                
+                if (item.path === '#profile') {
+                  return (
+                    <button 
+                      key={item.path} 
+                      onClick={() => setShowProfilePopover(!showProfilePopover)}
+                      className={cn(
+                        "text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-widest transition-all px-2 py-1 rounded-lg whitespace-nowrap",
+                        isActive 
+                          ? "bg-black text-white dark:bg-white dark:text-black opacity-100 shadow-lg" 
+                          : "opacity-40 hover:opacity-100"
+                      )}
+                    >
+                      {item.name}
+                    </button>
+                  );
+                }
+
+                return (
+                  <Link 
+                    key={item.path} 
+                    to={item.path}
+                    className={cn(
+                      "text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-widest transition-all px-2 py-1 rounded-lg whitespace-nowrap",
+                      isActive
+                        ? "bg-black text-white dark:bg-white dark:text-black opacity-100 shadow-lg" 
+                        : "opacity-40 hover:opacity-100"
+                    )}
+                  >
+                    {item.name}
+                  </Link>
+                );
+              })}
             </nav>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0 px-2 sm:px-0">
               <button 
                 onClick={toggleTheme}
-                className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                className="p-2.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-all active:scale-95 shrink-0"
+                title="Toggle Theme"
               >
-                {isDark ? <Sun size={20} /> : <Moon size={20} />}
+                {isDark ? <Sun size={24} strokeWidth={2.5} className="text-green-500" /> : <Moon size={24} strokeWidth={2.5} className="text-green-500" />}
               </button>
               
               {user ? (
-                <div className="flex items-center gap-4 relative">
-                  <div className="relative">
+                <div className="flex items-center gap-2 sm:gap-4 relative shrink-0">
+                  <div className="relative shrink-0">
                     <button 
                       onClick={() => setShowProfilePopover(!showProfilePopover)}
-                      className="relative cursor-pointer group"
+                      className="relative cursor-pointer group block shrink-0"
                     >
                       <img 
                         src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} 
                         alt="Avatar" 
-                        className="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 group-hover:scale-110 transition-transform"
+                        className="w-10 h-10 min-w-[40px] rounded-full border-2 border-black/10 dark:border-white/10 group-hover:border-black dark:group-hover:border-white transition-all object-cover shrink-0"
                       />
                     </button>
                     
@@ -293,6 +363,7 @@ export default function StudentApp() {
                 </Link>
               )}
 
+              {/* Standard Mobile Menu Trigger */}
               <button 
                 className="md:hidden p-2"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -326,6 +397,8 @@ export default function StudentApp() {
                   <Route path="/ideas" element={<ProtectedRoute><IdeaPage /></ProtectedRoute>} />
                   <Route path="/ranks" element={<ProtectedRoute><RankPage /></ProtectedRoute>} />
                   <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+                  <Route path="/vision" element={<ProtectedRoute><VisionPage /></ProtectedRoute>} />
+                  <Route path="/dns" element={<ProtectedRoute adminOnly><DnsPage /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
                   <Route path="/auth" element={user ? <Navigate to="/tutor" /> : <AuthPage />} />
                 </Routes>
@@ -368,8 +441,8 @@ export default function StudentApp() {
           isOpen={showProfileSettings}
           onClose={() => setShowProfileSettings(false)}
           currentUsername={profile?.displayName || user?.displayName || ''}
+          currentPhotoURL={profile?.photoURL || user?.photoURL || ''}
           currentPhone={profile?.phone || ''}
-          currentBankAccount={profile?.bankAccount || ''}
         />
 
         <AnimatePresence>
@@ -386,13 +459,47 @@ export default function StudentApp() {
               <div className="flex flex-col gap-6 text-2xl font-bold">
                 {user ? (
                   <>
-                    {navItems.map(item => (
-                      <Link key={item.path} to={item.path} onClick={() => setIsMenuOpen(false)}>{item.name}</Link>
-                    ))}
-                    <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} className="text-left text-red-500">Sign Out</button>
+                    {navItems.map(item => {
+                      if (item.path === '#profile') {
+                        return (
+                          <button 
+                            key={item.path} 
+                            onClick={() => { setShowProfilePopover(true); setIsMenuOpen(false); }}
+                            className="text-left text-black dark:text-white hover:opacity-70 transition-opacity"
+                          >
+                            {item.name}
+                          </button>
+                        );
+                      }
+                      return (
+                        <Link 
+                          key={item.path} 
+                          to={item.path} 
+                          onClick={() => setIsMenuOpen(false)}
+                          className="text-black dark:text-white hover:opacity-70 transition-opacity"
+                        >
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                    <div className="pt-6 mt-6 border-t border-black/10 dark:border-white/10">
+                      <button 
+                        onClick={() => { handleLogout(); setIsMenuOpen(false); }} 
+                        className="text-left text-red-500 hover:opacity-70 transition-opacity flex items-center gap-2"
+                      >
+                        <LogOut size={24} />
+                        Sign Out
+                      </button>
+                    </div>
                   </>
                 ) : (
-                  <Link to="/auth" onClick={() => setIsMenuOpen(false)}>Sign In</Link>
+                  <Link 
+                    to="/auth" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-black dark:text-white"
+                  >
+                    Sign In
+                  </Link>
                 )}
               </div>
             </motion.div>

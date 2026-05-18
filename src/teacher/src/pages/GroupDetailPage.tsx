@@ -7,14 +7,14 @@ import {
   UserPlus, LogOut, Shield, Clock, Hash, Loader2,
   Share2, FileText, Calendar, Image as ImageIcon, Mic, StopCircle, AtSign, Play, Pause, Award
 } from 'lucide-react';
-import { db, handleFirestoreError, OperationType, storage, encryptData, decryptData } from '../../../src/lib/firebase';
+import { db, handleFirestoreError, OperationType, storage, encryptData, decryptData } from '@/lib/firebase';
 import { 
   doc, onSnapshot, collection, query, orderBy, 
   addDoc, serverTimestamp, deleteDoc, updateDoc, 
   arrayRemove, getDoc, limit 
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { AuthContext } from '../../../src/lib/contexts';
+import { AuthContext } from '@/lib/contexts';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format } from 'date-fns';

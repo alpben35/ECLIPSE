@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'motion/react';
-import { Search, Trash2, Shield, User as UserIcon, Loader2, ArrowUp, ArrowDown, Ban, UserPlus, UserMinus, Bug, Settings, Sparkles, X, Mail, CheckCircle } from 'lucide-react';
+import { Search, Trash2, Shield, User as UserIcon, Loader2, ArrowUp, ArrowDown, Ban, UserPlus, UserMinus, Bug, Settings, Sparkles, X, Mail, CheckCircle, Globe, ChevronRight } from 'lucide-react';
 import { db, handleFirestoreError, OperationType, decryptData, encryptData } from '../lib/firebase';
 import { collection, query, onSnapshot, doc, deleteDoc, where, updateDoc, addDoc, orderBy, limit, setDoc, getDoc } from 'firebase/firestore';
 import { AuthContext } from '../lib/contexts';
 import { OWNER_EMAIL, RANKS } from '../constants';
 import { clsx, type ClassValue } from 'clsx';
+import { Link } from 'react-router-dom';
 import { twMerge } from 'tailwind-merge';
 import { format } from 'date-fns';
 import { summarizeChat } from '../lib/gemini';
@@ -363,7 +364,15 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 space-y-8">
-      <div className="flex flex-col gap-6">
+      <style>{`
+        .admin-page {
+          cursor: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iYmxhY2siLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxMCIgZmlsbD0id2hpdGUiIGZpbGwtb3BhY2l0eT0iMC44Ii8+PC9zdmc+'), auto;
+        }
+        .admin-page button, .admin-page a, .admin-page input {
+          cursor: pointer;
+        }
+      `}</style>
+      <div className="flex flex-col gap-6 admin-page">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-4xl font-bold tracking-tight">Admin Console</h1>
@@ -465,9 +474,9 @@ export default function AdminPage() {
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-black/10 dark:bg-white/10 rounded-2xl flex items-center justify-center">
                   {user.email === OWNER_EMAIL || user.rank === 'Owner' ? (
-                    <Shield className="text-orange-500" size={24} />
+                    <Shield className="text-black dark:text-white" size={24} />
                   ) : user.rank === 'Temporary Owner' ? (
-                    <Shield className="text-blue-500" size={24} />
+                    <Shield className="text-black/40 dark:text-white/40" size={24} />
                   ) : (
                     <UserIcon className="opacity-50" size={24} />
                   )}
@@ -698,7 +707,7 @@ export default function AdminPage() {
                     value={bankAccount}
                     onChange={(e) => setBankAccount(e.target.value)}
                     placeholder="acct_..."
-                    className="flex-1 px-6 py-4 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                    className="flex-1 px-6 py-4 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20"
                   />
                   <button 
                     onClick={handleSaveSettings}
@@ -709,6 +718,26 @@ export default function AdminPage() {
                   </button>
                 </div>
                 <p className="text-[10px] opacity-40 ml-1">Enter your Stripe account ID to receive platform payouts.</p>
+              </div>
+
+              <div className="pt-8 border-t border-black/5 dark:border-white/5">
+                <h4 className="font-bold mb-4 flex items-center gap-2">
+                  <Globe size={18} />
+                  Infrastructure
+                </h4>
+                <Link 
+                  to="/dns"
+                  className="inline-flex items-center gap-3 p-6 bg-black text-white dark:bg-white dark:text-black rounded-3xl font-bold hover:scale-105 transition-all shadow-xl group"
+                >
+                  <div className="p-3 bg-white/10 dark:bg-black/10 rounded-2xl group-hover:scale-110 transition-transform">
+                    <Globe size={24} />
+                  </div>
+                  <div className="flex flex-col items-start leading-none">
+                    <span className="text-lg">DNS Management</span>
+                    <span className="text-[10px] opacity-50 uppercase tracking-widest mt-1">Configure Zones & Records</span>
+                  </div>
+                  <ChevronRight className="ml-4 opacity-50" size={20} />
+                </Link>
               </div>
             </div>
           </div>

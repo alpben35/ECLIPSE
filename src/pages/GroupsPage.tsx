@@ -6,13 +6,9 @@ import { collection, query, onSnapshot, where, addDoc, updateDoc, doc, arrayUnio
 import { AuthContext } from '../lib/contexts';
 import { SUBJECTS, GRADE_LEVELS, OWNER_EMAIL } from '../lib/constants';
 import { Link } from 'react-router-dom';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { cn } from '../lib/utils';
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
+// Groups Management Page - Integrated with Eclipse Hub
 export default function GroupsPage() {
   const { user, profile, isOwner, isAdmin } = useContext(AuthContext);
   const [groups, setGroups] = useState<any[]>([]);
@@ -292,36 +288,36 @@ export default function GroupsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">Study Groups</h1>
-          <p className="opacity-80 mt-2">Collaborate with peers on subjects and assignments.</p>
+          <h1 className="text-4xl font-black tracking-tighter italic uppercase">Study <span className="opacity-50">Teams</span></h1>
+          <p className="opacity-60 mt-2 font-medium">Coordinate with your squad and dominate the leaderboard.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-2xl">
             <button 
               onClick={() => setActiveTab('groups')}
               className={cn(
-                "px-6 py-2 rounded-xl text-sm font-bold transition-all",
-                activeTab === 'groups' ? "bg-white dark:bg-zinc-800 shadow-sm" : "opacity-50 hover:opacity-100"
+                "px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                activeTab === 'groups' ? "bg-white dark:bg-zinc-800 shadow-sm" : "opacity-30 hover:opacity-100"
               )}
             >
-              Groups
+              Teams
             </button>
             <button 
               onClick={() => setActiveTab('friends')}
               className={cn(
-                "px-6 py-2 rounded-xl text-sm font-bold transition-all",
-                activeTab === 'friends' ? "bg-white dark:bg-zinc-800 shadow-sm" : "opacity-50 hover:opacity-100"
+                "px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                activeTab === 'friends' ? "bg-white dark:bg-zinc-800 shadow-sm" : "opacity-30 hover:opacity-100"
               )}
             >
-              Friends {requests.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded-full">{requests.length}</span>}
+              Friends {requests.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-black dark:bg-white text-white dark:text-black text-[10px] rounded-full">{requests.length}</span>}
             </button>
           </div>
           <button 
             onClick={() => setIsCreating(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-bold hover:scale-105 transition-transform shadow-xl"
+            className="flex items-center gap-2 px-6 py-3 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-black uppercase tracking-tighter hover:scale-105 transition-transform shadow-xl"
           >
             <Plus size={20} />
-            Create Group
+            Create Team
           </button>
         </div>
       </div>
@@ -362,9 +358,9 @@ export default function GroupsPage() {
           <div className="space-y-12">
             {myGroups.length > 0 && (
               <section className="space-y-6">
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                  <Users size={24} className="opacity-50" />
-                  My Groups
+                <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+                  <Users size={20} className="text-black dark:text-white" />
+                  My Teams
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {myGroups.map(group => (
@@ -382,9 +378,9 @@ export default function GroupsPage() {
             )}
 
             <section className="space-y-6">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <Globe size={24} className="opacity-50" />
-                Discover Groups
+              <h2 className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+                <Globe size={20} className="text-black dark:text-white" />
+                Discover Teams
               </h2>
               {otherGroups.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -401,8 +397,8 @@ export default function GroupsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-20 bg-black/5 dark:bg-white/5 rounded-[3rem] opacity-30">
-                  <p className="text-lg">No other groups found. Why not create one?</p>
+                <div className="text-center py-20 bg-black/5 dark:bg-white/5 rounded-[3rem] border-2 border-dashed border-black/5 dark:border-white/5">
+                  <p className="text-sm font-bold uppercase tracking-widest opacity-30">No active teams found</p>
                 </div>
               )}
             </section>
@@ -434,7 +430,7 @@ export default function GroupsPage() {
                   return (
                     <div key={u.id} className="flex items-center justify-between p-3 bg-black/5 dark:bg-white/5 rounded-2xl">
                       <div className="flex items-center gap-3">
-                        <img src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`} className="w-8 h-8 rounded-full" alt="" />
+                        <img src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`} className="w-8 h-8 rounded-full object-cover shrink-0" alt="" />
                         <div>
                           <p className="text-sm font-bold">{u.displayName}</p>
                           <p className="text-[10px] opacity-50 uppercase tracking-widest font-bold">{u.rank}</p>
@@ -464,7 +460,7 @@ export default function GroupsPage() {
                   {requests.map(req => (
                     <div key={req.id} className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <img src={req.user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.from}`} className="w-10 h-10 rounded-full" alt="" />
+                        <img src={req.user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.from}`} className="w-10 h-10 rounded-full object-cover shrink-0" alt="" />
                         <div>
                           <p className="text-sm font-bold">{req.user.displayName}</p>
                           <p className="text-[10px] opacity-50 uppercase tracking-widest font-bold">Wants to be friends</p>
@@ -504,7 +500,7 @@ export default function GroupsPage() {
                     <div key={friend.id} className="p-6 bg-black/5 dark:bg-white/5 rounded-[2rem] flex items-center justify-between group">
                       <div className="flex items-center gap-4">
                         <div className="relative">
-                          <img src={friend.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} className="w-12 h-12 rounded-2xl" alt="" />
+                          <img src={friend.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} className="w-12 h-12 rounded-2xl object-cover shrink-0" alt="" />
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full" />
                         </div>
                         <div>
@@ -540,25 +536,25 @@ export default function GroupsPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsCreating(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg bg-white dark:bg-zinc-900 rounded-[2.5rem] p-8 md:p-12 shadow-2xl"
+              className="relative w-full max-w-lg bg-white dark:bg-zinc-900 rounded-[3rem] p-10 shadow-2xl border border-black/5 dark:border-white/5"
             >
-              <h3 className="text-3xl font-bold mb-8">Create Study Group</h3>
+              <h3 className="text-3xl font-black italic uppercase tracking-tighter mb-8">Deploy New <span className="opacity-50">Team</span></h3>
               <form onSubmit={handleCreateGroup} className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest opacity-50 ml-2">Group Name</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-4">Full Team Designation</label>
                   <input 
                     type="text"
                     required
                     value={newGroup.name}
                     onChange={e => setNewGroup({...newGroup, name: e.target.value})}
-                    placeholder="e.g. Advanced Calculus Squad"
-                    className="w-full p-4 bg-black/5 dark:bg-white/5 rounded-2xl focus:outline-none font-bold"
+                    placeholder="e.g. ALPHA SQUAD - BIOLOGY"
+                    className="w-full p-5 bg-black/5 dark:bg-white/5 rounded-2xl focus:outline-none font-bold placeholder:opacity-30"
                   />
                 </div>
 

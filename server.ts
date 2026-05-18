@@ -1,40 +1,99 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import rateLimit from 'express-rate-limit';
 import admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 import Stripe from 'stripe';
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 
 dotenv.config();
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+let stripeClient: Stripe | null = null;
+function getStripe() {
+  if (!stripeClient) {
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) {
+      throw new Error('STRIPE_SECRET_KEY is missing. Please provide it in the Settings > Secrets panel.');
+    }
+    stripeClient = new Stripe(key, {
+      apiVersion: '2025-01-27.acacia' as any
+    });
+  }
+  return stripeClient;
+}
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let genAIClient: GoogleGenAI | null = null;
+function getAI() {
+  if (!genAIClient) {
+    const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (!key) {
+      throw new Error('GEMINI_API_KEY is not set in environment. Please visit the Settings > Secrets panel in AI Studio to provide your API key.');
+    }
+    genAIClient = new GoogleGenAI({ 
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return genAIClient;
+}
+
+const safetySettings = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+  },
+];
+
+const buildDirname = typeof __dirname !== 'undefined' 
+  ? __dirname 
+  : path.dirname(fileURLToPath(import.meta.url));
 
 // Initialize Firebase Admin
 let db: admin.firestore.Firestore;
 let firebaseConfig: any = {};
 
 try {
-  const configPath = path.join(__dirname, 'firebase-applet-config.json');
-  if (fs.existsSync(configPath)) {
-    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  // Look for config in multiple locations to support both dev and bundled production
+  const possiblePaths = [
+    path.join(buildDirname, 'firebase-applet-config.json'),
+    path.join(buildDirname, '..', 'firebase-applet-config.json'),
+    path.join(process.cwd(), 'firebase-applet-config.json')
+  ];
+  
+  for (const configPath of possiblePaths) {
+    if (fs.existsSync(configPath)) {
+      console.log(`[Firebase Admin] Loading config from: ${configPath}`);
+      firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      break;
+    }
   }
 
-  // To prevent the "aud" mismatch, we must use the projectId from config for Auth.
   if (!admin.apps.length) {
-    console.log(`[Firebase Admin] Initializing with Project ID: ${firebaseConfig.projectId || 'Default'}...`);
+    const projectId = firebaseConfig.projectId || process.env.GOOGLE_CLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID;
+    console.log(`[Firebase Admin] Initializing with Project ID: ${projectId || 'Default'}...`);
     admin.initializeApp({
-      projectId: firebaseConfig.projectId
+      projectId: projectId
     });
   }
   
-  // Try to initialize the database from config first
   const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
   db = getFirestore(admin.app(), databaseId);
   
@@ -47,338 +106,396 @@ try {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
-  console.log(`[Server] Initialized with Project: ${firebaseConfig.projectId}, Database: ${firebaseConfig.firestoreDatabaseId}`);
-  if (!process.env.GEMINI_API_KEY) {
-    console.warn('[Server] WARNING: GEMINI_API_KEY is not set!');
-  } else {
-    console.log('[Server] GEMINI_API_KEY is present (length: ' + process.env.GEMINI_API_KEY.length + ')');
-  }
+  app.set('trust proxy', 1);
 
-  app.use(express.json());
+  // Stripe Webhook (Raw body required for signature verification)
+  app.post('/api/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  // Rate limiter for Gemini API
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Increased for tiered users
-    message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
-  });
+    let event;
 
-  // Increment Prompt Count (Check Limit)
-  app.post('/api/increment-prompts', async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Unauthorized: No token provided' });
+      if (endpointSecret && sig) {
+        event = getStripe().webhooks.constructEvent(req.body, sig, endpointSecret);
+      } else {
+        // Fallback for local testing without signature verification if secret is missing
+        event = JSON.parse(req.body.toString());
       }
+    } catch (err: any) {
+      console.error(`[Stripe Webhook Error] ${err.message}`);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
 
-      const idToken = authHeader.split('Bearer ')[1];
-      console.log(`[Server] Verifying token for UID check (length: ${idToken?.length})`);
-      let decodedToken;
-      try {
-        decodedToken = await admin.auth().verifyIdToken(idToken);
-        console.log(`[Server] Token verified for UID: ${decodedToken.uid}`);
-      } catch (error: any) {
-        console.error('[Server] Token verification failed:', error.message);
-        return res.status(401).json({ 
-          error: 'Unauthorized: Invalid token',
-          details: error.message
-        });
-      }
+    console.log(`[Stripe Webhook] Event Received: ${event.type}`);
 
-      const uid = decodedToken.uid;
-      let userData: any = {};
+    try {
+      const dataObject = event.data.object as any;
 
-      // NEW: Use User-Delegated REST API to bypass Service Account permission issues
-      try {
-        const projectId = firebaseConfig.projectId;
-        const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-        const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/users/${uid}`;
-        
-        console.log(`[Server] Accessing Firestore via REST API for UID: ${uid}...`);
-        
-        const fsResponse = await fetch(firestoreUrl, {
-          headers: {
-            'Authorization': `Bearer ${idToken}`
-          }
-        });
-
-        if (fsResponse.ok) {
-          const docData: any = await fsResponse.json();
-          // Extract fields from Firestore REST format
-          const fields = docData.fields || {};
-          const extractValue = (val: any) => {
-            if (val.stringValue !== undefined) return val.stringValue;
-            if (val.integerValue !== undefined) return parseInt(val.integerValue);
-            if (val.booleanValue !== undefined) return val.booleanValue;
-            if (val.timestampValue !== undefined) return val.timestampValue;
-            return null;
-          };
-
-          Object.keys(fields).forEach(key => {
-            userData[key] = extractValue(fields[key]);
-          });
-          console.log(`[Server] User profile retrieved via REST API.`);
-        } else {
-          const errorText = await fsResponse.text();
-          console.error(`[Server] REST API Error (${fsResponse.status}):`, errorText);
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const userId = dataObject.client_reference_id;
+          const tierId = dataObject.metadata?.tierId || 'premium';
           
-          if (fsResponse.status === 404) {
-            return res.status(404).json({ error: 'User profile not found' });
+          if (userId) {
+            await db.collection('users').doc(userId).update({
+              stripeCustomerId: dataObject.customer,
+              tier: tierId, 
+              subscriptionStatus: 'active',
+              updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`[Stripe Webhook] User ${userId} upgraded to ${tierId}`);
           }
-          
-          throw new Error(`Cloud Firestore REST API failed: ${fsResponse.status}`);
+          break;
         }
-      } catch (restError: any) {
-        console.error('[Server] REST Implementation failed:', restError.message);
-        return res.status(500).json({ 
-          error: 'Database access failed', 
-          details: 'The server could not verify your usage limits. Please ensure your internet connection is stable.' 
-        });
-      }
-
-      const tier = userData.tier || 'free';
-      const promptsToday = userData.promptsToday || 0;
-      const lastPromptDate = userData.lastPromptDate || '';
-      const today = new Date().toISOString().split('T')[0];
-
-      let limit = 40;
-      if (tier === 'champion') limit = 120;
-      if (tier === 'master') limit = 500;
-      if (tier === 'admin' || tier === 'infinite') limit = 999999;
-
-      // Check if it's a new day
-      let currentPrompts = promptsToday;
-      if (lastPromptDate !== today) {
-        currentPrompts = 0;
-      }
-
-      if (currentPrompts >= limit) {
-        return res.status(403).json({ 
-          error: 'Limit reached', 
-          limit, 
-          tier,
-          message: `You have reached your daily limit of ${limit} prompts. Upgrade for more!` 
-        });
-      }
-
-      // Increment prompt count via REST API
-      try {
-        const projectId = firebaseConfig.projectId;
-        const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-        const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/users/${uid}?updateMask.fieldPaths=promptsToday&updateMask.fieldPaths=lastPromptDate`;
-
-        const updateBody = {
-          fields: {
-            promptsToday: { integerValue: (currentPrompts + 1).toString() },
-            lastPromptDate: { stringValue: today }
+        case 'invoice.paid': {
+          const customerId = dataObject.customer;
+          if (customerId) {
+            const users = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+            if (!users.empty) {
+              await users.docs[0].ref.update({
+                subscriptionStatus: 'active',
+                lastPayment: admin.firestore.FieldValue.serverTimestamp()
+              });
+            }
           }
-        };
-
-        const updateResponse = await fetch(firestoreUrl, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${idToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(updateBody)
-        });
-
-        if (!updateResponse.ok) {
-          const updateError = await updateResponse.text();
-          console.error('[Server] REST Update Error:', updateError);
-        } else {
-          console.log('[Server] Prompt count incremented via REST API.');
+          break;
         }
-      } catch (patchError) {
-        console.error('[Server] PATCH failed:', patchError);
+        case 'invoice.payment_failed': {
+          const customerId = dataObject.customer;
+          if (customerId) {
+            const users = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+            if (!users.empty) {
+              await users.docs[0].ref.update({ subscriptionStatus: 'past_due' });
+            }
+          }
+          break;
+        }
+        case 'customer.subscription.deleted': {
+          const customerId = dataObject.customer;
+          if (customerId) {
+            const users = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+            if (!users.empty) {
+              await users.docs[0].ref.update({
+                tier: 'free',
+                subscriptionStatus: 'canceled'
+              });
+            }
+          }
+          break;
+        }
       }
-
-      res.json({ success: true, currentPrompts: currentPrompts + 1, limit });
+      res.json({ received: true });
     } catch (error: any) {
-      console.error('Increment Prompts Error:', error);
-      res.status(500).json({ error: error.message || 'Internal Server Error' });
+      console.error('[Stripe Webhook] Processing Error:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
     }
   });
-  
+
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
   // Stripe Checkout
   app.post('/api/create-checkout-session', async (req, res) => {
     try {
-      const { tierId } = req.body;
-      const authHeader = req.headers.authorization;
+      let { priceId, userId, userEmail, tierId } = req.body;
+
+      // Robust Price ID selection: backend mapping from tierId is safest
+      console.log(`[Stripe Checkout] Request received for tier: ${tierId}, current priceId: ${priceId}`);
       
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Unauthorized' });
+      if (!priceId || priceId === 'undefined') {
+        console.log(`[Stripe Checkout] PriceId invalid/missing from client, attempting backend fallback for ${tierId}`);
+        if (tierId === 'premium') priceId = process.env.STRIPE_PRICE_ID_PREMIUM;
+        else if (tierId === 'admin') priceId = process.env.STRIPE_PRICE_ID_ADMIN;
+        console.log(`[Stripe Checkout] Backend fallback result: ${priceId}`);
       }
 
-      const sk = process.env.STRIPE_SECRET_KEY;
-      if (!sk || sk.length < 5 || sk === 'DZ') {
-        console.error(`[Server] Invalid STRIPE_SECRET_KEY detected: ${sk ? sk.substring(0, 2) + '...' : 'MISSING'}. Please check your environment variables.`);
-        return res.status(500).json({ error: 'Stripe Secret Key is missing or invalid. Please set a valid sk_test_... or sk_live_... key in the project settings.' });
-      }
-
-      const idToken = authHeader.split('Bearer ')[1];
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const uid = decodedToken.uid;
-      const userEmail = decodedToken.email;
-
-      const prices: Record<string, number> = {
-        'champion': 2500, // $25.00
-        'master': 15000, // $150.00
-        'admin': 50000,  // $500.00
-      };
-
-      const price = prices[tierId];
-      if (!price) return res.status(400).json({ error: 'Invalid tier' });
-
-      // Fetch system settings for bank account via REST API to avoid permission issues
-      let bankAccount = null;
-      try {
-        const firestoreBase = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId || '(default)'}/documents`;
-        const settingsUrl = `${firestoreBase}/system/settings`;
-        
-        console.log('[Server] Fetching settings via REST:', settingsUrl);
-        const settingsRes = await fetch(settingsUrl, {
-          headers: { 'Authorization': `Bearer ${idToken}` }
+      if (!priceId || priceId === 'undefined') {
+        console.error(`[Stripe Checkout] CRITICAL: No Price ID found for tier "${tierId}"`);
+        return res.status(400).json({ 
+          error: `Stripe Configuration Missing: No Price ID found for tier "${tierId}". Please set STRIPE_PRICE_ID_PREMIUM and STRIPE_PRICE_ID_ADMIN in the Secrets panel.` 
         });
-
-        if (settingsRes.ok) {
-          const settingsData = await settingsRes.json();
-          // REST API returns data in fields: { name: { stringValue: '...' } }
-          bankAccount = settingsData.fields?.bankAccount?.stringValue || null;
-          console.log('[Server] Settings fetched via REST. Bank Account present:', !!bankAccount);
-        } else {
-          const errorResponse = await settingsRes.text();
-          console.error('[Server] REST Settings Error:', errorResponse);
-          // If we can't fetch settings, we still proceed with card-only session
-        }
-      } catch (settingsError) {
-        console.error('[Server] Failed to fetch settings via REST:', settingsError);
       }
 
-      const sessionOptions: Stripe.Checkout.SessionCreateParams = {
-        payment_method_types: ['card', 'us_bank_account'],
+      console.log(`[Stripe Checkout] Creating session for User:${userId}, Tier:${tierId}, Price:${priceId}`);
+
+      const session = await getStripe().checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{ price: priceId.trim(), quantity: 1 }],
+        mode: 'subscription',
+        success_url: `${req.headers.origin}/progress?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.origin}/subscription`,
+        client_reference_id: userId,
         customer_email: userEmail,
-        line_items: [{
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `Eclipse ${tierId.charAt(0).toUpperCase() + tierId.slice(1)} Plan`,
-            },
-            unit_amount: price,
-          },
-          quantity: 1,
-        }],
-        mode: 'payment',
-        success_url: `${req.headers.origin}/subscription?success=true`,
-        cancel_url: `${req.headers.origin}/subscription?canceled=true`,
-        metadata: {
-          uid,
-          tierId
-        }
-      };
+        metadata: { userId, tierId: tierId || 'premium' },
+        subscription_data: { metadata: { userId, tierId: tierId || 'premium' } }
+      });
 
-      // If bank account is set, use destination charges (Stripe Connect)
-      if (bankAccount && bankAccount.startsWith('acct_')) {
-        sessionOptions.payment_intent_data = {
-          transfer_data: {
-            destination: bankAccount,
-          },
-        };
-      }
-
-      console.log(`[Stripe] Creating session for user: ${uid}, tier: ${tierId}, price: ${price}`);
-      const session = await stripe.checkout.sessions.create(sessionOptions);
-      console.log(`[Stripe] Session created: ${session.id}`);
-
-      res.json({ id: session.id });
+      res.json({ url: session.url });
     } catch (error: any) {
-      console.error('Stripe Session Error:', error);
-      res.status(500).json({ error: error.message });
+      console.error('[Stripe Checkout Error]', error);
+      res.status(500).json({ 
+        error: `Stripe error: ${error.message}. Make sure your STRIPE_SECRET_KEY is valid and the Price ID exists in your Stripe dashboard.` 
+      });
     }
   });
 
-  // Create Stripe Customer Portal Session
+  // Stripe Customer Portal
   app.post('/api/create-portal-session', async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
+      const { customerId } = req.body;
+      if (!customerId) return res.status(400).json({ error: 'Customer ID required' });
 
-      const idToken = authHeader.split('Bearer ')[1];
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const uid = decodedToken.uid;
-
-      // Get user data for customer ID
-      const userDoc = await db.collection('users').doc(uid).get();
-      const userData = userDoc.data();
-      
-      let customerId = userData?.stripeCustomerId;
-
-      // If no customer ID, try to find by email
-      if (!customerId && decodedToken.email) {
-        const customers = await stripe.customers.list({
-          email: decodedToken.email,
-          limit: 1
-        });
-        if (customers.data.length > 0) {
-          customerId = customers.data[0].id;
-          // Sync it back to Firestore
-          await db.collection('users').doc(uid).update({ stripeCustomerId: customerId });
-        }
-      }
-
-      if (!customerId) {
-        return res.status(404).json({ error: 'No active subscription or customer record found.' });
-      }
-
-      const session = await stripe.billingPortal.sessions.create({
+      const session = await getStripe().billingPortal.sessions.create({
         customer: customerId,
         return_url: `${req.headers.origin}/subscription`,
       });
 
       res.json({ url: session.url });
     } catch (error: any) {
-      console.error('Portal Session Error:', error);
+      console.error('[Stripe Portal] Error:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Stripe Webhook
-  app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-
+  // AI Proxy Routes
+  app.post('/api/tutor/ask', async (req, res) => {
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig!, process.env.STRIPE_WEBHOOK_SECRET || '');
-    } catch (err: any) {
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
+      const { prompt, mode, subject, history, imageData } = req.body;
+      const isImageGen = mode === 'design';
+      
+      const contents = (history || []).map((m: any) => ({
+        role: m.role === 'ai' || m.role === 'model' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
 
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const { uid, tierId } = session.metadata || {};
-      const customerId = session.customer as string;
-
-      if (uid && tierId) {
-        await db.collection('users').doc(uid).update({
-          tier: tierId,
-          stripeCustomerId: customerId,
-          upgradedAt: admin.firestore.FieldValue.serverTimestamp()
+      const userParts: any[] = [];
+      if (imageData) {
+        userParts.push({ 
+          inlineData: {
+            data: imageData.data,
+            mimeType: imageData.mimeType
+          }
         });
       }
-    }
+      userParts.push({ text: prompt || "Please assist." });
+      contents.push({ role: 'user', parts: userParts });
 
-    res.json({ received: true });
+      const modelName = isImageGen ? 'gemini-2.5-flash-image' : 'gemini-3-flash-preview'; 
+      
+      const systemPrompt = isImageGen 
+        ? "You are Eclipse Vision, an expert AI designer. Manifest high-quality visual concepts from user descriptions. ALWAYS generate an image when asked. Be concise in text response."
+        : `You are Eclipse AI, a world-class academic tutor. 
+      Your primary goal is absolute mathematical and factual accuracy.
+      
+      TONE:
+      - Academic, professional, and encouraging.
+      - Use standard formatting for clarity.
+      
+      PRECISION:
+      - Double-check all calculations.
+      - Read inputs with 100% precision.
+      
+      CRITICAL FORMATTING:
+      - DO NOT use LaTeX delimiters like '$', '\\(', '\\)', '\\[', or '\\]'. 
+      - DO NOT use structural symbols like backslashes, braces, or dollar signs for formula formatting.
+      - Always write symbols and formulas in plain text (e.g. x^2, sqrt(x)).
+      - Use bolding for emphasis (**bold**).
+      
+      Current Mode: ${mode}
+      Current Subject: ${subject}
+
+      Instructions:
+      - 'teach': Guide step-by-step SOCRATICALLY. Do not give the answer immediately.
+      - 'solve': Provide complete, perfectly accurate solutions.
+      - 'revise': Create practice questions to verify understanding.`;
+
+      const response = await getAI().models.generateContent({
+        model: modelName,
+        contents,
+        config: {
+          systemInstruction: systemPrompt,
+          temperature: isImageGen ? 0.7 : 0.0,
+          imageConfig: isImageGen ? { aspectRatio: '1:1' } : undefined,
+          safetySettings
+        }
+      });
+
+      const text = response.text || "";
+      const images = response.candidates?.[0]?.content?.parts
+        ?.filter((part: any) => part.inlineData)
+        .map((part: any) => ({
+          data: part.inlineData.data,
+          mimeType: part.inlineData.mimeType
+        }));
+
+      res.json({ text, images: images && images.length > 0 ? images : undefined });
+    } catch (error: any) {
+      console.error("[AI Proxy Error]", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/tutor/ask-stream', async (req, res) => {
+    try {
+      const { prompt, mode, subject, history, imageData } = req.body;
+      const isImageGen = mode === 'design';
+
+      if (isImageGen) {
+        return res.status(400).json({ error: "Streaming not supported for image generation." });
+      }
+
+      const contents = (history || []).map((m: any) => ({
+        role: m.role === 'ai' || m.role === 'model' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
+
+      const userParts: any[] = [];
+      if (imageData) {
+        userParts.push({ 
+          inlineData: {
+            data: imageData.data,
+            mimeType: imageData.mimeType
+          }
+        });
+      }
+      userParts.push({ text: prompt || "Please assist." });
+      contents.push({ role: 'user', parts: userParts });
+
+      const systemPrompt = `You are Eclipse AI, a world-class academic tutor. 
+      Your primary goal is absolute mathematical and factual accuracy.
+      
+      TONE:
+      - Academic, professional, and encouraging.
+      - Use standard formatting for clarity.
+      
+      PRECISION:
+      - Double-check all calculations.
+      - Read inputs with 100% precision.
+      
+      CRITICAL FORMATTING RULES FOR MATH AND SCIENCE:
+      - DO NOT use LaTeX delimiters like '$', '\\(', '\\)', '\\[', or '\\]'.
+      - DO NOT use structural symbols like backslashes, braces, or dollar signs for formatting formulas.
+      - Always write symbols and formulas in plain text or simple markdown (e.g., x^2, sqrt(x), H2O).
+      - For fractions, use 'x/y' or 'x divided by y'.
+      - Use bolding for emphasis, but keep formulas clean and human-readable without any code-like markers.
+      
+      Current Mode: ${mode}
+      Current Subject: ${subject}
+
+      Instructions:
+      - Respond professionally. If in 'teach' mode, be Socratic and guide the student.`;
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      const stream = await getAI().models.generateContentStream({
+        model: 'gemini-3-flash-preview',
+        contents,
+        config: {
+          systemInstruction: systemPrompt,
+          temperature: 0.0,
+          safetySettings
+        }
+      });
+
+      for await (const chunk of stream) {
+        if (chunk.text) {
+          res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+        }
+      }
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (error: any) {
+      console.error("[AI Stream Proxy Error]", error);
+      res.status(500).write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+      res.end();
+    }
+  });
+
+  app.post('/api/tutor/summarize', async (req, res) => {
+    try {
+      const { messages } = req.body;
+      const contents = messages.map((m: any) => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }]
+      }));
+      
+      const response = await getAI().models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents,
+        config: {
+          systemInstruction: "You are a helpful academic assistant summarizing a learning session. Use clean markdown for summaries.",
+          temperature: 0.1,
+          safetySettings
+        }
+      });
+
+      res.json({ text: response.text || "" });
+    } catch (error: any) {
+      console.error("[AI Summarize Error]", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/tutor/analyze-paper', async (req, res) => {
+    try {
+      const { base64Data, mimeType, subject } = req.body;
+      const response = await getAI().models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { inlineData: { data: base64Data, mimeType } },
+              { text: `Analyze this ${subject} paper and return a diagnostic assessment in JSON format. Use fields: summary, strengths (array), weaknesses (array), improvementTips (array), overallGrade.` }
+            ]
+          }
+        ],
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.1,
+          safetySettings
+        }
+      });
+
+      res.json(JSON.parse(response.text || '{}'));
+    } catch (error: any) {
+      console.error("[AI Analyze Error]", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/gemini', async (req, res) => {
+    try {
+      const { contents, systemInstruction, model } = req.body;
+      const response = await getAI().models.generateContent({
+        model: model || 'gemini-3-flash-preview',
+        contents,
+        config: {
+          systemInstruction,
+          temperature: 0.1,
+          safetySettings
+        }
+      });
+      res.json({ text: response.text || "" });
+    } catch (error: any) {
+      console.error("[Gemini Proxy Error]", error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        hmr: false
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -395,4 +512,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error('[Server Startup Error]', err);
+  process.exit(1);
+});

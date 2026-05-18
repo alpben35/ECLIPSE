@@ -64,7 +64,7 @@ export default function IdeaPage() {
       const notepadRef = doc(db, 'users', user.uid, 'private', 'notepad');
       getDoc(notepadRef).then(snap => {
         if (snap.exists()) setNotepad(decryptData(snap.data().content || ''));
-      }).catch(err => handleFirestoreError(err, OperationType.GET, `ideas/notepad/${user.uid}`));
+      }).catch(err => handleFirestoreError(err, OperationType.GET, `users/${user.uid}/private/notepad`));
     }
 
     return () => unsubscribe();
@@ -176,7 +176,7 @@ export default function IdeaPage() {
               onClick={() => setActiveTab('review')}
               className={`px-8 py-3 rounded-full font-bold transition-all ${activeTab === 'review' ? 'bg-black text-white dark:bg-white dark:text-black shadow-lg' : 'bg-black/5 dark:bg-white/5 opacity-50 hover:opacity-100'}`}
             >
-              Review Queue {reviewIdeas.length > 0 && <span className="ml-2 px-2 py-0.5 bg-orange-500 text-white text-[10px] rounded-full">{reviewIdeas.length}</span>}
+              Review Queue {reviewIdeas.length > 0 && <span className="ml-2 px-2 py-0.5 bg-black dark:bg-white text-white dark:text-black text-[10px] rounded-full">{reviewIdeas.length}</span>}
             </button>
           )}
         </div>
@@ -184,7 +184,7 @@ export default function IdeaPage() {
         {(userRank === 'Welcome' || userRank === 'Member') && activeTab === 'my' && (
           <Link 
             to="/ranks"
-            className="flex items-center gap-3 px-6 py-3 bg-orange-500/10 text-orange-500 rounded-2xl text-xs font-black tracking-widest uppercase hover:bg-orange-500/20 transition-all border border-orange-500/20"
+            className="flex items-center gap-3 px-6 py-3 bg-black/5 dark:bg-white/5 text-black dark:text-white rounded-2xl text-xs font-black tracking-widest uppercase hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-black/10 dark:border-white/10"
           >
             <Shield size={14} />
             Upgrade to Elder to Review Ideas
@@ -205,7 +205,7 @@ export default function IdeaPage() {
             <div className="bg-black/5 dark:bg-white/5 p-8 rounded-[2.5rem] space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold flex items-center gap-2">
-                  <FileText size={20} className="text-orange-500" />
+                  <FileText size={20} className="text-black dark:text-white" />
                   Owner's Private Notepad
                 </h3>
                 <button 
@@ -237,7 +237,7 @@ export default function IdeaPage() {
             <form onSubmit={handleSubmitIdea} className="bg-black/5 dark:bg-white/5 p-10 rounded-[3rem] space-y-8 border border-black/5 dark:border-white/5">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-black tracking-tight flex items-center gap-3">
-                  <Lightbulb size={28} className="text-orange-500" />
+                  <Lightbulb size={28} className="text-black dark:text-white" />
                   PROPOSE VISION
                 </h3>
                 <div className="px-4 py-1.5 bg-black/5 dark:bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest opacity-50">
@@ -318,7 +318,7 @@ function IdeaCard({ idea, onReview, canReview }: { idea: Idea, onReview?: (id: s
   };
 
   const getStatusColor = (status: string) => {
-    if (status === 'pending') return 'bg-yellow-500/10 text-yellow-500';
+    if (status === 'pending') return 'bg-black/10 dark:bg-white/10 text-black/50 dark:text-white/50';
     if (status === 'rejected') return 'bg-red-500/10 text-red-500';
     return 'bg-green-500/10 text-green-500';
   };

@@ -1,11 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '../../lib/utils';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -29,33 +24,48 @@ export default function Logo({
 
   const colors = {
     student: {
-      base: 'bg-black dark:bg-white',
-      eclipse: 'bg-white dark:bg-black'
+      light: { base: 'bg-black', eclipse: 'hidden' }, 
+      dark: { base: 'bg-white', eclipse: 'bg-zinc-950' },
+      glow: 'bg-blue-500/20 dark:bg-white/20'
     },
     teacher: {
       base: 'bg-gold',
-      eclipse: 'bg-royal-red'
+      eclipse: 'bg-royal-red',
+      glow: 'bg-gold/30'
     }
   };
 
   return (
-    <div className={cn("relative shrink-0 flex items-center justify-center", sizes[size], className)}>
-      {/* The Base Dot */}
-      <div className={cn("absolute inset-0 rounded-full", colors[variant].base)} />
+    <div className={cn("relative shrink-0 flex items-center justify-center", sizes[size], className)} id="app-logo">
+      {/* Corona / Glow Effect */}
+      <motion.div
+        animate={animate ? {
+          scale: [1, 1.1, 1],
+          opacity: [0.3, 0.6, 0.3],
+        } : {}}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        className={cn(
+          "absolute inset-[-10%] rounded-full blur-lg transition-all duration-500",
+          variant === 'teacher' ? colors.teacher.glow : colors.student.glow
+        )}
+      />
+
+      {/* The Base Circle */}
+      <div className={cn(
+        "absolute inset-0 rounded-full z-10 transition-colors duration-500 shadow-lg",
+        variant === 'teacher' 
+          ? colors.teacher.base 
+          : "bg-black dark:bg-white"
+      )} />
       
-      {/* The Eclipse Dot */}
-      <motion.div 
-        initial={{ x: '12.5%', y: '12.5%' }}
-        animate={animate ? { 
-          x: ['12.5%', '6%', '12.5%'],
-          y: ['12.5%', '9%', '12.5%']
-        } : { x: '12.5%', y: '12.5%' }}
-        transition={{ 
-          duration: 4, 
-          repeat: Infinity, 
-          ease: "easeInOut" 
-        }}
-        className={cn("absolute inset-0 rounded-full", colors[variant].eclipse)} 
+      {/* The Eclipse Circle */}
+      <div 
+        className={cn(
+          "absolute inset-0 rounded-full z-20 scale-95 transition-all duration-500",
+          variant === 'teacher'
+            ? "translate-x-[15%] " + colors.teacher.eclipse
+            : "hidden dark:block translate-x-[15%] bg-zinc-950"
+        )}
       />
     </div>
   );

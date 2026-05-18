@@ -1,10 +1,10 @@
 import React, { useState, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Award, CreditCard, ChevronRight, Shield, Zap, Star, Crown, Check, Info, Lightbulb, XCircle } from 'lucide-react';
-import { AuthContext } from '../../../src/lib/contexts';
-import { RANKS, OWNER_EMAIL } from '../constants';
+import { AuthContext } from '@/lib/contexts';
+import { RANKS, OWNER_EMAIL } from '@/constants';
 import { Link } from 'react-router-dom';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
 import confetti from 'canvas-confetti';

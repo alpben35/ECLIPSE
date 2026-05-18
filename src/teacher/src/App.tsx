@@ -7,11 +7,11 @@ import {
   Upload, FileText, Plus, ChevronRight, Share2, Users, Search, Trash2,
   Lightbulb, CheckCircle2, XCircle, CreditCard, Award, Zap
 } from 'lucide-react';
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, increment, onSnapshot } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from './lib/firebase';
-import { RANKS, OWNER_EMAIL } from './constants';
-import { cn } from './lib/utils';
+import { RANKS, OWNER_EMAIL } from '@/constants';
+import { cn } from '@/lib/utils';
 
 const ThemeContext = createContext<{
   isDark: boolean;
@@ -27,12 +27,14 @@ export const AuthContext = createContext<{
 
 import TutorPage from './pages/TutorPage';
 import ProgressPage from './pages/ProgressPage';
-import LandingPage from './pages/LandingPage';
+import LandingPage from '@/pages/LandingPage';
 import AdminPage from './pages/AdminPage';
 import IdeaPage from './pages/IdeaPage';
 import RankPage from './pages/RankPage';
 import AuthPage from './pages/AuthPage';
-import SubscriptionPage from '../../src/pages/SubscriptionPage';
+import SubscriptionPage from '@/pages/SubscriptionPage';
+
+import Logo from '@/components/ui/Logo';
 
 export default function App() {
   const [isDark, setIsDark] = useState(false);
@@ -310,26 +312,6 @@ function Layout({ children }: { children: React.ReactNode }) {
     navItems.push({ name: 'Admin', path: '/admin', icon: Users });
   }
 
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  const handleLogin = async () => {
-    if (isLoggingIn) return;
-    setIsLoggingIn(true);
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-        console.log('Login cancelled by user or multiple requests.');
-      } else {
-        console.error('Login error:', error);
-      }
-    } finally {
-      setIsLoggingIn(true); // Keep it true for a bit to debounce, or set to false
-      setTimeout(() => setIsLoggingIn(false), 2000);
-    }
-  };
   const handleLogout = () => signOut(auth);
 
   const xpForNextLevel = Math.pow(profile?.level || 1, 2) * 100;
@@ -342,14 +324,8 @@ function Layout({ children }: { children: React.ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex flex-col">
-              <Link to="/" className="flex items-center gap-2 group">
-                <div className="relative w-8 h-8">
-                  <div className="absolute inset-0 bg-gold rounded-full" />
-                  <motion.div 
-                    animate={{ x: 4 }}
-                    className="absolute inset-0 bg-royal-red rounded-full translate-x-1 translate-y-1" 
-                  />
-                </div>
+              <Link to="/" className="flex items-center gap-3 group">
+                <Logo variant="teacher" size="sm" animate />
                 <div className="flex flex-col leading-none">
                   <span className="font-bold text-2xl tracking-tighter text-gold">ECLIPSE</span>
                   <span className="text-lg handwriting text-gold ml-1 -mt-1">Teacher</span>
@@ -483,7 +459,7 @@ function Layout({ children }: { children: React.ReactNode }) {
                   <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} className="text-left text-gold opacity-50">Sign Out</button>
                 </>
               ) : (
-                <button onClick={() => { handleLogin(); setIsMenuOpen(false); }} className="text-gold">Sign In</button>
+                <Link to="/auth" onClick={() => setIsMenuOpen(false)} className="text-gold">Sign In</Link>
               )}
             </div>
           </motion.div>

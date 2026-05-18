@@ -1,38 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, User, Lock, Loader2, Check, AlertCircle, CreditCard } from 'lucide-react';
-import { auth, db, encryptData, decryptData } from '../lib/firebase';
+import { X, User, Lock, Loader2, Check, AlertCircle, Camera, Link as LinkIcon, Upload, Eye, EyeOff } from 'lucide-react';
+import { auth, db, storage, encryptData, decryptData } from '../lib/firebase';
 import { updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { cn } from '../lib/utils';
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUsername: string;
+  currentPhotoURL?: string;
   currentPhone?: string;
-  currentBankAccount?: string;
 }
 
-export default function ProfileSettingsModal({ isOpen, onClose, currentUsername, currentPhone, currentBankAccount }: ProfileSettingsModalProps) {
+export default function ProfileSettingsModal({ isOpen, onClose, currentUsername, currentPhotoURL, currentPhone }: ProfileSettingsModalProps) {
   const [username, setUsername] = useState(currentUsername);
+  const [photoURL, setPhotoURL] = useState(currentPhotoURL || '');
   const [phone, setPhone] = useState(currentPhone || '');
-  const [bankAccount, setBankAccount] = useState(currentBankAccount ? decryptData(currentBankAccount) : '');
   const [newPassword, setNewPassword] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState(''); // Added for verification
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [step, setStep] = useState<'options' | 'username' | 'password' | 'phone' | 'bankAccount'>('options');
+  const [step, setStep] = useState<'options' | 'username' | 'password' | 'phone' | 'photo'>('options');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleUpdateBankAccount = async () => {
+  const reauthenticate = async (password: string) => {
+    if (!auth.currentUser || !auth.currentUser.email) return;
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, password);
+    await reauthenticateWithCredential(auth.currentUser, credential);
+  };
+
+  const handleUpdatePhotoURL = async () => {
     if (!auth.currentUser) return;
     setLoading(true);
     setError(null);
     try {
-      await updateDoc(doc(db, 'users', auth.currentUser.uid), { 
-        bankAccount: bankAccount ? encryptData(bankAccount) : null 
-      });
-      setSuccess("Bank account updated successfully!");
+      await updateProfile(auth.currentUser, { photoURL: photoURL });
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), { photoURL: photoURL });
+      await updateDoc(doc(db, 'public_profiles', auth.currentUser.uid), { photoURL: photoURL });
+      setSuccess("Profile picture updated successfully!");
+      setTimeout(() => {
+        setSuccess(null);
+        setStep('options');
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !auth.currentUser) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      const storageRef = ref(storage, `users/${auth.currentUser.uid}/profile_pic_${Date.now()}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      
+      await updateProfile(auth.currentUser, { photoURL: url });
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), { photoURL: url });
+      await updateDoc(doc(db, 'public_profiles', auth.currentUser.uid), { photoURL: url });
+      
+      setPhotoURL(url);
+      setSuccess("Profile picture uploaded successfully!");
       setTimeout(() => {
         setSuccess(null);
         setStep('options');
@@ -85,25 +124,33 @@ export default function ProfileSettingsModal({ isOpen, onClose, currentUsername,
   };
 
   const handleUpdatePassword = async () => {
-    if (!auth.currentUser || !auth.currentUser.email) return;
+    if (!auth.currentUser) return;
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     try {
-      // Re-authenticate first
-      const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
-      await reauthenticateWithCredential(auth.currentUser, credential);
-      
-      // Update password
       await updatePassword(auth.currentUser, newPassword);
       setSuccess("Password updated successfully!");
       setNewPassword('');
-      setCurrentPassword('');
+      setConfirmPassword('');
       setTimeout(() => {
         setSuccess(null);
         setStep('options');
       }, 2000);
     } catch (err: any) {
-      setError(err.message === 'auth/wrong-password' ? 'Incorrect current password' : err.message);
+      if (err.message?.includes('recent-login')) {
+        setError("For security, please log out and log back in before changing your password.");
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -155,6 +202,21 @@ export default function ProfileSettingsModal({ isOpen, onClose, currentUsername,
               {step === 'options' && (
                 <div className="space-y-4">
                   <button 
+                    onClick={() => setStep('photo')}
+                    className="w-full p-4 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-2xl flex items-center justify-between transition-all group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black">
+                        <Camera size={20} />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold">Profile Picture</p>
+                        <p className="text-xs opacity-50">Upload or link your avatar</p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button 
                     onClick={() => setStep('username')}
                     className="w-full p-4 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-2xl flex items-center justify-between transition-all group"
                   >
@@ -198,21 +260,68 @@ export default function ProfileSettingsModal({ isOpen, onClose, currentUsername,
                       </div>
                     </div>
                   </button>
+                </div>
+              )}
 
-                  <button 
-                    onClick={() => setStep('bankAccount')}
-                    className="w-full p-4 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-2xl flex items-center justify-between transition-all group"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-black dark:bg-white flex items-center justify-center text-white dark:text-black">
-                        <CreditCard size={20} />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold">Bank Account</p>
-                        <p className="text-xs opacity-50">Manage your payout details</p>
-                      </div>
+              {step === 'photo' && (
+                <div className="space-y-6">
+                  <div className="flex flex-col items-center gap-4 mb-4">
+                    <img 
+                      src={photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${auth.currentUser?.uid}`} 
+                      alt="Preview" 
+                      className="w-24 h-24 rounded-full border-2 border-black/10 dark:border-white/10 object-cover"
+                    />
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleFileUpload} 
+                      className="hidden" 
+                      accept="image/*" 
+                    />
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={loading}
+                      className="flex items-center gap-2 px-6 py-2 bg-black dark:bg-white text-white dark:text-black rounded-full text-xs font-bold hover:scale-105 transition-all disabled:opacity-50"
+                    >
+                      <Upload size={14} />
+                      Upload Photo
+                    </button>
+                  </div>
+
+                  <div className="relative flex items-center gap-4 py-2">
+                    <div className="h-px flex-1 bg-black/5 dark:bg-white/5"></div>
+                    <span className="text-[10px] font-bold opacity-30">OR PROVIDE URL</span>
+                    <div className="h-px flex-1 bg-black/5 dark:bg-white/5"></div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-50 ml-2">Image URL</label>
+                    <div className="relative">
+                      <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" size={18} />
+                      <input 
+                        type="url"
+                        value={photoURL}
+                        onChange={(e) => setPhotoURL(e.target.value)}
+                        placeholder="https://example.com/photo.jpg"
+                        className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
+                      />
                     </div>
-                  </button>
+                  </div>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => setStep('options')}
+                      className="flex-1 py-4 font-bold opacity-50 hover:opacity-100 transition-opacity"
+                    >
+                      Back
+                    </button>
+                    <button 
+                      onClick={handleUpdatePhotoURL}
+                      disabled={loading || !photoURL}
+                      className="flex-[2] py-4 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {loading ? <Loader2 className="animate-spin" size={20} /> : "Update URL"}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -254,29 +363,66 @@ export default function ProfileSettingsModal({ isOpen, onClose, currentUsername,
                         type="password"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter current password"
                         className="w-full px-4 py-4 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase tracking-widest opacity-50 ml-2">New Password</label>
+                      <div className="relative">
+                        <input 
+                          type={showPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Enter new password"
+                          className="w-full px-4 py-4 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all pr-12"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 hover:opacity-100 transition-opacity"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest opacity-50 ml-2">Confirm New Password</label>
                       <input 
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
+                        type={showPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm new password"
                         className="w-full px-4 py-4 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
                       />
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <button 
-                      onClick={() => setStep('options')}
+                      onClick={() => {
+                        setStep('options');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setCurrentPassword('');
+                      }}
                       className="flex-1 py-4 font-bold opacity-50 hover:opacity-100 transition-opacity"
                     >
                       Back
                     </button>
                     <button 
-                      onClick={handleUpdatePassword}
-                      disabled={loading || !newPassword || !currentPassword}
+                      onClick={async () => {
+                        setLoading(true);
+                        setError(null);
+                        try {
+                          await reauthenticate(currentPassword);
+                          await handleUpdatePassword();
+                        } catch (err: any) {
+                          setError("Re-authentication failed. Please check your current password.");
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      disabled={loading || !newPassword || !confirmPassword || !currentPassword}
                       className="flex-[2] py-4 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {loading ? <Loader2 className="animate-spin" size={20} /> : "Update Password"}
@@ -314,35 +460,6 @@ export default function ProfileSettingsModal({ isOpen, onClose, currentUsername,
                 </div>
               )}
 
-              {step === 'bankAccount' && (
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-50 ml-2">Bank Account IBAN / Number</label>
-                    <input 
-                      type="text"
-                      value={bankAccount}
-                      onChange={(e) => setBankAccount(e.target.value)}
-                      placeholder="Enter your bank account for payouts"
-                      className="w-full px-4 py-4 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => setStep('options')}
-                      className="flex-1 py-4 font-bold opacity-50 hover:opacity-100 transition-opacity"
-                    >
-                      Back
-                    </button>
-                    <button 
-                      onClick={handleUpdateBankAccount}
-                      disabled={loading || bankAccount === (currentBankAccount ? decryptData(currentBankAccount) : '')}
-                      className="flex-[2] py-4 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {loading ? <Loader2 className="animate-spin" size={20} /> : "Update Bank Account"}
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </motion.div>
         </div>

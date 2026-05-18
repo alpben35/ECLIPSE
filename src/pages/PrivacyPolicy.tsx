@@ -48,7 +48,7 @@ export default function PrivacyPolicy() {
             We collect information you provide directly to us, such as when you create an account, use the AI tutor, or communicate with us. This includes:
           </p>
           <ul className="list-disc pl-6 opacity-70 space-y-2">
-            <li>Name and email address (via Google Login)</li>
+            <li>Name and email address</li>
             <li>Profile information and rank</li>
             <li>Chat history with the AI tutor</li>
             <li>Academic progress and test scores</li>
@@ -115,9 +115,9 @@ export default function PrivacyPolicy() {
               <p className="text-sm opacity-60">dpo@eclipse-ai.com</p>
             </div>
             <div className="space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">Mailing Address</p>
-              <p className="font-bold">London, United Kingdom</p>
-              <p className="text-xs opacity-40">(Full address available upon verified request for legal compliance)</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">Global Support Node</p>
+              <p className="font-bold">Distributed Network</p>
+              <p className="text-xs opacity-40">(Address available upon verified request for legal compliance)</p>
             </div>
           </div>
           <p className="text-xs opacity-50 pt-4 border-t border-black/10 dark:border-white/10">

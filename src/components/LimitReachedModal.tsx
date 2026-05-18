@@ -31,12 +31,12 @@ export default function LimitReachedModal({ isOpen, onClose, limit, tier }: Limi
             className="relative w-full max-w-lg bg-white dark:bg-zinc-900 rounded-[3rem] p-8 shadow-2xl overflow-hidden"
           >
             {/* Background Glow */}
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-orange-500/20 blur-[100px] rounded-full" />
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-black/5 dark:bg-white/5 blur-[100px] rounded-full" />
             
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-8">
-                <div className="w-16 h-16 bg-orange-500/10 rounded-3xl flex items-center justify-center">
-                  <Zap className="text-orange-500" size={32} />
+                <div className="w-16 h-16 bg-black/5 dark:bg-white/5 rounded-3xl flex items-center justify-center">
+                  <Zap className="text-black dark:text-white" size={32} />
                 </div>
                 <button 
                   onClick={onClose}
@@ -48,10 +48,10 @@ export default function LimitReachedModal({ isOpen, onClose, limit, tier }: Limi
 
               <div className="space-y-4 mb-10">
                 <h2 className="text-4xl font-black tracking-tighter italic uppercase leading-none">
-                  Daily Limit <span className="text-orange-500">Reached</span>
+                  Daily Limit <span className="opacity-60 text-zinc-500 dark:text-zinc-400">Reached</span>
                 </h2>
-                <p className="opacity-60 text-lg leading-relaxed">
-                  You've used all <span className="font-bold text-black dark:text-white">{limit}</span> of your daily prompts on the <span className="font-bold uppercase tracking-widest text-orange-500">{tier}</span> plan.
+                <p className="opacity-80 text-lg leading-relaxed text-zinc-700 dark:text-zinc-300">
+                  You've used all <span className="font-bold text-black dark:text-white">{limit}</span> of your daily prompts on the <span className="font-bold uppercase tracking-widest opacity-80">{tier}</span> plan.
                 </p>
               </div>
 
@@ -67,7 +67,7 @@ export default function LimitReachedModal({ isOpen, onClose, limit, tier }: Limi
                 
                 <button 
                   onClick={onClose}
-                  className="w-full py-4 text-sm font-bold opacity-40 hover:opacity-100 transition-opacity"
+                  className="w-full py-4 text-sm font-bold opacity-60 hover:opacity-100 transition-opacity text-zinc-600 dark:text-zinc-400"
                 >
                   Maybe later, I'll wait until tomorrow
                 </button>
@@ -75,20 +75,20 @@ export default function LimitReachedModal({ isOpen, onClose, limit, tier }: Limi
 
               <div className="mt-10 pt-8 border-t border-black/5 dark:border-white/5 grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-yellow-500/10 rounded-xl">
-                    <Crown className="text-yellow-500" size={16} />
+                  <div className="p-2 bg-black/5 dark:bg-white/5 rounded-xl">
+                    <Crown className="text-black dark:text-white" size={16} />
                   </div>
                   <div className="text-left">
-                    <p className="text-[10px] font-bold uppercase opacity-40">Premium</p>
+                    <p className="text-[10px] font-bold uppercase opacity-60 text-zinc-500 dark:text-zinc-400">Premium</p>
                     <p className="text-xs font-bold">120 Prompts</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-500/10 rounded-xl">
-                    <InfinityIcon className="text-purple-500" size={16} />
+                  <div className="p-2 bg-black/5 dark:bg-white/5 rounded-xl">
+                    <InfinityIcon className="text-black dark:text-white" size={16} />
                   </div>
                   <div className="text-left">
-                    <p className="text-[10px] font-bold uppercase opacity-40">Infinite</p>
+                    <p className="text-[10px] font-bold uppercase opacity-60 text-zinc-500 dark:text-zinc-400">Infinite</p>
                     <p className="text-xs font-bold">Unlimited</p>
                   </div>
                 </div>

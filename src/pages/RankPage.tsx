@@ -91,7 +91,7 @@ export default function RankPage() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 text-orange-500 rounded-full text-xs font-black tracking-widest uppercase"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-black/5 dark:bg-white/5 text-black dark:text-white rounded-full text-xs font-black tracking-widest uppercase border border-black/10 dark:border-white/10"
         >
           <Star size={14} />
           Your Current Rank: {userRank}
@@ -122,13 +122,13 @@ export default function RankPage() {
               whileHover={isAvailable ? { y: -10 } : {}}
               className={`relative p-8 rounded-[2.5rem] flex flex-col justify-between border-2 transition-all duration-500 ${
                 isCurrent ? 'bg-black text-white dark:bg-white dark:text-black border-transparent shadow-2xl scale-105 z-10' : 
-                isNext ? 'bg-black/5 dark:bg-white/5 border-orange-500/50 shadow-[0_0_30px_rgba(249,115,22,0.1)]' :
+                isNext ? 'bg-black/5 dark:bg-white/5 border-black/50 shadow-[0_0_30px_rgba(0,0,0,0.1)]' :
                 isLocked ? 'bg-black/5 dark:bg-white/5 border-transparent opacity-40' :
                 'bg-black/5 dark:bg-white/5 border-black/5 dark:border-white/5'
               }`}
             >
               {isNext && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-orange-500 text-white text-[10px] font-black rounded-full shadow-lg z-20">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-black text-white dark:bg-white dark:text-black text-[10px] font-black rounded-full shadow-lg z-20 border border-white/20 dark:border-black/20">
                   RECOMMENDED PATH
                 </div>
               )}
@@ -186,9 +186,7 @@ export default function RankPage() {
                       <div className="space-y-3">
                         <button 
                           onClick={() => setSelectedRank({ name: rank.name, price: pricing.discounted })}
-                          className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${
-                            isNext ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20 hover:scale-105' : 'bg-black text-white dark:bg-white dark:text-black hover:scale-105'
-                          }`}
+                          className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all bg-black text-white dark:bg-white dark:text-black hover:scale-105 shadow-xl`}
                         >
                           <CreditCard size={18} /> Upgrade
                         </button>
@@ -243,7 +241,7 @@ export default function RankPage() {
                           delay: Math.random() * 2,
                           ease: "linear"
                         }}
-                        className="absolute text-[8px] font-mono text-orange-500/20"
+                        className="absolute text-[8px] font-mono text-black/20 dark:text-white/20"
                         style={{ left: `${Math.random() * 100}%` }}
                       >
                         {Math.random().toString(36).substring(7)}
@@ -302,7 +300,7 @@ export default function RankPage() {
                           delay: Math.random() * 2,
                           ease: "linear"
                         }}
-                        className="absolute text-[6px] font-mono text-orange-500"
+                        className="absolute text-[6px] font-mono text-black dark:text-white"
                         style={{ left: `${Math.random() * 100}%` }}
                       >
                         {Math.random().toString(16).substring(2, 8).toUpperCase()}
@@ -310,13 +308,13 @@ export default function RankPage() {
                     ))}
                   </div>
                   
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-black/5 via-transparent to-transparent pointer-events-none dark:from-white/5" />
                   
                   <div className="flex items-center justify-between relative z-10">
                     <div className="space-y-1">
-                      <h2 className="text-2xl font-black tracking-tight">SECURE CHECKOUT</h2>
+                      <h2 className="text-2xl font-black tracking-tight uppercase italic underline underline-offset-8 decoration-black/20 dark:decoration-white/20">SECURE CHECKOUT</h2>
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <div className="w-2 h-2 rounded-full bg-black dark:bg-white animate-pulse" />
                         <span className="text-[10px] font-black uppercase tracking-widest opacity-50">Encrypted Connection Active</span>
                       </div>
                     </div>
@@ -332,7 +330,7 @@ export default function RankPage() {
                     whileHover={{ scale: 1.02 }}
                     className="p-6 bg-black text-white dark:bg-white dark:text-black rounded-3xl flex items-center justify-between border border-white/10 shadow-2xl relative overflow-hidden group"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="relative z-10">
                       <p className="text-[10px] font-black uppercase tracking-widest opacity-50">Target Rank</p>
                       <h3 className="text-2xl font-black uppercase italic tracking-tighter">{selectedRank.name}</h3>
@@ -347,14 +345,14 @@ export default function RankPage() {
                     <div className="space-y-3">
                       <div className="flex justify-between items-end px-2">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Authority Surge Meter</label>
-                        <span className="text-[10px] font-black text-orange-500">READY TO SYNC</span>
+                        <span className="text-[10px] font-black text-black dark:text-white uppercase tracking-widest">READY TO SYNC</span>
                       </div>
                       <div className="h-2 w-full bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: "0%" }}
                           animate={{ width: "100%" }}
                           transition={{ duration: 2, ease: "easeOut" }}
-                          className="h-full bg-gradient-to-r from-orange-500 to-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.5)]"
+                          className="h-full bg-black dark:bg-white"
                         />
                       </div>
                     </div>
@@ -399,16 +397,16 @@ export default function RankPage() {
                     <motion.button 
                       onClick={handlePurchase}
                       disabled={isProcessing}
-                      whileHover={{ scale: 1.02, boxShadow: "0 20px 40px rgba(249,115,22,0.2)" }}
+                      whileHover={{ scale: 1.02, boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}
                       whileTap={{ scale: 0.98 }}
-                      className="w-full py-6 bg-orange-500 text-white rounded-[2rem] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-50 transition-all shadow-xl relative overflow-hidden group"
+                      className="w-full py-6 bg-black text-white dark:bg-white dark:text-black rounded-[2rem] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-50 transition-all shadow-xl relative overflow-hidden group"
                     >
-                      <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12" />
+                      <div className="absolute inset-0 bg-white/20 dark:bg-black/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12" />
                       {isProcessing ? (
                         <motion.div 
                           animate={{ rotate: 360 }}
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="w-6 h-6 border-3 border-white border-t-transparent rounded-full"
+                          className="w-6 h-6 border-3 border-current border-t-transparent rounded-full"
                         />
                       ) : (
                         <>
@@ -430,7 +428,7 @@ export default function RankPage() {
 
       <div className="bg-black/5 dark:bg-white/5 p-12 rounded-[3rem] space-y-8">
         <div className="flex items-center gap-4">
-          <div className="p-4 bg-orange-500 rounded-3xl text-white">
+          <div className="p-4 bg-black dark:bg-white rounded-3xl text-white dark:text-black">
             <Zap size={32} />
           </div>
           <div>

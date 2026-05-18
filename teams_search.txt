@@ -1,0 +1,17 @@
+src/components/SupportModal.tsx:                We're a small team dedicated to revolutionizing education. Your support keeps us going.
+src/pages/GroupsPage.tsx:          <h1 className="text-4xl font-black tracking-tighter italic uppercase">Study <span className="opacity-50">Teams</span></h1>
+src/pages/GroupsPage.tsx:              Teams
+src/pages/GroupsPage.tsx:            Create Team
+src/pages/GroupsPage.tsx:                  My Teams
+src/pages/GroupsPage.tsx:                Discover Teams
+src/pages/GroupsPage.tsx:                  <p className="text-sm font-bold uppercase tracking-widest opacity-30">No active teams found</p>
+src/pages/GroupsPage.tsx:              <h3 className="text-3xl font-black italic uppercase tracking-tighter mb-8">Deploy New <span className="opacity-50">Team</span></h3>
+src/pages/GroupsPage.tsx:                  <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-4">Full Team Designation</label>
+src/pages/SubscriptionPage.tsx:        text: "Upgrade request submitted! Our team will contact you shortly to complete the process." 
+src/pages/SubscriptionPage.tsx:              Click any plan above to submit an upgrade request. Our administration team will review your account and contact you within 24 hours to complete the process.
+src/pages/SubscriptionPage.tsx:                If you prefer to pay manually, please use the details above. After transfer, send your receipt to <strong>support@eclipse.ai</strong> or use the chat to notify our team.
+src/pages/AdminPage.tsx:      const body = `Hello,\n\nYour rank on Eclipse AI has been updated from ${currentRank} to ${newRank}.\n\nBest regards,\nThe Eclipse Team`;
+src/pages/AdminPage.tsx:        await sendEmail(userEmail, "Your email has been verified!", "Hello,\n\nYour email address has been manually verified by an administrator on Eclipse AI.\n\nBest regards,\nThe Eclipse Team");
+src/StudentApp.tsx:      { name: 'Teams', path: '/groups', icon: Users },
+eclipse-teacher/src/pages/AdminPage.tsx:      const body = `Hello,\n\nYour rank on Eclipse Teacher has been updated from ${currentRank} to ${newRank}.\n\nBest regards,\nThe Eclipse Team`;
+eclipse-teacher/src/pages/GroupDetailPage.tsx:      "Excellent teamwork in this group! 🤝",

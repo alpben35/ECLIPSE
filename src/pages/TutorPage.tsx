@@ -1,10 +1,15 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Mic, Sparkles, Brain, ChevronDown, Share2, Copy, Check, MessageSquare, BookOpen, ListRestart, X, AlertCircle, Download, Calculator as CalculatorIcon, Trash2, Lock } from 'lucide-react';
-import { askTutor, summarizeChat } from '../lib/gemini';
-import { SUBJECTS } from '../lib/constants';
+import { 
+  Send, Mic, Sparkles, Brain, ChevronDown, Share2, Copy, 
+  Check, MessageSquare, BookOpen, ListRestart, X, AlertCircle, 
+  Download, Calculator as CalculatorIcon, Trash2, Lock, 
+  Image as ImageIcon, Paperclip, Wand2 
+} from 'lucide-react';
+import { askTutor, askTutorStream, summarizeChat } from '../lib/gemini';
+import { SUBJECTS, PROMPT_LIMITS } from '../lib/constants';
 import { db, handleFirestoreError, OperationType, encryptData, decryptData } from '../lib/firebase';
-import { collection, addDoc, query, onSnapshot, orderBy, limit, deleteDoc, doc, writeBatch, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, onSnapshot, orderBy, limit, deleteDoc, doc, writeBatch, getDocs, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
 import { AuthContext } from '../lib/contexts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -91,13 +96,14 @@ interface Message {
   role: 'user' | 'ai';
   content: string;
   id: string;
+  images?: { data: string, mimeType: string }[];
 }
 
 export default function TutorPage() {
   const { user, profile, addXp } = useContext(AuthContext);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [mode, setMode] = useState<'teach' | 'solve' | 'revise'>('teach');
+  const [mode, setMode] = useState<'teach' | 'solve' | 'revise' | 'design'>('teach');
   const [subject, setSubject] = useState(SUBJECTS[0]);
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -107,6 +113,9 @@ export default function TutorPage() {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<{ file: File, preview: string } | null>(null);
+  const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const dailyGoal = 5;
@@ -123,6 +132,7 @@ export default function TutorPage() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      setErrorMessage(null); // Clear any previous transient errors
       const loadedMessages = snapshot.docs.map(doc => {
         const data = doc.data();
         let timestamp = data.timestamp;
@@ -138,6 +148,7 @@ export default function TutorPage() {
           id: doc.id,
           role: data.role,
           content: decryptData(data.content),
+          images: data.images,
           timestamp
         } as Message;
       }) as Message[];
@@ -159,37 +170,127 @@ export default function TutorPage() {
 
   const handleSend = async () => {
     const messageText = input.trim();
-    if (!messageText || isTyping || !user) return;
+    if (messageText.toLowerCase() === 'hello world') {
+      window.dispatchEvent(new CustomEvent('easter-egg-sparkle', { 
+        detail: { message: 'Hello World! 🌍', color: '#00BFFF' } 
+      }));
+    }
+    if ((!messageText && !selectedImage) || isTyping || !user) return;
 
     setErrorMessage(null);
     setInput('');
+    const currentMode = mode;
+    const currentSubject = subject.name;
+    const currentImage = selectedImage;
+    setSelectedImage(null);
     setIsTyping(true);
 
+    const currentHistory = [...messages];
+    const userTier = (profile?.tier || 'free') as keyof typeof PROMPT_LIMITS;
+    const maxPrompts = PROMPT_LIMITS[userTier] || 20;
+    const promptCost = currentMode === 'design' ? 4 : 1;
+
+    // Check limits for non-admins
+    if (!profile?.isAdmin) {
+      // Image limit (5 per day for free users)
+      if (currentMode === 'design' && profile?.tier === 'free' && (profile.imagesToday || 0) >= 5) {
+        setErrorMessage("You've reached your daily limit of 5 visual manifests. Visionaries need rest.");
+        window.dispatchEvent(new CustomEvent('prompt-limit-reached', { 
+          detail: { limit: 5, tier: 'free', message: 'Daily Image Limit Reached' } 
+        }));
+        setIsTyping(false);
+        return;
+      }
+
+      // Prompt limit
+      if ((profile?.promptsToday || 0) + promptCost > maxPrompts) {
+        window.dispatchEvent(new CustomEvent('prompt-limit-reached', { 
+          detail: { limit: maxPrompts, tier: userTier } 
+        }));
+        setIsTyping(false);
+        return;
+      }
+    }
+
     try {
+      let imageData: { data: string, mimeType: string } | undefined;
+      
+      if (currentImage) {
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => {
+            const base64String = (reader.result as string).split(',')[1];
+            resolve(base64String);
+          };
+          reader.onerror = reject;
+        });
+        reader.readAsDataURL(currentImage.file);
+        const base64Data = await base64Promise;
+        imageData = { data: base64Data, mimeType: currentImage.file.type };
+      }
+
       // Save user message to Firestore
+      const userMessageContent = currentImage ? `[Image Attached] ${messageText}` : messageText;
       await addDoc(collection(db, 'users', user.uid, 'messages'), {
         role: 'user',
-        content: encryptData(messageText),
+        content: encryptData(userMessageContent),
         timestamp: serverTimestamp()
       });
       
       // Add XP for engagement
-      addXp(15);
+      addXp(currentMode === 'design' ? 50 : 15);
 
-      // Pass the last 10 messages for context
-      const chatHistory = messages.slice(-10).map(m => ({
+      // Pass the last 10 messages for context (from captured history)
+      const chatHistory = currentHistory.slice(-10).map(m => ({
         role: m.role,
         content: m.content
       }));
 
-      const response = await askTutor(messageText, mode, subject.name, chatHistory);
+      if (currentMode === 'design') {
+        const res = await askTutor(messageText || "Manifest a creative visual concept.", currentMode, currentSubject, chatHistory, imageData);
+        
+        // Save AI response to Firestore
+        await addDoc(collection(db, 'users', user.uid, 'messages'), {
+          role: 'ai',
+          content: encryptData(res.text || ""),
+          images: res.images || null,
+          timestamp: serverTimestamp()
+        });
+      } else {
+        // Streaming for other modes
+        let fullText = "";
+        setStreamingMessage("");
+        
+        await askTutorStream(
+          messageText || "Please assist.", 
+          currentMode, 
+          currentSubject, 
+          (chunk) => {
+            fullText += chunk;
+            setStreamingMessage(fullText);
+          },
+          chatHistory, 
+          imageData
+        );
+        
+        setStreamingMessage(null);
+
+        // Save complete AI response to Firestore
+        await addDoc(collection(db, 'users', user.uid, 'messages'), {
+          role: 'ai',
+          content: encryptData(fullText),
+          timestamp: serverTimestamp()
+        });
+      }
       
-      // Save AI response to Firestore
-      await addDoc(collection(db, 'users', user.uid, 'messages'), {
-        role: 'ai',
-        content: encryptData(response),
-        timestamp: serverTimestamp()
-      });
+      // Increment daily prompts and images
+      const updates: any = {
+        promptsToday: increment(promptCost)
+      };
+      if (currentMode === 'design') {
+        updates.imagesToday = increment(1);
+      }
+      await updateDoc(doc(db, 'users', user.uid), updates);
     } catch (error: any) {
       if (error.message?.includes('Limit reached')) {
         // Limit modal will be shown by StudentApp listener
@@ -301,6 +402,25 @@ export default function TutorPage() {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMessage("File too large. Max 5MB.");
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        setErrorMessage("Only images are supported.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedImage({ file, preview: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-6rem)]">
       {/* Header Controls */}
@@ -342,6 +462,18 @@ export default function TutorPage() {
             >
               <BookOpen size={16} />
               Revise
+            </button>
+            <button 
+              onClick={() => setMode('design')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+                mode === 'design' 
+                  ? "bg-white dark:bg-black shadow-md ring-1 ring-black/5 dark:ring-white/10 text-black dark:text-white" 
+                  : "opacity-50 hover:opacity-80"
+              )}
+            >
+              <Wand2 size={16} />
+              Eclipse Vision
             </button>
           </div>
 
@@ -477,10 +609,13 @@ export default function TutorPage() {
           </div>
         )}
 
-        {messages.map((msg) => (
-          <motion.div 
-            key={msg.id}
-            initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+        {messages.map((msg, idx) => (
+          <React.Fragment key={msg.id}>
+            {idx > 0 && (
+              <div className="w-full border-t border-black/5 dark:border-white/5 my-2" />
+            )}
+            <motion.div 
+              initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
             animate={{ opacity: 1, x: 0 }}
             className={cn(
               "flex flex-col max-w-[85%] group relative",
@@ -496,21 +631,46 @@ export default function TutorPage() {
               {msg.role === 'user' ? (
                 msg.content
               ) : (
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                    ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
-                    ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
-                    li: ({ children }) => <li className="mb-1">{children}</li>,
-                    h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
-                    h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
-                    code: ({ children }) => <code className="bg-black/10 dark:bg-white/10 px-1 rounded font-mono text-xs">{children}</code>,
-                    blockquote: ({ children }) => <blockquote className="border-l-2 border-black/20 dark:border-white/20 pl-4 italic my-2">{children}</blockquote>,
-                  }}
-                >
-                  {msg.content}
-                </ReactMarkdown>
+                <>
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+                      li: ({ children }) => <li className="mb-1">{children}</li>,
+                      h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                      code: ({ children }) => <code className="bg-black/10 dark:bg-white/10 px-1 rounded font-mono text-xs">{children}</code>,
+                      blockquote: ({ children }) => <blockquote className="border-l-2 border-black/20 dark:border-white/20 pl-4 italic my-2">{children}</blockquote>,
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                  {msg.images?.map((img: any, idx: number) => (
+                    <div key={idx} className="mt-4 rounded-xl overflow-hidden border border-black/10 dark:border-white/10">
+                      <img 
+                         src={`data:${img.mimeType};base64,${img.data}`} 
+                        alt="AI Manifestation" 
+                        className="w-full object-cover aspect-square" 
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="p-2 bg-black/5 dark:bg-white/5 flex justify-end">
+                        <button 
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = `data:${img.mimeType};base64,${img.data}`;
+                            link.download = `eclipse-dt-${msg.id}-${idx}.png`;
+                            link.click();
+                          }}
+                          className="p-1 px-3 bg-black text-white dark:bg-white dark:text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform"
+                        >
+                          Download 1024x1024
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </>
               )}
             </div>
             
@@ -543,9 +703,29 @@ export default function TutorPage() {
               </button>
             </div>
           </motion.div>
+          </React.Fragment>
         ))}
 
-        {isTyping && (
+        {streamingMessage !== null && (
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex flex-col max-w-[85%] items-start"
+          >
+            <div className="px-6 py-4 rounded-3xl text-sm leading-relaxed bg-black/5 dark:bg-white/5 dark:prose-invert rounded-tl-none prose prose-sm max-w-none">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                }}
+              >
+                {streamingMessage || "..."}
+              </ReactMarkdown>
+            </div>
+          </motion.div>
+        )}
+
+        {isTyping && streamingMessage === null && (
           <div className="flex items-center gap-2 px-6 py-4 bg-black/5 dark:bg-white/5 rounded-3xl rounded-tl-none w-20">
             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 rounded-full bg-current" />
             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -556,15 +736,44 @@ export default function TutorPage() {
 
       {/* Input Area */}
       <div className="relative mb-4">
+        <AnimatePresence>
+          {selectedImage && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute bottom-full left-0 mb-4 p-2 bg-white dark:bg-zinc-800 rounded-2xl shadow-xl border border-black/10 dark:border-white/10 flex items-center gap-3 z-20"
+            >
+              <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-black/5">
+                <img src={selectedImage.preview} alt="Upload preview" className="w-full h-full object-cover" />
+                <button 
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              <div className="pr-4">
+                <p className="text-xs font-bold truncate max-w-[120px]">{selectedImage.file.name}</p>
+                <p className="text-[10px] opacity-50">{(selectedImage.file.size / 1024).toFixed(0)} KB</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
           <button 
+            id="mic-button"
             onClick={startVoice}
+            title="Voice Typing"
             className={cn(
-              "p-2 rounded-full transition-colors",
-              isListening ? "bg-red-500 text-white animate-pulse" : "hover:bg-black/5 dark:hover:bg-white/5"
+              "p-2.5 rounded-xl transition-all border shadow-sm",
+              isListening 
+                ? "bg-red-500 text-white border-red-600 shadow-lg shadow-red-500/40 animate-pulse scale-110" 
+                : "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/30"
             )}
           >
-            <Mic size={20} />
+            <Mic size={22} />
           </button>
         </div>
         
@@ -573,17 +782,34 @@ export default function TutorPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder={isListening ? "Listening..." : `Ask a question about ${subject.name}...`}
-          className="w-full pl-14 pr-14 py-5 bg-black/5 dark:bg-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all text-base placeholder:opacity-40"
+          placeholder={isListening ? "Listening..." : `Ask a question...`}
+          className="w-full pl-16 md:pl-20 pr-36 md:pr-44 py-4 md:py-5 bg-black/5 dark:bg-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all text-sm md:text-base placeholder:opacity-40"
         />
 
-        <button 
-          onClick={handleSend}
-          disabled={!input.trim() || isTyping}
-          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black text-white dark:bg-white dark:text-black rounded-xl disabled:opacity-30 transition-all hover:scale-105 active:scale-95"
-        >
-          <Send size={20} />
-        </button>
+        <div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 md:gap-2">
+          <input 
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            accept="image/*"
+            className="hidden"
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 md:p-2.5 bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/30 rounded-xl transition-all shadow-sm"
+            title="Upload image"
+          >
+            <ImageIcon size={20} className="md:w-[22px] md:h-[22px]" />
+          </button>
+          
+          <button 
+            onClick={handleSend}
+            disabled={(!input.trim() && !selectedImage) || isTyping}
+            className="p-2 md:p-2.5 bg-black text-white dark:bg-white dark:text-black rounded-xl disabled:opacity-30 transition-all hover:scale-105 active:scale-95 shadow-md"
+          >
+            <Send size={18} className="md:w-[20px] md:h-[20px]" />
+          </button>
+        </div>
       </div>
 
       {/* Calculator Area */}

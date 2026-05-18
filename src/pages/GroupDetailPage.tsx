@@ -17,16 +17,14 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { AuthContext } from '../lib/contexts';
 import { SUBJECTS, GRADE_LEVELS, OWNER_EMAIL } from '../lib/constants';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { cn } from '../lib/utils';
 import { format } from 'date-fns';
+import { MemberCard } from '../components/groups/MemberCard';
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 type Tab = 'chat' | 'progress' | 'assignments' | 'members';
 
+// Refreshed page logic
 export default function GroupDetailPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
@@ -570,7 +568,7 @@ export default function GroupDetailPage() {
                         <div className="whitespace-pre-wrap">
                           {msg.content.split(/(@\w+)/g).map((part: string, idx: number) => 
                             part.startsWith('@') ? (
-                              <span key={idx} className="font-bold text-orange-500 dark:text-orange-400">{part}</span>
+                              <span key={idx} className="font-bold text-black/40 dark:text-white/40">{part}</span>
                             ) : part
                           )}
                         </div>
@@ -607,7 +605,7 @@ export default function GroupDetailPage() {
                           >
                             <img 
                               src={p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} 
-                              className="w-6 h-6 rounded-full"
+                              className="w-6 h-6 rounded-full object-cover shrink-0"
                               alt="Avatar"
                             />
                             <span className="text-sm font-bold">{p.displayName}</span>
@@ -958,7 +956,7 @@ export default function GroupDetailPage() {
                     return (
                       <div key={friend.id} className="flex items-center justify-between p-4 bg-black/5 dark:bg-white/5 rounded-2xl">
                         <div className="flex items-center gap-3">
-                          <img src={friend.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} className="w-10 h-10 rounded-full" alt="" />
+                          <img src={friend.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} className="w-10 h-10 rounded-full object-cover shrink-0" alt="" />
                           <div>
                             <p className="text-sm font-bold">{friend.displayName}</p>
                             <p className="text-[10px] opacity-50 uppercase tracking-widest font-bold">{friend.rank}</p>
@@ -989,48 +987,6 @@ export default function GroupDetailPage() {
           </div>
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-function MemberCard({ userId, isCreator, canKick, onKick, hideAvatar }: { userId: string, isCreator: boolean, canKick?: boolean, onKick?: () => void, hideAvatar?: boolean }) {
-  const [profile, setProfile] = useState<any>(null);
-
-  useEffect(() => {
-    getDoc(doc(db, 'users', userId)).then(snap => {
-      if (snap.exists()) setProfile(snap.data());
-    }).catch(err => handleFirestoreError(err, OperationType.GET, `users/${userId}`));
-  }, [userId]);
-
-  if (!profile) return <div className="p-4 bg-black/5 dark:bg-white/5 rounded-2xl animate-pulse h-16" />;
-
-  return (
-    <div className="flex items-center gap-4 p-4 bg-white dark:bg-black rounded-2xl border border-black/5 dark:border-white/5 group">
-      {!hideAvatar && (
-        <img 
-          src={profile.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`} 
-          alt="Avatar" 
-          className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5"
-        />
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="font-bold text-sm truncate text-black dark:text-white">{profile.displayName || 'Anonymous'}</p>
-          {isCreator && <Shield size={12} className="text-orange-500" />}
-        </div>
-        {!hideAvatar && (
-          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 dark:text-white/40">Level {profile.level || 1} • {profile.rank || 'Welcome'}</p>
-        )}
-      </div>
-      {canKick && (
-        <button 
-          onClick={onKick}
-          className="p-2 text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 rounded-xl transition-all"
-          title="Kick Member"
-        >
-          <UserMinus size={16} />
-        </button>
-      )}
     </div>
   );
 }

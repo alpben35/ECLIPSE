@@ -62,29 +62,29 @@ export default function LandingPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
         <FeatureCard 
-          icon={<Brain className="text-blue-500" />}
+          icon={<Brain className="text-black dark:text-white" />}
           title="Dual AI Modes"
           description="Choose between 'Teach' for deep conceptual understanding or 'Solve' for quick answers."
         />
         <FeatureCard 
-          icon={<TrendingUp className="text-green-500" />}
+          icon={<TrendingUp className="text-black dark:text-white" />}
           title="Progress Tracking"
           description="Visualize your growth with subject-specific graphs and test score history."
         />
         <FeatureCard 
-          icon={<Shield className="text-purple-500" />}
+          icon={<Shield className="text-black dark:text-white" />}
           title="Secure & Private"
           description="Your data is protected with industry-standard security. Your progress is yours alone."
         />
       </div>
 
-      <div className="mt-32 p-12 bg-black/5 dark:bg-white/5 rounded-[3rem] text-center space-y-8">
+      <div className="mt-32 p-12 bg-black text-white dark:bg-white dark:text-black rounded-[3rem] text-center space-y-8">
         <Zap size={48} className="mx-auto" />
         <h2 className="text-4xl font-bold">Ready to eclipse the competition?</h2>
         <p className="opacity-50 max-w-xl mx-auto">Join thousands of students using AI to supercharge their education.</p>
         <Link 
           to="/auth"
-          className="px-8 py-4 bg-black text-white dark:bg-white dark:text-black rounded-2xl font-bold inline-block"
+          className="px-8 py-4 bg-white text-black dark:bg-black dark:text-white rounded-2xl font-bold inline-block"
         >
           Create Your Account
         </Link>

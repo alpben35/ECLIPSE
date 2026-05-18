@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Mic, Sparkles, Brain, ChevronDown, Share2, Copy, Check, MessageSquare, BookOpen, ListRestart, X, Download, Calculator as CalculatorIcon, Upload, Trash2 } from 'lucide-react';
-import { askTutor, summarizeChat } from '../lib/gemini';
-import { SUBJECTS } from '../lib/constants';
-import { db, handleFirestoreError, OperationType, encryptData, decryptData } from '../lib/firebase';
+import { Send, Mic, Sparkles, Brain, ChevronDown, Share2, Copy, Check, MessageSquare, BookOpen, ListRestart, X, Download, Calculator as CalculatorIcon, Upload, Trash2, Shield, AlertCircle } from 'lucide-react';
+import { askTutor, summarizeChat } from '@/lib/gemini';
+import { SUBJECTS } from '@/lib/constants';
+import { db, handleFirestoreError, OperationType, encryptData, decryptData } from '@/lib/firebase';
 import { collection, addDoc, query, onSnapshot, orderBy, limit, deleteDoc, doc, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { AuthContext } from '../../../src/lib/contexts';
+import { AuthContext } from '@/lib/contexts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { clsx, type ClassValue } from 'clsx';
@@ -106,7 +106,8 @@ export default function TutorPage() {
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
-  const [useHandwriting, setUseHandwriting] = useState(true);
+  const [useHandwriting, setUseHandwriting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -119,6 +120,7 @@ export default function TutorPage() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      setErrorMessage(null);
       const loadedMessages = snapshot.docs.map(doc => {
         const data = doc.data();
         let timestamp = data.timestamp;
@@ -139,7 +141,10 @@ export default function TutorPage() {
       }) as Message[];
       // Reverse to show in chronological order
       setMessages(loadedMessages.reverse());
-    }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}/messages`));
+    }, (err) => {
+      setErrorMessage("Failed to load chat history. Please check your connection.");
+      handleFirestoreError(err, OperationType.GET, `users/${user.uid}/messages`);
+    });
 
     return () => unsubscribe();
   }, [user]);
@@ -169,7 +174,8 @@ export default function TutorPage() {
 
       let responseText = '';
       try {
-        responseText = await askTutor(messageText, mode, subject.name);
+        const result = await askTutor(messageText, mode, subject.name);
+        responseText = result.text;
       } catch (geminiError: any) {
         console.error("Gemini Error:", geminiError);
         responseText = `⚠️ AI Error: ${geminiError.message || "Failed to get a response from the AI. Please check your API key and connection."}`;
@@ -410,6 +416,25 @@ export default function TutorPage() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto space-y-10 mb-6 pr-2 scrollbar-thin scrollbar-thumb-gold scrollbar-track-gold/5"
       >
+        {errorMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="sticky top-0 z-10 bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center justify-between gap-4 mb-4"
+          >
+            <div className="flex items-center gap-3 text-red-500">
+              <Shield size={20} />
+              <p className="text-sm font-medium">{errorMessage}</p>
+            </div>
+            <button 
+              onClick={() => setErrorMessage(null)}
+              className="p-1 hover:bg-red-500/10 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+
         {showCalculator && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
@@ -440,10 +465,13 @@ export default function TutorPage() {
           </div>
         )}
 
-        {messages.map((msg) => (
-          <motion.div 
-            key={msg.id}
-            initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+        {messages.map((msg, idx) => (
+          <React.Fragment key={msg.id}>
+            {idx > 0 && (
+              <div className="w-full border-t border-gold/10 my-2" />
+            )}
+            <motion.div 
+              initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
             animate={{ opacity: 1, x: 0 }}
             className={cn(
               "flex flex-col max-w-[85%] group",
@@ -484,6 +512,7 @@ export default function TutorPage() {
               </ReactMarkdown>
             </div>
           </motion.div>
+          </React.Fragment>
         ))}
 
         {isTyping && (
@@ -498,18 +527,23 @@ export default function TutorPage() {
       <div className="relative mb-4">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
           <button 
+            id="mic-button"
             onClick={startVoice}
+            title="Voice Typing"
             className={cn(
-              "p-2 rounded-full transition-colors",
-              isListening ? "bg-gold text-royal-red animate-pulse" : "hover:bg-gold/10 text-gold"
+              "p-2.5 rounded-xl transition-all",
+              isListening 
+                ? "bg-gold text-royal-red shadow-lg shadow-gold/40 animate-pulse scale-110" 
+                : "bg-gold/10 hover:bg-gold/20 text-gold"
             )}
           >
-            <Mic size={20} />
+            <Mic size={22} />
           </button>
           <button 
-            className="p-2 rounded-full hover:bg-gold/10 text-gold transition-colors"
+            title="Upload Content"
+            className="p-2.5 rounded-xl bg-gold/10 hover:bg-gold/20 text-gold transition-colors"
           >
-            <Upload size={20} />
+            <Upload size={22} />
           </button>
         </div>
         

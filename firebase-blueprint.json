@@ -166,6 +166,17 @@
     "/groups/{groupId}/assignments/{assignmentId}": {
       "schema": "GroupAssignment",
       "description": "Shared assignments within a study group."
+    },
+    "/system/{docId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "isMaintenance": { "type": "boolean" },
+          "message": { "type": "string" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "System-wide maintenance and status configuration."
     }
   }
 }

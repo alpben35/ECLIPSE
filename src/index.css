@@ -10,6 +10,16 @@
 }
 
 @layer base {
+  :root {
+    --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  body {
+    padding-top: var(--safe-area-inset-top);
+    padding-bottom: var(--safe-area-inset-bottom);
+  }
+
   .handwriting {
     font-family: 'Dancing Script', cursive;
   }
@@ -20,21 +30,25 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: rgba(255, 215, 0, 0.05);
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #FFD700;
+    background: rgba(128, 128, 128, 0.2);
     border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #E6C200;
+    background: rgba(128, 128, 128, 0.4);
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
 
   /* Firefox support */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #FFD700 rgba(255, 215, 0, 0.05);
+    scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
   }
 }

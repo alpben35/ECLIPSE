@@ -9,10 +9,10 @@ import {
   Clock, Loader2, Folder, Shield, Lock, Eye, EyeOff, BrainCircuit, X, CheckCircle2, AlertTriangle, Sparkles
 } from 'lucide-react';
 import { db, auth, storage, handleFirestoreError, OperationType, encryptData, decryptData } from '../lib/firebase';
-import { collection, addDoc, query, onSnapshot, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, query, onSnapshot, orderBy, deleteDoc, doc, updateDoc, increment } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { SUBJECTS } from '../lib/constants';
+import { SUBJECTS, PROMPT_LIMITS } from '../lib/constants';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -25,8 +25,13 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+import { useLocation, useNavigate } from 'react-router-dom';
+
 export default function ProgressPage() {
   const { user, profile, addXp } = useContext(AuthContext);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [showSuccess, setShowSuccess] = useState(false);
   const [scores, setScores] = useState<any[]>([]);
   const [papers, setPapers] = useState<any[]>([]);
   const [newScore, setNewScore] = useState({ 
@@ -40,6 +45,7 @@ export default function ProgressPage() {
   const [uploadSubject, setUploadSubject] = useState(SUBJECTS[0].name);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterSubject, setFilterSubject] = useState<string>('All');
+  const [selectedSubjectFolder, setSelectedSubjectFolder] = useState<string | null>(null);
   
   // AI Diagnostics State
   const [analyzingPaperId, setAnalyzingPaperId] = useState<string | null>(null);
@@ -97,6 +103,21 @@ export default function ProgressPage() {
       unsubPapers();
     };
   }, [user]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('session_id')) {
+      setShowSuccess(true);
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#000000', '#ffffff', '#ffa500']
+      });
+      // Clean up URL
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, navigate]);
 
   const handleAddScore = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,24 +214,27 @@ export default function ProgressPage() {
     setDiagnostic(null);
 
     try {
-      // 1. Check/Increment Prompt Limit via Server
-      const idToken = await user.getIdToken();
-      const limitRes = await fetch('/api/increment-prompts', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${idToken}` }
-      });
-      
-      const limitData = await limitRes.json();
-      if (!limitRes.ok) {
-        throw new Error(limitData.message || limitData.error || 'Daily AI limit reached.');
+      // 1. Check prompt limit
+      const userTier = (profile?.tier || 'free') as keyof typeof PROMPT_LIMITS;
+      const maxPrompts = PROMPT_LIMITS[userTier] || 20;
+
+      if (!profile?.isAdmin && profile?.promptsToday >= maxPrompts) {
+        window.dispatchEvent(new CustomEvent('prompt-limit-reached', { 
+          detail: { limit: maxPrompts, tier: userTier } 
+        }));
+        setAnalyzingPaperId(null);
+        return;
       }
 
       // 2. Perform Analysis
       const result = await analyzeStudyPaper(paper.paperUrl, paper.subject);
       
-      // 3. Save Diagnostic to Firestore so it's persisted
+      // 3. Save Diagnostic to Firestore & Increment limit
       await updateDoc(doc(db, 'users', user.uid, 'papers', paper.id), {
         diagnostic: result
+      });
+      await updateDoc(doc(db, 'users', user.uid), {
+        promptsToday: increment(1)
       });
 
       setDiagnostic(result);
@@ -313,6 +337,33 @@ export default function ProgressPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 space-y-12">
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="p-6 bg-green-500 text-white rounded-3xl flex items-center justify-between shadow-xl mb-8"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/20 rounded-2xl">
+                <CheckCircle2 size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">Payment Successful!</h3>
+                <p className="text-sm opacity-90">Your account has been upgraded. Welcome to the elite.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowSuccess(false)}
+              className="p-2 hover:bg-white/10 rounded-xl transition-all"
+            >
+              <X size={20} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header & Filter */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
@@ -353,7 +404,7 @@ export default function ProgressPage() {
           <h3 className="text-3xl font-bold">
             {displayScore}%
           </h3>
-          <p className="text-sm opacity-50">{filterSubject === 'All' ? 'Overall Mastery' : 'Latest Score'}</p>
+          <p className="text-sm opacity-50">Latest Score</p>
         </div>
 
         <div className="p-8 bg-black/5 dark:bg-white/5 rounded-3xl">
@@ -374,8 +425,8 @@ export default function ProgressPage() {
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorPct" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="currentColor" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="currentColor" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#888888" opacity={0.1} />
@@ -389,7 +440,7 @@ export default function ProgressPage() {
               <YAxis stroke="#888888" fontSize={12} unit="%" tickLine={false} axisLine={false} domain={[0, 100]} />
               <Tooltip 
                 shared={true}
-                cursor={{ stroke: '#3b82f6', strokeWidth: 1, strokeDasharray: '4 4' }}
+                cursor={{ stroke: 'currentColor', strokeWidth: 1, strokeDasharray: '4 4' }}
                 contentStyle={{ 
                   backgroundColor: 'white', 
                   borderColor: 'rgba(0,0,0,0.1)',
@@ -402,11 +453,11 @@ export default function ProgressPage() {
               <Area 
                 type="monotone" 
                 dataKey="percentage" 
-                stroke="#3b82f6" 
+                stroke="currentColor" 
                 fillOpacity={1} 
                 fill="url(#colorPct)" 
                 strokeWidth={3}
-                activeDot={{ r: 6, strokeWidth: 0, fill: '#3b82f6' }}
+                activeDot={{ r: 6, strokeWidth: 0, fill: 'currentColor' }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -450,7 +501,7 @@ export default function ProgressPage() {
                 key={s.id}
                 whileHover={{ y: -8, scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => openAddScore(s.name)}
+                onClick={() => setSelectedSubjectFolder(s.name)}
                 className={cn(
                   "group relative bg-black/5 dark:bg-white/5 rounded-3xl p-8 transition-all border border-transparent hover:border-black/10 dark:hover:border-white/10 cursor-pointer shadow-sm hover:shadow-xl",
                   viewMode === 'list' && "flex items-center justify-between py-4"
@@ -628,9 +679,9 @@ export default function ProgressPage() {
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
               className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-[3rem] p-8 md:p-12 shadow-2xl overflow-hidden"
             >
-              {/* Decorative AI blobs */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px] -mr-32 -mt-32" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 blur-[80px] -ml-32 -mb-32" />
+              {/* Decorative Noir blobs */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-black/5 dark:bg-white/5 blur-[80px] -mr-32 -mt-32" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/5 dark:bg-white/5 blur-[80px] -ml-32 -mb-32" />
 
               <div className="relative">
                 <div className="flex items-center justify-between mb-10">
@@ -673,7 +724,7 @@ export default function ProgressPage() {
                     <div className="p-6 bg-black/5 dark:bg-white/5 rounded-[2rem] border border-black/5 dark:border-white/5">
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40">Overall Assessment</h4>
-                        <div className="px-3 py-1 bg-blue-500 text-white rounded-full text-[10px] font-black">
+                        <div className="px-3 py-1 bg-black dark:bg-white text-white dark:text-black rounded-full text-[10px] font-black">
                           {diagnostic.overallGrade || 'COMPLETED'}
                         </div>
                       </div>
@@ -715,13 +766,13 @@ export default function ProgressPage() {
                     {/* Improvement Tips */}
                     <div className="space-y-4">
                       <div className="flex items-center gap-2">
-                        <Sparkles className="text-blue-500" size={18} />
+                        <Sparkles className="text-black dark:text-white" size={18} />
                         <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40">Strategic Action Plan</h4>
                       </div>
                       <div className="grid grid-cols-1 gap-3">
                         {diagnostic.improvementTips.map((tip, i) => (
-                          <div key={i} className="flex items-center gap-4 p-4 bg-blue-500/5 dark:bg-blue-500/10 rounded-2xl border border-blue-500/10 group hover:border-blue-500/30 transition-all">
-                            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-black text-xs shrink-0">
+                          <div key={i} className="flex items-center gap-4 p-4 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/5 dark:border-white/5 group hover:border-black/20 dark:hover:border-white/20 transition-all">
+                            <div className="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-black text-xs shrink-0">
                               {i + 1}
                             </div>
                             <span className="text-sm font-medium">{tip}</span>
@@ -740,6 +791,113 @@ export default function ProgressPage() {
                     <p className="font-bold opacity-40">Loading assessment...</p>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Score Modal */}
+      <AnimatePresence>
+        {selectedSubjectFolder && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedSubjectFolder(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-4xl bg-white dark:bg-zinc-900 rounded-[3rem] p-8 md:p-12 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="p-4 bg-black dark:bg-white rounded-2xl">
+                    <Folder className="text-white dark:text-black" size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold">{selectedSubjectFolder} Details</h2>
+                    <p className="text-xs opacity-50 uppercase font-black tracking-widest">Subject Academic Archive</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => {
+                      openAddScore(selectedSubjectFolder);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black rounded-xl text-xs font-bold"
+                  >
+                    <Plus size={16} /> Add Score
+                  </button>
+                  <button 
+                    onClick={() => setSelectedSubjectFolder(null)}
+                    className="p-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl transition-all"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Subject Chart */}
+              <div className="mb-12 p-8 bg-black/5 dark:bg-white/5 rounded-3xl border border-black/5 dark:border-white/5">
+                <h3 className="text-sm font-bold opacity-50 mb-6 uppercase tracking-widest">Performance Curve</h3>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={scores.filter(s => s.subject === selectedSubjectFolder).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(s => ({
+                      date: new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(s.date)),
+                      percentage: s.percentage
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#888888" opacity={0.1} />
+                      <XAxis dataKey="date" hide />
+                      <YAxis domain={[0, 100]} hide />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="percentage" 
+                        stroke="currentColor" 
+                        fill="currentColor" 
+                        fillOpacity={0.1} 
+                        strokeWidth={4} 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Subject History */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold opacity-50 mb-4 uppercase tracking-widest">Historical Entries</h3>
+                <div className="grid gap-3">
+                  {scores
+                    .filter(s => s.subject === selectedSubjectFolder)
+                    .slice().reverse()
+                    .map(score => (
+                      <div key={score.id} className="flex items-center justify-between p-5 bg-black/5 dark:bg-white/5 rounded-2xl hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+                        <div>
+                          <p className="font-bold">{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(score.date))}</p>
+                          <p className="text-[10px] opacity-40 font-bold uppercase tracking-widest mt-0.5">Verified Entry</p>
+                        </div>
+                        <div className="flex items-center gap-6">
+                           <span className="text-xl font-black">{score.percentage}%</span>
+                           <button 
+                            onClick={() => deleteScore(score.id)}
+                            className="p-2 text-red-500/50 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  {scores.filter(s => s.subject === selectedSubjectFolder).length === 0 && (
+                    <div className="py-12 text-center opacity-30 italic">No historical data for this subject yet.</div>
+                  )}
+                </div>
               </div>
             </motion.div>
           </div>

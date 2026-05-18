@@ -1,75 +1,163 @@
-import { GoogleGenAI, Type } from "@google/genai";
-
-const getApiKey = () => {
+export async function generateImage(prompt: string, aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' = '1:1') {
   try {
-    // Standard AI Studio production/dev access
-    if (typeof process !== 'undefined' && process && process.env && process.env.GEMINI_API_KEY) {
-      return process.env.GEMINI_API_KEY;
-    }
-  } catch (e) {
-    console.warn("Process env access failed, falling back.");
-  }
-  
-  // Fallbacks for browser environments
-  const metaEnv = (import.meta as any).env;
-  return metaEnv?.VITE_GEMINI_API_KEY || (window as any).GEMINI_API_KEY || "";
-};
-
-const ai = new GoogleGenAI({ 
-  apiKey: getApiKey()
-});
-
-export async function askTutor(prompt: string, mode: 'teach' | 'solve' | 'revise' | 'question' | 'test' | 'assignment', subject: string, history: { role: 'user' | 'ai', content: string }[] = []) {
-  try {
-    const systemPrompt = `You are Eclipse AI, a world-class academic tutor. You are currently teaching ${subject}.
-    Your mode is: ${mode}.
-    - "teach": Explain concepts clearly and simply. Use analogies.
-    - "solve": Help solve a specific problem step-by-step. Don't just give the answer, guide the student.
-    - "revise": Help the student review key points.
-    - "question": Ask the student deep questions to test their understanding.
-    - "test": Provide a practice question and grade their response.
-    - "assignment": Help structure or brainstorm for an assignment.
-    
-    IMPORTANT RULES:
-    1. Do NOT include any "scaffolding symbols" or internal step labels like "Step 1:", "Reasoning:", "Step Id:", or technical artifacts in your response.
-    2. Do NOT use dollar signs ($) or LaTeX delimiters for mathematical formulas or symbols UNLESS the user explicitly asks for LaTeX format. Always use plain text, words (e.g., "squared", "divided by"), or standard keyboard characters (e.g., ^ for power, * for multiply) when describing math.
-    3. Provide clean, conversational, and direct tutor feedback.
-    
-    Keep responses academic, encouraging, and clear. Use Markdown for formatting.`;
-
-    const chatContents = history.map(m => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content }]
-    }));
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        ...chatContents,
-        { role: 'user', parts: [{ text: prompt }] }
-      ]
+    const response = await fetch('/api/tutor/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, mode: 'design', subject: 'Visual Arts' })
     });
-    return response.text;
-  } catch (error) {
+    
+    if (!response.ok) {
+      const text = await response.text();
+      try {
+        const err = JSON.parse(text);
+        throw new Error(err.error || "Image gen failed");
+      } catch (e) {
+        throw new Error(text || "Image gen failed");
+      }
+    }
+
+    const data = await response.json();
+    if (!data.images || data.images.length === 0) {
+      throw new Error("No image generated.");
+    }
+    return data.images[0];
+  } catch (error: any) {
+    console.error("Gemini Image Gen Error:", error);
+    throw new Error(error.message || "Failed to manifest your vision.");
+  }
+}
+
+export async function askTutor(
+  prompt: string, 
+  mode: 'teach' | 'solve' | 'revise' | 'design' | 'question' | 'test' | 'assignment' | 'vision', 
+  subject: string, 
+  history: { role: 'user' | 'ai', content: string }[] = [], 
+  imageData?: { data: string, mimeType: string }
+) {
+  try {
+    const response = await fetch('/api/tutor/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, mode, subject, history, imageData })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      try {
+        const err = JSON.parse(text);
+        throw new Error(err.error || "Tutor error");
+      } catch (e) {
+        throw new Error(text || "Tutor error");
+      }
+    }
+
+    const data = await response.json();
+    const text = data.text || "";
+    const cleanedText = text
+      .trim();
+
+    return { text: cleanedText, images: data.images };
+  } catch (error: any) {
     console.error("Gemini Tutor Error:", error);
-    throw new Error("Tutor is currently offline. Please try again later.");
+    throw new Error(error.message || "Tutor is currently offline.");
+  }
+}
+
+export async function askTutorStream(
+  prompt: string, 
+  mode: 'teach' | 'solve' | 'revise' | 'design' | 'question' | 'test' | 'assignment' | 'vision', 
+  subject: string, 
+  onChunk: (text: string) => void,
+  history: { role: 'user' | 'ai', content: string }[] = [], 
+  imageData?: { data: string, mimeType: string }
+) {
+  try {
+    const response = await fetch('/api/tutor/ask-stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, mode, subject, history, imageData })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let errorMessage = text;
+      try {
+        // Try to parse the entire response as JSON (normal error response)
+        const err = JSON.parse(text);
+        errorMessage = err.error || text;
+      } catch (e) {
+        // If it's an SSE error formatted as data: { "error": "..." }
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const dataStr = trimmed.replace('data: ', '').trim();
+              const parsed = JSON.parse(dataStr);
+              if (parsed.error) {
+                errorMessage = parsed.error;
+                break;
+              }
+            } catch (e2) {
+              // Ignore partial or malformed lines
+            }
+          }
+        }
+      }
+      throw new Error(errorMessage || "SSE error");
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("Stream not supported");
+
+    const decoder = new TextDecoder();
+    let partialLine = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = (partialLine + chunk).split("\n");
+      partialLine = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("data: ")) {
+          const dataStr = trimmed.replace("data: ", "").trim();
+          if (dataStr === "[DONE]") return;
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (parsed.text) {
+              onChunk(parsed.text);
+            }
+            if (parsed.error) throw new Error(parsed.error);
+          } catch (e) {
+            // Partial JSON segment - should not happen with full lines but safety first
+          }
+        }
+      }
+    }
+  } catch (error: any) {
+    console.error("Streaming error:", error);
+    throw error;
   }
 }
 
 export async function summarizeChat(messages: { role: string, content: string }[]) {
   try {
-    const chatText = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-    const prompt = `Please provide a concise summary of the following educational chat session. Highlight the key concepts discussed and the student's progress.\n\n${chatText}`;
-    
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt
+    const response = await fetch('/api/tutor/summarize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages })
     });
-    return response.text;
-  } catch (error) {
+
+    if (!response.ok) throw new Error("Summary failed");
+    const data = await response.json();
+    return (data.text || "").trim();
+  } catch (error: any) {
     console.error("Gemini Summary Error:", error);
-    throw new Error("Unable to summarize chat at this time.");
+    throw new Error("Unable to summarize chat.");
   }
 }
 
@@ -83,61 +171,31 @@ export interface PaperDiagnostic {
 
 export const analyzeStudyPaper = async (imageUrl: string, subject: string): Promise<PaperDiagnostic> => {
   try {
-    // We need to fetch the image and convert to base64 for Gemini
     const imgResponse = await fetch(imageUrl);
     const blob = await imgResponse.blob();
-    const reader = new FileReader();
     
-    const base64Promise = new Promise<string>((resolve, reject) => {
-      reader.onloadend = () => {
-        const base64String = (reader.result as string).split(',')[1];
-        resolve(base64String);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64Data = (reader.result as string).split(',')[1];
+          const response = await fetch('/api/tutor/analyze-paper', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ base64Data, mimeType: blob.type, subject })
+          });
+          
+          if (!response.ok) throw new Error("Analysis failed");
+          resolve(await response.json());
+        } catch (e) {
+          reject(e);
+        }
       };
       reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
-    
-    reader.readAsDataURL(blob);
-    const base64Data = await base64Promise;
-
-    const geResponse = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: blob.type || "image/jpeg",
-              data: base64Data
-            }
-          },
-          {
-            text: `Analyze this study paper/worksheet related to the subject: ${subject}. 
-            Provide a diagnostic assessment including a summary of the work, specific strengths, areas for improvement, and actionable tips for the student.
-            Return the response in JSON format.
-            
-            IMPORTANT: Do NOT use dollar signs ($) or LaTeX delimiters in the text responses. Use plain text or standard academic terminology instead.`
-          }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            summary: { type: Type.STRING, description: "A brief overview of the student's work or the homework solution." },
-            strengths: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Specific things the student did well." },
-            weaknesses: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Specific mistakes or concepts they struggled with." },
-            improvementTips: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Actionable advice for next time." },
-            overallGrade: { type: Type.STRING, description: "An estimated grade or performance level (e.g., A, Satisfactory, Needs Work)." }
-          },
-          required: ["summary", "strengths", "weaknesses", "improvementTips"]
-        }
-      }
-    });
-
-    const diagnostic = JSON.parse(geResponse.text || '{}');
-    return diagnostic;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    throw new Error("AI was unable to analyze the paper at this time. Please ensure the image is clear.");
+    throw new Error("AI analysis failed.");
   }
 };

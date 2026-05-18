@@ -10,20 +10,16 @@ import {
   Moon, Sun, BookOpen, BarChart2, MessageSquare, 
   Settings, LogOut, Menu, X, Mic, Send, 
   Upload, FileText, Plus, ChevronRight, Share2, Users, Search, Trash2,
-  Lightbulb, CheckCircle2, XCircle, CreditCard, Award
+  Lightbulb, CheckCircle2, XCircle, CreditCard, Award,
+  Loader2, WifiOff
 } from 'lucide-react';
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, increment, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged, signOut, User, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { doc, getDoc, setDoc, updateDoc, increment, onSnapshot, query, where, collection, getDocs } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType, decryptData } from './lib/firebase';
 import { RANKS, OWNER_EMAIL } from './constants';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import Logo from './components/ui/Logo';
 
-// --- Utils ---
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
+import { cn } from './lib/utils';
 import { ThemeContext, AuthContext } from './lib/contexts';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
@@ -40,12 +36,11 @@ const RankPage = React.lazy(() => import('./pages/RankPage'));
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
 const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
 const SubscriptionPage = React.lazy(() => import('./pages/SubscriptionPage'));
-const TeacherApp = React.lazy(() => import('../eclipse-teacher/src/TeacherApp'));
+const TeacherApp = React.lazy(() => import('./teacher/src/TeacherApp'));
 const StudentApp = React.lazy(() => import('./StudentApp'));
 import SplashScreen from './components/PWA/SplashScreen';
 import AddToHomeScreen from './components/PWA/AddToHomeScreen';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
-import { WifiOff } from 'lucide-react';
 
 export default function App() {
   const [isDark, setIsDark] = useState(false);
@@ -58,6 +53,15 @@ export default function App() {
   const [isBanned, setIsBanned] = useState(false);
   const isOnline = useOnlineStatus();
   const location = useLocation();
+
+  useEffect(() => {
+    // Sync dark mode class with document root
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
 
   useEffect(() => {
     // Hide splash screen after 1.5 seconds
@@ -93,25 +97,35 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Set persistence to Local so the session lasts across app closes
+    setPersistence(auth, browserLocalPersistence);
+    
     console.log("Setting up auth listener...");
     let profileUnsubscribe: (() => void) | null = null;
     
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      console.log("Auth state changed. User:", currentUser?.uid, "Email:", currentUser?.email);
+      console.log("Auth state changed. User:", currentUser?.uid);
       
-      // Cleanup previous profile listener
+      setUser(currentUser);
+
       if (profileUnsubscribe) {
         profileUnsubscribe();
         profileUnsubscribe = null;
       }
 
+      if (!currentUser) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
       try {
-        if (currentUser) {
-          const userRef = doc(db, 'users', currentUser.uid);
-          const userSnap = await getDoc(userRef);
-          
-          if (!userSnap.exists()) {
-            console.log("No user profile found. Creating new profile...");
+        const userRef = doc(db, 'users', currentUser.uid);
+        
+        // Use onSnapshot for real-time profile updates
+        profileUnsubscribe = onSnapshot(userRef, async (docSnap) => {
+          if (!docSnap.exists()) {
+            console.log("Creating new user profile...");
             const userData = {
               uid: currentUser.uid,
               displayName: currentUser.displayName || 'Anonymous',
@@ -127,73 +141,79 @@ export default function App() {
               tier: currentUser.email === OWNER_EMAIL ? 'admin' : 'free',
               promptsToday: 0,
               lastPromptDate: new Date().toISOString().split('T')[0],
-              consents: {
-                microphone: true,
-                camera: true
-              }
+              imagesToday: 0,
+              lastImageDate: new Date().toISOString().split('T')[0],
+              consents: { microphone: true, camera: true }
             };
             await setDoc(userRef, userData);
-            console.log("New profile created.");
+            // setProfile will be called in the next snapshot
+            return;
           }
 
-          // Start real-time listener for profile
-          profileUnsubscribe = onSnapshot(userRef, async (docSnap) => {
-            if (docSnap.exists()) {
-              let userData = docSnap.data();
-              console.log("Profile update received. Rank:", userData.rank, "Tier:", userData.tier);
-              
-              const today = new Date().toISOString().split('T')[0];
-              const updates: any = {};
-              
-              if (currentUser.email === OWNER_EMAIL) {
-                if (userData.rank !== 'Owner') updates.rank = 'Owner';
-                if (userData.tier !== 'admin') updates.tier = 'admin';
-              }
-              
-              if (userData.lastPromptDate !== today) {
-                updates.promptsToday = 0;
-                updates.lastPromptDate = today;
-              }
+          const userData = docSnap.data();
+          const today = new Date().toISOString().split('T')[0];
+          const updates: any = {};
+          
+          // Profile theme should dictate local theme on load
+          if (userData.theme && userData.theme !== (isDark ? 'dark' : 'light')) {
+            setIsDark(userData.theme === 'dark');
+          }
+          
+          if (currentUser.email === OWNER_EMAIL) {
+            if (userData.rank !== 'Owner') updates.rank = 'Owner';
+            if (userData.tier !== 'admin') updates.tier = 'admin';
+          }
+          
+          if (userData.lastPromptDate !== today) {
+            updates.promptsToday = 0;
+            updates.lastPromptDate = today;
+          }
 
-              if (Object.keys(updates).length > 0) {
-                await updateDoc(userRef, updates);
-                // The next snapshot will trigger with updated data
-                return;
-              }
+          if (userData.lastImageDate !== today) {
+            updates.imagesToday = 0;
+            updates.lastImageDate = today;
+          }
 
-              if (userData.phone) userData.phone = decryptData(userData.phone);
-              setProfile(userData);
+          if (Object.keys(updates).length > 0) {
+            await updateDoc(userRef, updates);
+            return;
+          }
 
-              // Update public profile logic
-              const publicRef = doc(db, 'public_profiles', currentUser.uid);
-              const displayName = userData.displayName || currentUser.displayName || 'Anonymous';
-              await setDoc(publicRef, {
-                uid: currentUser.uid,
-                displayName: displayName,
-                displayName_lowercase: displayName.toLowerCase(),
-                photoURL: userData.photoURL || currentUser.photoURL || null,
-                level: userData.level || 1,
-                rank: userData.rank || 'Student',
-                xp: userData.xp || 0
-              }, { merge: true });
+          if (userData.phone) userData.phone = decryptData(userData.phone);
+          
+          setProfile(userData);
+          setLoading(false); // FINALLY ready to show the app
 
-              if (userData.banned) {
-                setIsBanned(true);
-                await signOut(auth);
-              }
-            }
-          }, (err) => {
-            console.error("Profile sync error:", err);
-          });
-        } else {
-          setProfile(null);
-        }
-        setUser(currentUser);
-        setError(null);
+          // Update public profile logic
+          const publicRef = doc(db, 'public_profiles', currentUser.uid);
+          const displayName = userData.displayName || currentUser.displayName || 'Anonymous';
+          const publicData: any = {
+            uid: currentUser.uid,
+            displayName: displayName,
+            displayName_lowercase: displayName.toLowerCase(),
+            photoURL: userData.photoURL || currentUser.photoURL || null,
+            level: userData.level || 1,
+            rank: userData.rank || 'Student',
+            xp: userData.xp || 0
+          };
+          if (userData.username) {
+            publicData.username = userData.username;
+          }
+          setDoc(publicRef, publicData, { merge: true });
+
+          if (userData.banned) {
+            setIsBanned(true);
+            signOut(auth);
+          }
+        }, (err) => {
+          console.error("Profile sync error:", err);
+          handleFirestoreError(err, OperationType.GET, `users/${currentUser.uid}`);
+          setLoading(false);
+        });
+
       } catch (err: any) {
-        console.error("Auth initialization error:", err);
-        setError(`Auth Error: ${err.message || "Failed to initialize"}`);
-      } finally {
+        console.error("Auth process error:", err);
+        setError(`Initialization Error: ${err.message}`);
         setLoading(false);
       }
     });
@@ -258,14 +278,28 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-white dark:bg-black">
-        <motion.div 
-          animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="w-12 h-12 rounded-full border-4 border-black dark:border-white border-t-transparent"
-        />
+      <div className={cn("min-h-screen flex items-center justify-center transition-colors duration-500", isDark ? "bg-black" : "bg-white")}>
+        <div className="flex flex-col items-center gap-6">
+          <Logo size="lg" className="animate-pulse" />
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: 240 }}
+            className="h-1 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden"
+          >
+            <motion.div 
+              animate={{ x: [-240, 240] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+              className="w-1/2 h-full bg-black dark:bg-white"
+            />
+          </motion.div>
+        </div>
       </div>
     );
+  }
+
+  // FORCE USERNAME SETUP
+  if (user && profile && !profile.username && location.pathname !== '/auth') {
+    return <UsernameSetup profile={profile} onComplete={(username) => setProfile({...profile, username})} />;
   }
 
   if (error) {
@@ -403,7 +437,118 @@ export default function App() {
   );
 }
 
+
 export { ThemeContext };
+
+function UsernameSetup({ profile, onComplete }: { profile: any, onComplete: (username: string) => void }) {
+  const [username, setUsername] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username.length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Check if username is taken in public_profiles
+      const q = query(collection(db, 'public_profiles'), where('username', '==', username.toLowerCase()));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        setError('This username is already taken');
+        setLoading(false);
+        return;
+      }
+
+      await updateDoc(doc(db, 'users', profile.uid), {
+        username: username.toLowerCase(),
+        displayName: username
+      });
+
+      // Also update public profile with username
+      await setDoc(doc(db, 'public_profiles', profile.uid), {
+        username: username.toLowerCase(),
+        displayName: username
+      }, { merge: true });
+      
+      onComplete(username);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 bg-zinc-50 dark:bg-zinc-950 transition-colors duration-500">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-md w-full bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden"
+      >
+        <div className="absolute top-0 left-0 w-full h-1 bg-black/10 dark:bg-white/10" />
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-black/5 dark:bg-white/5 blur-[100px] rounded-full" />
+        
+        <div className="text-center mb-10">
+          <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-4 text-black dark:text-white">Complete <span className="opacity-50">Profile</span></h2>
+          <p className="text-sm opacity-50 px-4 leading-relaxed font-medium text-black dark:text-white">
+            Every user needs a unique designation. Choose yours carefully—this is how you will be known in the hub.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="relative">
+            <div className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-black dark:text-white opacity-50">@</div>
+            <input 
+              type="text"
+              required
+              autoFocus
+              value={username}
+              onChange={e => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+              placeholder="YOUR_USERNAME"
+              className="w-full pl-10 pr-6 py-5 bg-black/5 dark:bg-white/5 text-black dark:text-white rounded-2xl focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 transition-all font-black uppercase italic tracking-widest placeholder:opacity-20"
+            />
+          </div>
+
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl flex items-center justify-center gap-2"
+              >
+                <XCircle size={16} className="text-red-500" />
+                <p className="text-xs font-bold text-red-500 uppercase tracking-widest leading-none">{error}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button 
+            type="submit"
+            disabled={loading}
+            className="w-full py-5 bg-black text-white dark:bg-white dark:text-black rounded-3xl font-black uppercase italic tracking-widest flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="animate-spin" size={24} /> : (
+              <>
+                Confirm Identity
+                <ChevronRight size={24} />
+              </>
+            )}
+          </button>
+        </form>
+
+        <p className="text-[10px] text-center opacity-30 mt-8 leading-relaxed font-bold uppercase tracking-[0.3em] text-black dark:text-white">
+          ECLIPSE CORE AUTH v2.0
+        </p>
+      </motion.div>
+    </div>
+  );
+}
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;

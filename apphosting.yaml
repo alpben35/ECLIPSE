@@ -1,0 +1,19 @@
+# Firebase App Hosting configuration
+# See https://firebase.google.com/docs/app-hosting/configure
+
+kind: "AppHostingConfiguration"
+schemaVersion: "v1"
+
+# Settings for the build process
+buildSettings:
+  # The command to run to build your application
+  buildCommand: "npm run build"
+
+# Settings for the runtime environment
+runSettings:
+  # The command to run to start your server
+  runCommand: "npm start"
+  # Environment variables for the runtime
+  env:
+    - name: NODE_ENV
+      value: "production"

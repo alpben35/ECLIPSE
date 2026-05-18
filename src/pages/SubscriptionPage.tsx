@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Check, Zap, Crown, Infinity as InfinityIcon, ArrowRight, CreditCard, Building2, ShieldCheck, ExternalLink, Settings as SettingsIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Check, Zap, Crown, Infinity as InfinityIcon, ArrowRight, Building2, ShieldCheck, ExternalLink, Settings as SettingsIcon, Key } from 'lucide-react';
 import { AuthContext } from '../lib/contexts';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -11,7 +11,7 @@ const TIERS = [
   {
     id: 'free',
     name: 'Free',
-    price: '$0',
+    price: '£0',
     description: 'Perfect for casual learning',
     features: [
       '40 AI prompts per day',
@@ -23,43 +23,28 @@ const TIERS = [
     highlight: false
   },
   {
-    id: 'champion',
-    name: 'Champion',
-    price: '$25',
+    id: 'premium',
+    priceId: import.meta.env.VITE_STRIPE_PRICE_ID_PREMIUM,
+    name: 'Eclipse Premium',
+    price: '£40',
     period: '/month',
-    description: 'For serious students',
-    features: [
-      '120 AI prompts per day',
-      'Advanced analytics & charts',
-      'Faster response times',
-      'Priority support',
-      'Exclusive study materials'
-    ],
-    buttonText: 'Upgrade to Champion',
-    highlight: true,
-    icon: <Crown className="text-amber-500" />
-  },
-  {
-    id: 'master',
-    name: 'Master',
-    price: '$150',
-    period: '/month',
-    description: 'Master your subjects',
+    description: 'Full educational power',
     features: [
       '500 AI prompts per day',
-      'Personalized learning paths',
-      'Early access to new features',
-      '1-on-1 AI mentorship',
-      'Customizable AI personality'
+      'Advanced analytics & diagnostics',
+      'Faster response times',
+      'Priority support',
+      'AI personality customization'
     ],
-    buttonText: 'Go Master',
-    highlight: false,
-    icon: <Zap className="text-blue-500" />
+    buttonText: 'Get Premium',
+    highlight: true,
+    icon: <Zap className="text-black dark:text-white" />
   },
   {
     id: 'admin',
-    name: 'Admin',
-    price: '$500',
+    priceId: import.meta.env.VITE_STRIPE_PRICE_ID_ADMIN,
+    name: 'Eclipse Admin',
+    price: '£500',
     period: '/month',
     description: 'The ultimate power',
     features: [
@@ -69,21 +54,18 @@ const TIERS = [
       'Send ideas to the community',
       'Full platform access'
     ],
-    buttonText: 'Become Admin',
+    buttonText: 'Enter Admin Tier',
     highlight: false,
-    icon: <InfinityIcon className="text-purple-500" />
+    icon: <InfinityIcon className="text-gold dark:text-white" />
   }
 ];
-
-import { loadStripe } from '@stripe/stripe-js';
-
-const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 
 export default function SubscriptionPage() {
   const { user, profile } = useContext(AuthContext);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [showConfigGuide, setShowConfigGuide] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+  const [redirectMessage, setRedirectMessage] = useState('Preparing your secure connection...');
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const location = useLocation();
   const isTeacherPortal = location.pathname.startsWith('/teacher');
@@ -97,98 +79,94 @@ export default function SubscriptionPage() {
   }, []);
 
   const handleUpgrade = async (tierId: string) => {
-    if (!user) return;
-    if (tierId === profile?.tier) return;
+    console.log(`[Shop] Attempting upgrade to ${tierId}...`);
+    if (!user) {
+      setStatusMessage({ type: 'error', text: 'Auth Error: No user identified. Please refresh or sign in again.' });
+      return;
+    }
+    if (tierId === profile?.tier) {
+      setStatusMessage({ type: 'success', text: 'You are already on this tier!' });
+      return;
+    }
     setStatusMessage(null);
 
-    // Owner always has admin tier
-    const isSystemOwner = user.email === 'alp.ben@gmail.com' || profile?.rank === 'Owner';
-    if (isSystemOwner && tierId === 'admin') {
-      try {
-        const userRef = doc(db, 'users', user.uid);
-        await updateDoc(userRef, { tier: 'admin', rank: 'Owner' });
-        setStatusMessage({ type: 'success', text: "Welcome back, Boss! Owner privileges enabled." });
-        return;
-      } catch (err) {
-        handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
-        return;
-      }
+    const tier = TIERS.find(t => t.id === tierId);
+    if (!tier) {
+      console.warn(`[Shop] Tier ${tierId} not found in TIERS configuration.`);
+      return;
     }
 
-    const stripeKey = (import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
-    const isMockMode = !stripeKey || stripeKey === 'TODO_STRIPE_KEY' || stripeKey === '' || stripeKey === 'DZ';
+    if (tierId === 'free') return;
 
-    if (isMockMode) {
-      setShowConfigGuide(true);
+    try {
+      setRedirecting(true);
+      setRedirectMessage('Establishing secure connection to Stripe...');
+      
+      const payload = { 
+        priceId: tier.priceId,
+        tierId: tier.id,
+        userId: user.uid,
+        userEmail: user.email || profile?.email
+      };
+      
+      console.log(`[Shop] Sending request to /api/create-checkout-session`, payload);
+
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        setRedirecting(false);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown server error' }));
+        throw new Error(errorData.error || `Server responded with ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(`[Shop] Server response:`, data);
+      
+      if (data.url) {
+        setRedirectMessage('Redirecting to Checkout...');
+        window.location.href = data.url;
+      } else {
+        setRedirecting(false);
+        throw new Error("The server did not return a checkout URL. Please check server logs.");
+      }
+    } catch (error: any) {
+      setRedirecting(false);
+      console.error("Stripe Checkout Error:", error);
+      setStatusMessage({ 
+        type: 'error', 
+        text: `Stripe Integration Error: ${error.message}` 
+      });
+    }
+  };
+
+  const handleManageBilling = async () => {
+    if (!user) return;
+    if (!profile?.stripeCustomerId) {
+      setStatusMessage({
+        type: 'success',
+        text: "Please email support@eclipse.ai with your account details to manage your manual subscription."
+      });
       return;
     }
 
     try {
       setLoading(true);
-      const idToken = await user.getIdToken();
-      console.log('[SubscriptionPage] Fetching checkout session for:', tierId);
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({ tierId })
-      });
-
-      const session = await response.json();
-      if (!response.ok || session.error) {
-        // If server returns key missing error, show configuration guide
-        if (session.error?.includes('missing or invalid')) {
-           setShowConfigGuide(true);
-           return;
-        }
-        throw new Error(session.error || 'Failed to create checkout session');
-      }
-
-      console.log('[SubscriptionPage] Redirecting to checkout:', session.id);
-      const stripe = await stripePromise;
-      if (!stripe) throw new Error('Stripe failed to load. Please check your publishable key.');
-
-      const { error } = await (stripe as any).redirectToCheckout({
-        sessionId: session.id
-      });
-
-      if (error) throw error;
-    } catch (error: any) {
-      if (!error.message.includes('missing or invalid')) {
-        console.error("Upgrade error:", error);
-        setStatusMessage({ type: 'error', text: `Failed to upgrade: ${error.message}` });
-      } else {
-        setShowConfigGuide(true);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleManageSubscription = async () => {
-    if (!user) return;
-    try {
-      setLoading(true);
-      const idToken = await user.getIdToken();
       const response = await fetch('/api/create-portal-session', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: profile.stripeCustomerId })
       });
 
-      const data = await response.json();
-      if (!response.ok || data.error) {
-        throw new Error(data.error || 'Failed to open billing portal');
-      }
-
-      window.location.href = data.url;
-    } catch (error: any) {
-      console.error("Portal error:", error);
-      setStatusMessage({ type: 'error', text: error.message });
+      const { url, error } = await response.json();
+      if (error) throw new Error(error);
+      if (url) window.location.href = url;
+    } catch (err: any) {
+      console.error("Portal Error:", err);
+      setStatusMessage({ type: 'error', text: `Portal Error: ${err.message}` });
     } finally {
       setLoading(false);
     }
@@ -207,103 +185,44 @@ export default function SubscriptionPage() {
   } : {
     bg: "bg-zinc-950",
     text: "text-white",
-    accent: "text-orange-500",
+    accent: "text-white",
     card: "bg-white/5 border-white/10",
     cardHighlight: "bg-white text-black border-transparent shadow-2xl scale-105 z-10",
     button: "bg-white text-black hover:scale-105",
-    buttonHighlight: "bg-orange-500 text-white hover:bg-orange-600",
-    badge: "bg-orange-500 text-white",
-    icon: "text-orange-500"
+    buttonHighlight: "bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200",
+    badge: "bg-black text-white dark:bg-white dark:text-black",
+    icon: "text-white"
   };
 
   return (
     <div className={cn("min-h-screen transition-colors duration-500", themeClasses.bg, themeClasses.text)}>
-      {(!((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY) || (import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY === 'DZ') && (
-        <div className="bg-orange-500 text-white py-2 px-4 text-center text-xs font-bold uppercase tracking-widest animate-pulse">
-          Demo Mode Active: Real payments are not configured.
-        </div>
-      )}
-      
-      {/* Configuration Guide Modal */}
-      {showConfigGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+      <AnimatePresence>
+        {redirecting && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className={cn("max-w-xl w-full p-10 rounded-[3rem] border shadow-2xl overflow-hidden relative", themeClasses.card)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl text-white"
           >
-            {/* Background elements for technical feel */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 blur-3xl -mr-16 -mt-16" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 blur-3xl -ml-16 -mb-16" />
-            
-            <div className="relative">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="p-4 bg-orange-500 rounded-3xl animate-bounce shadow-lg shadow-orange-500/20">
-                  <CreditCard className="text-white" size={32} />
-                </div>
-                <div>
-                  <h3 className="text-3xl font-black italic uppercase tracking-tighter leading-none">Configure Payments</h3>
-                  <p className="text-xs font-bold uppercase tracking-widest opacity-40 mt-1">Status: Configuration Missing</p>
-                </div>
-              </div>
-
-              <div className="space-y-6 mb-10">
-                <p className="text-sm opacity-70 leading-relaxed font-medium">
-                  To enable real payments in your application, you must configure your <span className="text-orange-500 font-bold">Stripe API Keys</span> in the project settings.
-                </p>
-
-                <div className="space-y-4">
-                  <div className="flex gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 group hover:border-orange-500/30 transition-all">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center font-black text-orange-500 italic">01</div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold">Open Project Settings</p>
-                      <p className="text-xs opacity-50">Click the gear icon in the AI Studio editor to open your application settings.</p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 group hover:border-orange-500/30 transition-all">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center font-black text-orange-500 italic">02</div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-bold">Add Environment Variables</p>
-                      <div className="space-y-2">
-                        <div className="bg-amber-500/10 p-2 rounded-lg border border-amber-500/20 font-mono text-[10px] break-all text-amber-600 dark:text-amber-400">
-                          STRIPE_SECRET_KEY = sk_test_...
-                        </div>
-                        <div className="bg-blue-500/10 p-2 rounded-lg border border-blue-500/20 font-mono text-[10px] break-all text-blue-600 dark:text-blue-400">
-                          VITE_STRIPE_PUBLISHABLE_KEY = pk_test_...
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 group hover:border-orange-500/30 transition-all">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center font-black text-orange-500 italic">03</div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold">Restart Dev Server</p>
-                      <p className="text-xs opacity-50">The application will refresh and real Stripe Checkout will be enabled.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <button 
-                  onClick={() => setShowConfigGuide(false)}
-                  className={cn("w-full py-5 rounded-[2rem] font-black uppercase tracking-tighter text-xl transition-all shadow-xl shadow-orange-500/10 hover:scale-[1.02] active:scale-[0.98]", themeClasses.buttonHighlight)}
-                >
-                  Got it, I'll set it up!
-                </button>
-                <button 
-                  onClick={() => setShowConfigGuide(false)}
-                  className="w-full py-4 rounded-2xl font-bold opacity-30 hover:opacity-100 transition-all text-sm tracking-widest uppercase italic"
-                >
-                  Close Guide
-                </button>
-              </div>
-            </div>
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                rotate: 360
+              }}
+              transition={{ 
+                duration: 1.5,
+                repeat: Infinity,
+                ease: "linear"
+              }}
+              className="mb-8"
+            >
+              <Zap size={64} className="text-yellow-400 fill-yellow-400 drop-shadow-[0_0_25px_rgba(250,204,21,0.6)]" />
+            </motion.div>
+            <h2 className="text-3xl font-black italic tracking-tighter uppercase mb-2">{redirectMessage}</h2>
+            <p className="text-white/50 font-medium tracking-wide">Secure protocol initiated. Do not close this window.</p>
           </motion.div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Status Overlay */}
       {statusMessage && (
@@ -337,35 +256,40 @@ export default function SubscriptionPage() {
             <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-4 italic uppercase">
               Eclipse <span className={themeClasses.accent}>Shop</span>
             </h1>
-            <p className="text-xl opacity-50 max-w-xl">
-              Level up your learning with powerful AI features and unlimited potential.
+            <p className="text-xl opacity-50 max-w-xl text-balance">
+              Level up your learning with exclusive premium features.
             </p>
           </div>
 
           {profile && (
             <div className={cn("p-8 rounded-[2rem] border flex flex-col items-center text-center min-w-[240px]", themeClasses.card)}>
-              <p className="text-[10px] font-bold uppercase tracking-widest opacity-30 mb-2">Current Status</p>
-              <div className="flex items-center gap-3 mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-2">Current Status</p>
+              <div className="flex items-center gap-3 mb-1">
                 <Crown size={24} className={themeClasses.icon} />
                 <span className="text-3xl font-black italic uppercase tracking-tighter">
-                  {profile.tier || 'Free'}
+                  {profile.tier ? (profile.tier === 'premium' ? 'Premium' : profile.tier.charAt(0).toUpperCase() + profile.tier.slice(1)) : 'Free'}
                 </span>
               </div>
-              <p className="text-xs font-medium opacity-50 uppercase tracking-widest">
+              <p className="text-[10px] font-bold opacity-80 mb-2 truncate max-w-[200px]">
+                {profile.email}
+              </p>
+              <p className="text-xs font-medium opacity-100 uppercase tracking-widest text-zinc-800 dark:text-zinc-200">
                 {profile.tier === 'admin' ? 'Unlimited Access' : 'Active Subscription'}
               </p>
               
               {profile.tier && profile.tier !== 'free' && (
                 <button 
-                  onClick={handleManageSubscription}
+                  onClick={handleManageBilling}
                   disabled={loading}
                   className={cn(
                     "mt-4 flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all",
-                    isTeacherPortal ? "bg-white/10 hover:bg-white/20" : "bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10"
+                    isTeacherPortal 
+                      ? "bg-white/10 hover:bg-white/20 text-white" 
+                      : "bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 text-black dark:text-white"
                   )}
                 >
-                  <SettingsIcon size={12} />
-                  Manage / Cancel
+                  <SettingsIcon size={12} className={loading ? "animate-spin" : ""} />
+                  {loading ? "Connecting..." : "Manage Billing"}
                   <ExternalLink size={10} />
                 </button>
               )}
@@ -373,11 +297,11 @@ export default function SubscriptionPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20 max-w-5xl mx-auto">
           {TIERS.map((tier, index) => {
-            const tierOrder = ['free', 'champion', 'master', 'admin'];
+            const tierOrder = ['free', 'premium', 'admin'];
             const userTierIndex = (profile?.tier === 'admin' || profile?.rank === 'Owner' || profile?.rank === 'Admin' || profile?.rank === 'Temporary Owner') 
-              ? 3 
+              ? 2 
               : tierOrder.indexOf(profile?.tier || 'free');
             const thisTierIndex = tierOrder.indexOf(tier.id);
             const isCurrent = profile?.tier === tier.id || (tier.id === 'admin' && userTierIndex === 3 && !profile?.tier);
@@ -394,7 +318,7 @@ export default function SubscriptionPage() {
                   tier.highlight 
                     ? themeClasses.cardHighlight
                     : themeClasses.card,
-                  isCurrent && "ring-4 ring-orange-500 ring-offset-4 dark:ring-offset-black"
+                  isCurrent && "ring-4 ring-white ring-offset-4 dark:ring-offset-black"
                 )}
               >
                 {tier.highlight && (
@@ -414,9 +338,9 @@ export default function SubscriptionPage() {
                   {tier.icon}
                 </div>
 
-                <div className="mb-8">
+                <div className="mb-8 flex flex-col">
                   <span className="text-5xl font-black tracking-tighter">{tier.price}</span>
-                  {tier.period && <span className="text-xl opacity-50">{tier.period}</span>}
+                  {tier.period && <span className="text-xs opacity-50 font-bold uppercase tracking-widest mt-1">{tier.period}</span>}
                 </div>
 
                 <div className="space-y-4 mb-12 flex-grow">
@@ -424,7 +348,7 @@ export default function SubscriptionPage() {
                     <div key={i} className="flex items-start gap-3">
                       <div className={cn(
                         "mt-1 p-0.5 rounded-full",
-                        tier.highlight ? (isTeacherPortal ? "bg-royal-red/20" : "bg-orange-500") : (isTeacherPortal ? "bg-gold/20" : "bg-black/10 dark:bg-white/10")
+                        tier.highlight ? (isTeacherPortal ? "bg-royal-red/20" : "bg-black dark:bg-white") : (isTeacherPortal ? "bg-gold/20" : "bg-black/10 dark:bg-white/10")
                       )}>
                         <Check size={12} className={tier.highlight ? (isTeacherPortal ? "text-royal-red" : "text-white") : (isTeacherPortal ? "text-gold" : "text-black dark:text-white")} />
                       </div>
@@ -434,19 +358,31 @@ export default function SubscriptionPage() {
                 </div>
 
                 <button
-                  onClick={() => handleUpgrade(tier.id)}
-                  disabled={isCurrent || isLegacy}
+                  onClick={() => {
+                    console.log(`[Shop] Upgrade requested for ${tier.id}`);
+                    handleUpgrade(tier.id);
+                  }}
+                  disabled={isCurrent || isLegacy || loading}
                   className={cn(
                     "w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all",
                     (isCurrent || isLegacy)
                       ? (isTeacherPortal ? "bg-gold/10 cursor-default opacity-50" : "bg-black/10 dark:bg-white/10 cursor-default opacity-50")
                       : tier.highlight
                         ? themeClasses.buttonHighlight
-                        : themeClasses.button
+                        : themeClasses.button,
+                    loading && "opacity-70 cursor-wait"
                   )}
                 >
-                  {isCurrent ? 'Current Plan' : isLegacy ? 'Included' : tier.buttonText}
-                  {(!isCurrent && !isLegacy) && <ArrowRight size={18} />}
+                  {loading ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                      <Zap size={18} />
+                    </motion.div>
+                  ) : (
+                    <>
+                      {isCurrent ? 'Current Plan' : isLegacy ? 'Included' : tier.buttonText}
+                      {(!isCurrent && !isLegacy) && <ArrowRight size={18} />}
+                    </>
+                  )}
                 </button>
               </motion.div>
             );
@@ -460,31 +396,66 @@ export default function SubscriptionPage() {
                 <ShieldCheck className={themeClasses.icon} size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-bold">Secure Payment</h3>
-                <p className="text-sm opacity-50">Choose your preferred method</p>
+                <h3 className="text-xl font-bold">Secure Upgrade</h3>
+                <p className="text-sm opacity-50">Request a tier change</p>
               </div>
             </div>
             
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 bg-black/5 dark:bg-white/5 rounded-xl border border-black/10 dark:border-white/10">
-                <CreditCard size={16} />
-                <span className="text-xs font-bold">Credit/Debit Card</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-black/5 dark:bg-white/5 rounded-xl border border-black/10 dark:border-white/10">
-                <Building2 size={16} />
-                <span className="text-xs font-bold">Bank Account (ACH/Direct)</span>
-              </div>
-            </div>
+            <p className="text-sm opacity-70 leading-relaxed font-medium">
+              Click any plan above to submit an upgrade request. Our administration team will review your account and contact you within 24 hours to complete the process.
+            </p>
             
             <p className="mt-6 text-xs opacity-50 leading-relaxed">
-              All transactions are encrypted and processed securely via Stripe. We do not store your sensitive payment information on our servers.
+              For immediate assistance, please use the platform chat or email support@eclipse.ai.
             </p>
           </div>
 
+          <div className={cn("p-8 rounded-[3rem] border border-white/10 bg-white/5", themeClasses.text)}>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl shadow-lg">
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">Safe & Secure</h3>
+                <p className="text-sm opacity-50">Verified Upgrades</p>
+              </div>
+            </div>
+            <p className="text-sm opacity-70 leading-relaxed">
+              Your security is our priority. All account changes are manually verified to ensure the highest level of integrity and protection for your data.
+            </p>
+            <div className="mt-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest bg-black dark:bg-white text-white dark:text-black w-fit px-3 py-1 rounded-full">
+              Identity Verified
+            </div>
+          </div>
+
+          <div className={cn("p-8 rounded-[3rem] border border-white/10 bg-white/5 md:col-span-2", themeClasses.text)}>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl shadow-xl">
+                <Check size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">Account Verification</h3>
+                <p className="text-sm opacity-50">Verified status & Tier management</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <p className="text-sm opacity-70 leading-relaxed font-medium">
+                  Your <strong className="text-black dark:text-white">Profile</strong> is securely synced across all your devices. All educational content and progress are stored in your private cloud vault.
+                </p>
+              </div>
+              <div className="space-y-4">
+                <p className="text-sm opacity-70 leading-relaxed font-medium">
+                  Memberships are processed via <strong className="text-black dark:text-white">secure encrypted channels</strong>. Tier upgrades grant immediate access to advanced AI modules and priority servers.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {settings?.bankAccount && !settings.bankAccount.startsWith('acct_') && (
-            <div className={cn("p-8 rounded-[3rem] border border-orange-500/20 bg-orange-500/5", themeClasses.text)}>
+            <div className={cn("p-8 rounded-[3rem] border border-white/10 bg-white/5", themeClasses.text)}>
               <div className="flex items-center gap-4 mb-6">
-                <div className="p-3 bg-orange-500 text-white rounded-2xl">
+                <div className="p-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl">
                   <Building2 size={24} />
                 </div>
                 <div>

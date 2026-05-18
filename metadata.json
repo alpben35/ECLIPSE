@@ -1,5 +1,6 @@
 {
   "name": "Eclipse",
   "description": "An AI-powered schoolwork tutor and progress tracker for students from Year 1 to University.",
-  "requestFramePermissions": ["microphone", "camera"]
+  "requestFramePermissions": ["microphone", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

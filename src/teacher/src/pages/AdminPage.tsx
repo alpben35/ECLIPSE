@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'motion/react';
-import { Search, Trash2, Shield, User as UserIcon, Loader2, ArrowUp, ArrowDown, Ban, UserPlus, UserMinus, Bug, Settings, Sparkles } from 'lucide-react';
-import { db, handleFirestoreError, OperationType, decryptData } from '../lib/firebase';
+import { Search, Trash2, Shield, User as UserIcon, Loader2, ArrowUp, ArrowDown, Ban, UserPlus, UserMinus, Bug, Settings, Sparkles, Globe, ChevronRight } from 'lucide-react';
+import { db, handleFirestoreError, OperationType, decryptData } from '@/lib/firebase';
 import { collection, query, onSnapshot, doc, deleteDoc, where, updateDoc, addDoc, orderBy, limit, setDoc, getDoc } from 'firebase/firestore';
-import { AuthContext } from '../../../src/lib/contexts';
-import { OWNER_EMAIL, RANKS } from '../constants';
+import { AuthContext } from '@/lib/contexts';
+import { OWNER_EMAIL, RANKS } from '@/constants';
 import { clsx, type ClassValue } from 'clsx';
+import { Link } from 'react-router-dom';
 import { twMerge } from 'tailwind-merge';
 import { format } from 'date-fns';
-import { summarizeChat } from '../lib/gemini';
+import { summarizeChat } from '@/lib/gemini';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -53,7 +54,7 @@ export default function AdminPage() {
   const [maintenance, setMaintenance] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'bugs'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'bugs' | 'settings'>('users');
   const [summarizing, setSummarizing] = useState(false);
   const [summary, setSummary] = useState('');
 
@@ -368,6 +369,17 @@ export default function AdminPage() {
                 Bugs
               </button>
             )}
+            {(isOwner || isTempOwner) && (
+              <button 
+                onClick={() => setActiveTab('settings')}
+                className={cn(
+                  "px-6 py-2 rounded-xl font-bold text-sm transition-all whitespace-nowrap",
+                  activeTab === 'settings' ? "bg-gold text-royal-red" : "text-gold opacity-50 hover:opacity-100"
+                )}
+              >
+                Settings
+              </button>
+            )}
           </div>
 
           {activeTab === 'users' && (
@@ -527,7 +539,7 @@ export default function AdminPage() {
             </div>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'bugs' ? (
         <div className="space-y-8">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-gold">Reported Bugs</h2>
@@ -608,6 +620,53 @@ export default function AdminPage() {
                 <p className="text-lg">No active bugs reported yet. System is stable.</p>
               </div>
             )}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-8 text-left">
+          <div className="p-8 bg-gold/5 rounded-[2rem] border border-gold/10">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gold">
+              <Settings size={20} />
+              System Settings
+            </h3>
+            
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-gold/5 rounded-2xl border border-gold/10">
+                <div>
+                  <p className="font-bold text-gold">Maintenance Mode</p>
+                  <p className="text-sm opacity-50 text-gold">Restrict access to the platform for maintenance.</p>
+                </div>
+                <button 
+                  onClick={handleToggleMaintenance}
+                  className={cn(
+                    "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+                    maintenance ? "bg-red-500 text-royal-red" : "bg-gold text-royal-red"
+                  )}
+                >
+                  {maintenance ? 'Disable' : 'Enable'}
+                </button>
+              </div>
+
+              <div className="pt-8 border-t border-gold/10">
+                <h4 className="font-bold mb-4 flex items-center gap-2 text-gold">
+                  <Globe size={18} />
+                  Infrastructure
+                </h4>
+                <Link 
+                  to="/teacher/dns"
+                  className="inline-flex items-center gap-3 p-6 bg-gold text-royal-red rounded-3xl font-bold hover:scale-105 transition-all shadow-xl group"
+                >
+                  <div className="p-3 bg-royal-red/10 rounded-2xl group-hover:scale-110 transition-transform">
+                    <Globe size={24} />
+                  </div>
+                  <div className="flex flex-col items-start leading-none">
+                    <span className="text-lg">DNS Management</span>
+                    <span className="text-[10px] opacity-50 uppercase tracking-widest mt-1">Configure Zones & Records</span>
+                  </div>
+                  <ChevronRight className="ml-4 opacity-50" size={20} />
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       )}
