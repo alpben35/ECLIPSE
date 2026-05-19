@@ -24,6 +24,7 @@ interface UserProfile {
   banned?: boolean;
   createdAt: string;
   emailVerified?: boolean;
+  photoURL?: string;
 }
 
 interface AuditLog {
@@ -199,7 +200,7 @@ export default function AdminPage() {
     if (!isOwner && !isTempOwner) return;
 
     const currentIndex = RANKS.findIndex(r => r.name === currentRank);
-    let fallbackIndex = currentRank === 'Welcome' ? 0 : -1;
+    let fallbackIndex = currentRank === 'Basic' ? 0 : -1;
     let indexToUse = currentIndex === -1 ? fallbackIndex : currentIndex;
     
     let nextIndex = direction === 'up' ? indexToUse + 1 : indexToUse - 1;
@@ -220,7 +221,9 @@ export default function AdminPage() {
       // If promoting to Admin or Owner, also update the tier
       if (newRank === 'Admin' || newRank === 'Owner' || newRank === 'Temporary Owner') {
         updates.tier = 'admin';
-      } else if (newRank === 'Free') {
+      } else if (newRank === 'Premium') {
+        updates.tier = 'premium';
+      } else if (newRank === 'Basic') {
         updates.tier = 'free';
       }
 
@@ -472,8 +475,10 @@ export default function AdminPage() {
               className="flex items-center justify-between p-6 bg-black/5 dark:bg-white/5 rounded-3xl border border-transparent hover:border-black/10 dark:hover:border-white/10 transition-all"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-black/10 dark:bg-white/10 rounded-2xl flex items-center justify-center">
-                  {user.email === OWNER_EMAIL || user.rank === 'Owner' ? (
+                <div className="w-12 h-12 bg-black/10 dark:bg-white/10 rounded-2xl flex items-center justify-center overflow-hidden">
+                  {user.photoURL || profile?.photoURL ? (
+                    <img src={user.photoURL || profile?.photoURL} alt="" className="w-full h-full object-cover" />
+                  ) : user.email === OWNER_EMAIL || user.rank === 'Owner' ? (
                     <Shield className="text-black dark:text-white" size={24} />
                   ) : user.rank === 'Temporary Owner' ? (
                     <Shield className="text-black/40 dark:text-white/40" size={24} />
@@ -488,7 +493,7 @@ export default function AdminPage() {
                       "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
                       user.banned ? "bg-red-500 text-white" : "bg-black/10 dark:bg-white/10 opacity-50"
                     )}>
-                      {user.rank || 'Free'} {user.banned && '• BANNED'}
+                      {user.rank || 'Basic'} {user.banned && '• BANNED'}
                     </span>
                     {user.emailVerified && (
                       <span className="text-[10px] text-green-500 flex items-center gap-0.5">
@@ -505,14 +510,14 @@ export default function AdminPage() {
                 {user.email !== OWNER_EMAIL && (
                   <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
                     <button 
-                      onClick={() => handleUpdateRank(user.uid, user.email, user.rank || 'Free', 'down')}
+                      onClick={() => handleUpdateRank(user.uid, user.email, user.rank || 'Basic', 'down')}
                       className="p-2 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors"
                       title="Demote"
                     >
                       <ArrowDown size={14} />
                     </button>
                     <button 
-                      onClick={() => handleUpdateRank(user.uid, user.email, user.rank || 'Free', 'up')}
+                      onClick={() => handleUpdateRank(user.uid, user.email, user.rank || 'Basic', 'up')}
                       className="p-2 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors"
                       title="Promote"
                     >
@@ -530,7 +535,7 @@ export default function AdminPage() {
                     </button>
                     {(profile?.email === OWNER_EMAIL || profile?.rank === 'Owner' || currentUser?.email === OWNER_EMAIL) && (
                       <button 
-                        onClick={() => handleToggleTempOwner(user.uid, user.email, user.rank || 'Free')}
+                        onClick={() => handleToggleTempOwner(user.uid, user.email, user.rank || 'Basic')}
                         className={cn(
                           "p-2 rounded-lg transition-colors",
                           user.rank === 'Temporary Owner' ? "bg-blue-500 text-white" : "hover:bg-black/10 dark:hover:bg-white/10"

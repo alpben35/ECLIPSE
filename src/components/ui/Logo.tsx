@@ -24,14 +24,14 @@ export default function Logo({
 
   const colors = {
     student: {
-      light: { base: 'bg-black', glow: 'bg-emerald-500/30' }, 
-      dark: { base: 'bg-white', glow: 'bg-emerald-400/20' },
-      glow: 'bg-emerald-500/20 dark:bg-emerald-400/20'
+      light: { base: 'bg-black', glow: 'bg-blue-500/40' }, 
+      dark: { base: 'bg-white', glow: 'bg-white/30' },
+      glow: 'bg-blue-500/30 dark:bg-white/20'
     },
     teacher: {
       base: 'bg-gold',
-      eclipse: 'bg-royal-red',
-      glow: 'bg-gold/60' 
+      eclipse: 'bg-zinc-950', // High contrast against royal-red
+      glow: 'bg-gold/50' 
     }
   };
 
@@ -40,12 +40,12 @@ export default function Logo({
       {/* Corona / Glow Effect */}
       <motion.div
         animate={animate ? {
-          scale: [1, 1.3, 1],
+          scale: [1, 1.25, 1],
           opacity: [0.3, 0.6, 0.3],
         } : {}}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         className={cn(
-          "absolute inset-[-20%] rounded-full blur-xl transition-all duration-500",
+          "absolute inset-[-25%] rounded-full blur-xl transition-all duration-500",
           variant === 'teacher' ? colors.teacher.glow : colors.student.glow
         )}
       />
@@ -63,8 +63,8 @@ export default function Logo({
         className={cn(
           "absolute inset-0 rounded-full z-20 scale-95 transition-all duration-500",
           variant === 'teacher'
-            ? cn("translate-x-[25%]", colors.teacher.eclipse)
-            : "translate-x-[15%] bg-white dark:bg-black hidden dark:block"
+            ? cn("translate-x-[22%]", colors.teacher.eclipse)
+            : "translate-x-[15%] bg-white dark:bg-zinc-950 block"
         )}
       />
     </div>

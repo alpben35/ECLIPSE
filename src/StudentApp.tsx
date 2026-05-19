@@ -151,9 +151,17 @@ export default function StudentApp() {
                       </Link>
                       <Link 
                         to={"/teacher" + (location.pathname === '/' ? '' : location.pathname)}
-                        className="text-[8px] lg:text-[10px] font-black uppercase tracking-[0.2em] opacity-60 hover:opacity-100 transition-all text-left"
+                        className="mt-1 flex items-center gap-2 group"
                       >
-                        Switch to Teacher
+                        <div className="w-6 h-3 lg:w-8 lg:h-4 bg-black/10 dark:bg-white/10 rounded-full relative transition-colors group-hover:bg-black/20 dark:group-hover:bg-white/20">
+                          <div className={cn(
+                            "absolute top-0.5 left-0.5 w-2 h-2 lg:w-3 lg:h-3 rounded-full bg-black dark:bg-white transition-transform",
+                            location.pathname.startsWith('/teacher') ? "translate-x-3 lg:translate-x-4" : "translate-x-0"
+                          )} />
+                        </div>
+                        <span className="text-[7px] lg:text-[9px] font-black uppercase tracking-widest opacity-40 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                          {location.pathname.startsWith('/teacher') ? 'Teacher' : 'Teacher Portal'}
+                        </span>
                       </Link>
                     </div>
                   </div>
@@ -170,7 +178,7 @@ export default function StudentApp() {
                     <div className="flex items-center gap-2 mb-1">
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
-                          {profile?.email === OWNER_EMAIL ? 'Owner' : profile?.rank || 'Welcome'}
+                          {profile?.email === OWNER_EMAIL ? 'Owner' : profile?.rank || 'Basic'}
                         </span>
                         <span className="text-[8px] font-bold text-black dark:text-white uppercase tracking-widest">
                           Level {profile?.level || 1}
@@ -249,7 +257,7 @@ export default function StudentApp() {
                       className="relative cursor-pointer group block shrink-0"
                     >
                       <img 
-                        src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} 
+                        src={profile?.photoURL || user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} 
                         alt="Avatar" 
                         className="w-10 h-10 min-w-[40px] rounded-full border-2 border-black/10 dark:border-white/10 group-hover:border-black dark:group-hover:border-white transition-all object-cover shrink-0"
                       />
@@ -275,8 +283,12 @@ export default function StudentApp() {
                             <div className="bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-[2rem] shadow-2xl p-6 overflow-hidden">
                             <div className="space-y-6">
                               <div className="flex items-center gap-4 pb-6 border-b border-black/5 dark:border-white/5">
-                                <div className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 flex items-center justify-center">
-                                  <User size={24} className="opacity-50" />
+                                <div className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 flex items-center justify-center overflow-hidden">
+                                  {profile?.photoURL || user.photoURL ? (
+                                    <img src={profile?.photoURL || user.photoURL} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <User size={24} className="opacity-50" />
+                                  )}
                                 </div>
                                 <div className="flex flex-col min-w-0">
                                   <p className="text-[10px] font-bold uppercase tracking-widest opacity-30">Student Profile</p>

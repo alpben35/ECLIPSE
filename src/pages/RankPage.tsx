@@ -10,15 +10,10 @@ import { doc, updateDoc } from 'firebase/firestore';
 import confetti from 'canvas-confetti';
 
 const RANK_PERKS: Record<string, string[]> = {
-  'Welcome': ['Basic AI Tutoring', 'Daily Progress Tracking'],
-  'Member': ['Custom Profile Themes', 'Priority AI Response'],
-  'Elder': ['Idea Submission Power', 'Community Badge'],
-  'Master': ['Advanced Analytics', 'Early Feature Access'],
-  'Champion': ['Idea Review Authority', 'Exclusive UI Elements'],
-  'Olympian': ['Direct Line to Admins', 'Priority Support'],
-  'Admin': ['Full User Management', 'System Monitoring'],
-  'Supreme Admin': ['Global Announcements', 'Ultimate Authority'],
-  'Owner': ['System Customization', 'Full Database Access'],
+  'Basic': ['Basic AI Tutoring', '40 Prompts Per Day', 'Daily Progress Tracking'],
+  'Premium': ['500 Prompts Per Day', 'Advanced Analytics', 'Priority AI Response', 'Custom Profile Themes'],
+  'Admin': ['Unlimited AI Prompts', 'Full User Management', 'Direct Line to Owner', 'Early Feature Access'],
+  'Owner': ['System Customization', 'Platform Authority', 'Full Database Access'],
 };
 
 export default function RankPage() {
@@ -28,7 +23,7 @@ export default function RankPage() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const currentRankIndex = Math.max(0, RANKS.findIndex(r => r.name === profile?.rank));
-  const userRank = profile?.email === OWNER_EMAIL ? 'Owner' : profile?.rank || 'Welcome';
+  const userRank = profile?.email === OWNER_EMAIL ? 'Owner' : profile?.rank || 'Basic';
 
   const handlePurchase = async () => {
     if (!user || !profile || !selectedRank) return;

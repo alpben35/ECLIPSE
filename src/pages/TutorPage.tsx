@@ -194,8 +194,9 @@ export default function TutorPage() {
     setIsTyping(true);
 
     const currentHistory = [...messages];
-    const userTier = (profile?.tier || 'free') as keyof typeof PROMPT_LIMITS;
-    const maxPrompts = PROMPT_LIMITS[userTier] || 20;
+    const userRankTier = (profile?.rank || 'Basic').toLowerCase().replace(' ', '_') as keyof typeof PROMPT_LIMITS;
+    const userTier = (profile?.tier || userRankTier || 'free') as keyof typeof PROMPT_LIMITS;
+    const maxPrompts = PROMPT_LIMITS[userTier] || PROMPT_LIMITS['free'] || 40;
     const promptCost = 1;
 
     // Check limits for non-admins

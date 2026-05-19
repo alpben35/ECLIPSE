@@ -107,12 +107,12 @@ export default function PrivacyPolicy() {
             </div>
             <div className="space-y-2">
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">Privacy Inquiries</p>
-              <p className="font-bold">privacy@eclipse-ai.com</p>
+              <p className="font-bold">privacy@eclipseapp.co.uk</p>
             </div>
             <div className="space-y-2">
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">Data Protection Officer</p>
               <p className="font-bold">DPO Representative</p>
-              <p className="text-sm opacity-60">dpo@eclipse-ai.com</p>
+              <p className="text-sm opacity-60">dpo@eclipseapp.co.uk</p>
             </div>
             <div className="space-y-2">
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">Global Support Node</p>

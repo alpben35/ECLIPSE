@@ -31,10 +31,10 @@ export default function ProfileSettingsModal({ isOpen, onClose, currentUsername,
   const [step, setStep] = useState<'options' | 'username' | 'password' | 'phone' | 'photo'>('options');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const rank = profile?.rank || 'Welcome';
+  const rank = profile?.rank || 'Basic';
   const isOwner = profile?.email === OWNER_EMAIL || auth.currentUser?.email === OWNER_EMAIL || rank === 'Owner' || rank === 'Temporary Owner';
   const isAdmin = rank === 'Admin' || isOwner;
-  const isPremium = ['Intermediate', 'Champion', 'Master'].includes(rank) || isAdmin || profile?.tier === 'premium' || profile?.tier === 'admin' || profile?.tier === 'intermediate';
+  const isPremium = rank === 'Premium' || isAdmin || profile?.tier === 'premium' || profile?.tier === 'admin';
 
   const reauthenticate = async (password: string) => {
     if (!auth.currentUser || !auth.currentUser.email) return;

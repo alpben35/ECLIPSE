@@ -30,8 +30,9 @@ export const GRADE_LEVELS = [
 export const OWNER_EMAIL = 'alp.ben@gmail.com';
 
 export const PROMPT_LIMITS = {
-  free: 20,
-  champion: 100,
-  master: 500,
-  admin: Infinity
+  free: 40,
+  basic: 40,
+  premium: 500,
+  admin: Infinity,
+  owner: Infinity
 };

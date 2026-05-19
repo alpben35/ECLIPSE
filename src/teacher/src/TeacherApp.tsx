@@ -103,9 +103,16 @@ export default function TeacherApp() {
                     </Link>
                     <button 
                       onClick={() => window.location.href = '/'}
-                      className="text-[8px] lg:text-[10px] font-black uppercase tracking-[0.2em] text-gold/60 hover:text-gold transition-all text-left cursor-pointer"
+                      className="mt-1 flex items-center gap-2 group cursor-pointer"
                     >
-                      Switch to Student
+                      <div className="w-6 h-3 lg:w-8 lg:h-4 bg-gold/10 rounded-full relative transition-colors group-hover:bg-gold/20">
+                        <div className={cn(
+                          "absolute top-0.5 right-0.5 w-2 h-2 lg:w-3 lg:h-3 rounded-full bg-gold transition-transform translate-x-0"
+                        )} />
+                      </div>
+                      <span className="text-[7px] lg:text-[9px] font-black uppercase tracking-widest text-gold/40 group-hover:text-gold transition-colors whitespace-nowrap">
+                        Student Portal
+                      </span>
                     </button>
                   </div>
                 </div>

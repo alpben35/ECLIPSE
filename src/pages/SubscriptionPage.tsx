@@ -23,22 +23,6 @@ const TIERS = [
     highlight: false
   },
   {
-    id: 'intermediate',
-    priceId: import.meta.env.VITE_STRIPE_PRICE_ID_INTERMEDIATE || 'price_lite',
-    name: 'Intermediate',
-    price: '£15',
-    description: 'Step towards authority',
-    features: [
-      '100 AI prompts per day',
-      'Custom profile uploads',
-      'Faster AI processing',
-      'Increased streak bonuses'
-    ],
-    buttonText: 'Level Up',
-    highlight: false,
-    icon: <Crown className="text-black dark:text-white" />
-  },
-  {
     id: 'premium',
     priceId: import.meta.env.VITE_STRIPE_PRICE_ID_PREMIUM,
     name: 'Eclipse Premium',
@@ -164,7 +148,7 @@ export default function SubscriptionPage() {
     if (!profile?.stripeCustomerId) {
       setStatusMessage({
         type: 'success',
-        text: "Please email support@eclipse.ai with your account details to manage your manual subscription."
+        text: "Please email support@eclipseapp.co.uk with your account details to manage your manual subscription."
       });
       return;
     }
@@ -320,7 +304,7 @@ export default function SubscriptionPage() {
               ? 2 
               : tierOrder.indexOf(profile?.tier || 'free');
             const thisTierIndex = tierOrder.indexOf(tier.id);
-            const isCurrent = profile?.tier === tier.id || (tier.id === 'admin' && userTierIndex === 3 && !profile?.tier);
+            const isCurrent = profile?.tier === tier.id || (tier.id === 'admin' && userTierIndex === 2 && !profile?.tier);
             const isLegacy = thisTierIndex < userTierIndex;
 
             return (
@@ -422,7 +406,7 @@ export default function SubscriptionPage() {
             </p>
             
             <p className="mt-6 text-xs opacity-50 leading-relaxed">
-              For immediate assistance, please use the platform chat or email support@eclipse.ai.
+              For immediate assistance, please use the platform chat or email support@eclipseapp.co.uk.
             </p>
           </div>
 
@@ -486,7 +470,7 @@ export default function SubscriptionPage() {
               </div>
 
               <p className="text-xs opacity-50 leading-relaxed">
-                If you prefer to pay manually, please use the details above. After transfer, send your receipt to <strong>support@eclipse.ai</strong> or use the chat to notify our team.
+                If you prefer to pay manually, please use the details above. After transfer, send your receipt to <strong>support@eclipseapp.co.uk</strong> or use the chat to notify our team.
               </p>
             </div>
           )}

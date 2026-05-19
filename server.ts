@@ -269,8 +269,8 @@ async function callGemini(params: {
   isStream?: boolean,
   onChunk?: (text: string) => void
 }) {
-  // Use gemini-flash-latest as the primary stable model
-  const modelName = params.model || 'gemini-flash-latest';
+  // Use gemini-3.5-flash as the primary stable model
+  const modelName = params.model || 'gemini-3.5-flash';
   const config = {
     systemInstruction: params.systemInstruction,
     temperature: params.temperature ?? 0.0,
@@ -278,7 +278,7 @@ async function callGemini(params: {
   };
 
   let lastError;
-  const maxRetries = 4;
+  const maxRetries = 6;
   for (let i = 0; i < maxRetries; i++) {
     try {
       if (params.isStream && params.onChunk) {
@@ -305,16 +305,22 @@ async function callGemini(params: {
       const is429 = error.status === 429 || error.code === 429 || error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED') || error.message?.includes('Rate limit');
       const is404 = error.status === 404 || error.code === 404 || error.message?.includes('404') || error.message?.includes('NOT_FOUND');
       
+      // If we hit a 503/429 on the 3rd retry, try a fallback model
+      if ((is503 || is429) && i === 2 && modelName === 'gemini-3.5-flash') {
+        console.warn(`[Gemini Helper] Model ${modelName} is struggling. Trying fallback gemini-flash-latest...`);
+        return callGemini({ ...params, model: 'gemini-flash-latest' });
+      }
+
       if (is503 || is429) {
-        const delay = Math.pow(2, i) * 1500 + Math.random() * 1000;
+        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
         console.warn(`[Gemini Helper] ${is503 ? '503/Overloaded' : '429/Rate'} error, retry ${i + 1}/${maxRetries} in ${Math.round(delay)}ms...`);
         await new Promise(r => setTimeout(r, delay));
         continue;
       }
 
-      if (is404 && modelName !== 'gemini-flash-latest') {
-        console.warn(`[Gemini Helper] 404 error for ${modelName}, falling back to gemini-flash-latest...`);
-        return callGemini({ ...params, model: 'gemini-flash-latest' });
+      if (is404 && modelName !== 'gemini-3.5-flash') {
+        console.warn(`[Gemini Helper] 404 error for ${modelName}, falling back to gemini-3.5-flash...`);
+        return callGemini({ ...params, model: 'gemini-3.5-flash' });
       }
 
       throw error;
@@ -349,7 +355,7 @@ async function callGemini(params: {
       userParts.push({ text: prompt || "Please assist." });
       contents.push({ role: 'user', parts: userParts });
 
-      const modelName = 'gemini-flash-latest'; 
+      const modelName = 'gemini-3.5-flash'; 
       
       const systemPrompt = `You are Eclipse AI, a world-class academic tutor. 
       Your primary goal is absolute mathematical and factual accuracy.
@@ -441,7 +447,7 @@ async function callGemini(params: {
       await callGemini({
         contents,
         systemInstruction: systemPrompt,
-        model: 'gemini-flash-latest',
+        model: 'gemini-3.5-flash',
         isStream: true,
         onChunk: (text) => {
           res.write(`data: ${JSON.stringify({ text })}\n\n`);
@@ -468,10 +474,10 @@ async function callGemini(params: {
       const text = await callGemini({
         contents,
         systemInstruction: "You are a helpful academic assistant summarizing a learning session. Use clean markdown for summaries.",
-        model: 'gemini-flash-latest',
+        model: 'gemini-3.5-flash',
         temperature: 0.1
       });
- 
+  
       res.json({ text });
     } catch (error: any) {
       console.error("[AI Summarize Error]", error);
@@ -492,7 +498,7 @@ async function callGemini(params: {
             ]
           }
         ],
-        model: 'gemini-flash-latest',
+        model: 'gemini-3.5-flash',
         temperature: 0.1
       });
  
