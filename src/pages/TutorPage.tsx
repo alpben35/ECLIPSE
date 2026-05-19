@@ -103,7 +103,7 @@ export default function TutorPage() {
   const { user, profile, addXp } = useContext(AuthContext);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [mode, setMode] = useState<'teach' | 'solve' | 'revise' | 'design'>('teach');
+  const [mode, setMode] = useState<'teach' | 'solve' | 'revise'>('teach');
   const [subject, setSubject] = useState(SUBJECTS[0]);
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -174,6 +174,14 @@ export default function TutorPage() {
       window.dispatchEvent(new CustomEvent('easter-egg-sparkle', { 
         detail: { message: 'Hello World! 🌍', color: '#00BFFF' } 
       }));
+      // Unlock globe for user
+      try {
+        await updateDoc(doc(db, 'users', user?.uid), {
+          unlockedGlobe: true
+        });
+      } catch (err) {
+        console.error("Failed to unlock globe icon:", err);
+      }
     }
     if ((!messageText && !selectedImage) || isTyping || !user) return;
 
@@ -188,20 +196,10 @@ export default function TutorPage() {
     const currentHistory = [...messages];
     const userTier = (profile?.tier || 'free') as keyof typeof PROMPT_LIMITS;
     const maxPrompts = PROMPT_LIMITS[userTier] || 20;
-    const promptCost = currentMode === 'design' ? 4 : 1;
+    const promptCost = 1;
 
     // Check limits for non-admins
     if (!profile?.isAdmin) {
-      // Image limit (5 per day for free users)
-      if (currentMode === 'design' && profile?.tier === 'free' && (profile.imagesToday || 0) >= 5) {
-        setErrorMessage("You've reached your daily limit of 5 visual manifests. Visionaries need rest.");
-        window.dispatchEvent(new CustomEvent('prompt-limit-reached', { 
-          detail: { limit: 5, tier: 'free', message: 'Daily Image Limit Reached' } 
-        }));
-        setIsTyping(false);
-        return;
-      }
-
       // Prompt limit
       if ((profile?.promptsToday || 0) + promptCost > maxPrompts) {
         window.dispatchEvent(new CustomEvent('prompt-limit-reached', { 
@@ -238,7 +236,7 @@ export default function TutorPage() {
       });
       
       // Add XP for engagement
-      addXp(currentMode === 'design' ? 50 : 15);
+      addXp(15);
 
       // Pass the last 10 messages for context (from captured history)
       const chatHistory = currentHistory.slice(-10).map(m => ({
@@ -246,50 +244,35 @@ export default function TutorPage() {
         content: m.content
       }));
 
-      if (currentMode === 'design') {
-        const res = await askTutor(messageText || "Manifest a creative visual concept.", currentMode, currentSubject, chatHistory, imageData);
-        
-        // Save AI response to Firestore
-        await addDoc(collection(db, 'users', user.uid, 'messages'), {
-          role: 'ai',
-          content: encryptData(res.text || ""),
-          images: res.images || null,
-          timestamp: serverTimestamp()
-        });
-      } else {
-        // Streaming for other modes
-        let fullText = "";
-        setStreamingMessage("");
-        
-        await askTutorStream(
-          messageText || "Please assist.", 
-          currentMode, 
-          currentSubject, 
-          (chunk) => {
-            fullText += chunk;
-            setStreamingMessage(fullText);
-          },
-          chatHistory, 
-          imageData
-        );
-        
-        setStreamingMessage(null);
-
-        // Save complete AI response to Firestore
-        await addDoc(collection(db, 'users', user.uid, 'messages'), {
-          role: 'ai',
-          content: encryptData(fullText),
-          timestamp: serverTimestamp()
-        });
-      }
+      // Streaming for modes
+      let fullText = "";
+      setStreamingMessage("");
       
-      // Increment daily prompts and images
+      await askTutorStream(
+        messageText || "Please assist.", 
+        currentMode, 
+        currentSubject, 
+        (chunk) => {
+          fullText += chunk;
+          setStreamingMessage(fullText);
+        },
+        chatHistory, 
+        imageData
+      );
+      
+      setStreamingMessage(null);
+
+      // Save complete AI response to Firestore
+      await addDoc(collection(db, 'users', user.uid, 'messages'), {
+        role: 'ai',
+        content: encryptData(fullText),
+        timestamp: serverTimestamp()
+      });
+      
+      // Increment daily prompts
       const updates: any = {
         promptsToday: increment(promptCost)
       };
-      if (currentMode === 'design') {
-        updates.imagesToday = increment(1);
-      }
       await updateDoc(doc(db, 'users', user.uid), updates);
     } catch (error: any) {
       if (error.message?.includes('Limit reached')) {
@@ -462,18 +445,6 @@ export default function TutorPage() {
             >
               <BookOpen size={16} />
               Revise
-            </button>
-            <button 
-              onClick={() => setMode('design')}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
-                mode === 'design' 
-                  ? "bg-white dark:bg-black shadow-md ring-1 ring-black/5 dark:ring-white/10 text-black dark:text-white" 
-                  : "opacity-50 hover:opacity-80"
-              )}
-            >
-              <Wand2 size={16} />
-              Eclipse Vision
             </button>
           </div>
 
@@ -761,19 +732,19 @@ export default function TutorPage() {
           )}
         </AnimatePresence>
 
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
           <button 
             id="mic-button"
             onClick={startVoice}
             title="Voice Typing"
             className={cn(
-              "p-2.5 rounded-xl transition-all border shadow-sm",
+              "p-2 md:p-2.5 rounded-xl transition-all border shadow-sm",
               isListening 
                 ? "bg-red-500 text-white border-red-600 shadow-lg shadow-red-500/40 animate-pulse scale-110" 
                 : "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/30"
             )}
           >
-            <Mic size={22} />
+            <Mic size={20} className="md:w-[22px] md:h-[22px]" />
           </button>
         </div>
         
@@ -783,10 +754,10 @@ export default function TutorPage() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
           placeholder={isListening ? "Listening..." : `Ask a question...`}
-          className="w-full pl-16 md:pl-20 pr-36 md:pr-44 py-4 md:py-5 bg-black/5 dark:bg-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all text-sm md:text-base placeholder:opacity-40"
+          className="w-full pl-14 md:pl-16 pr-28 md:pr-36 py-4 md:py-5 bg-black/5 dark:bg-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all text-sm md:text-base placeholder:opacity-40"
         />
 
-        <div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 md:gap-2">
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 md:gap-2">
           <input 
             type="file"
             ref={fileInputRef}
@@ -799,7 +770,7 @@ export default function TutorPage() {
             className="p-2 md:p-2.5 bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/30 rounded-xl transition-all shadow-sm"
             title="Upload image"
           >
-            <ImageIcon size={20} className="md:w-[22px] md:h-[22px]" />
+            <ImageIcon size={18} className="md:w-[20px] md:h-[20px]" />
           </button>
           
           <button 

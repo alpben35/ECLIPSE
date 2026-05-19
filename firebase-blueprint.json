@@ -128,6 +128,16 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "sharedBy", "createdAt"]
+    },
+    "PrivateNotepad": {
+      "title": "Private Notepad",
+      "description": "Personal notes for a teacher or user.",
+      "type": "object",
+      "properties": {
+        "content": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["content", "updatedAt"]
     }
   },
   "firestore": {
@@ -146,6 +156,10 @@
     "/users/{userId}/messages/{messageId}": {
       "schema": "ChatMessage",
       "description": "Chat history for a user."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": "PrivateNotepad",
+      "description": "Private collection for user-specific documents like notepad."
     },
     "/ideas/{ideaId}": {
       "schema": "Idea",

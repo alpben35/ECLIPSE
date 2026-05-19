@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Lightbulb, Send, CheckCircle2, XCircle, ChevronRight, User as UserIcon, Shield, Award, Star, FileText, Save } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { collection, addDoc, query, onSnapshot, orderBy, doc, updateDoc, where, getDoc, setDoc } from 'firebase/firestore';
-import { AuthContext } from '@/lib/contexts';
+import { AuthContext, ThemeContext } from '@/lib/contexts';
 import { OWNER_EMAIL, RANKS } from '@/constants';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 interface Idea {
   id: string;
@@ -23,6 +24,7 @@ const REVIEW_CAPABLE_RANKS = RANKS.filter(r => r.name !== 'Welcome' && r.name !=
 
 export default function IdeaPage() {
   const { user, profile } = useContext(AuthContext);
+  const { isDark } = useContext(ThemeContext);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [newIdea, setNewIdea] = useState({ title: '', description: '' });
   const [notepad, setNotepad] = useState('');
@@ -155,8 +157,8 @@ export default function IdeaPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 space-y-12">
       <div className="text-center space-y-4">
-        <h1 className="text-5xl font-black tracking-tighter italic text-gold">IDEAS HUB</h1>
-        <p className="opacity-50 max-w-xl mx-auto text-lg leading-relaxed text-gold">
+        <h1 className={cn("text-5xl font-black tracking-tighter italic", isDark ? "text-gold" : "text-royal-red")}>IDEAS HUB</h1>
+        <p className={cn("opacity-50 max-w-xl mx-auto text-lg leading-relaxed", isDark ? "text-gold" : "text-royal-red/80")}>
           The forge of Eclipse Teacher. Propose new teaching ideas and let the community refine them.
         </p>
       </div>
@@ -166,7 +168,12 @@ export default function IdeaPage() {
           {!isOwner && (
             <button 
               onClick={() => setActiveTab('my')}
-              className={`px-8 py-3 rounded-full font-bold transition-all ${activeTab === 'my' ? 'bg-gold text-royal-red shadow-lg' : 'bg-gold/10 text-gold opacity-50 hover:opacity-100'}`}
+              className={cn(
+                "px-8 py-3 rounded-full font-bold transition-all",
+                activeTab === 'my' 
+                  ? (isDark ? "bg-gold text-royal-red shadow-lg" : "bg-royal-red text-white shadow-lg")
+                  : (isDark ? "bg-gold/10 text-gold opacity-50" : "bg-royal-red/10 text-royal-red opacity-50 hover:bg-royal-red/20")
+              )}
             >
               My Proposals
             </button>
@@ -174,7 +181,12 @@ export default function IdeaPage() {
           {isOwner && (
             <button 
               onClick={() => setActiveTab('notepad')}
-              className={`px-8 py-3 rounded-full font-bold transition-all ${activeTab === 'notepad' ? 'bg-gold text-royal-red shadow-lg' : 'bg-gold/10 text-gold opacity-50 hover:opacity-100'}`}
+              className={cn(
+                "px-8 py-3 rounded-full font-bold transition-all",
+                activeTab === 'notepad' 
+                  ? (isDark ? "bg-gold text-royal-red shadow-lg" : "bg-royal-red text-white shadow-lg")
+                  : (isDark ? "bg-gold/10 text-gold opacity-50" : "bg-royal-red/10 text-royal-red opacity-50 hover:bg-royal-red/20")
+              )}
             >
               Private Notes
             </button>
@@ -182,9 +194,14 @@ export default function IdeaPage() {
           {(userRank !== 'Welcome' && userRank !== 'Member') && (
             <button 
               onClick={() => setActiveTab('review')}
-              className={`px-8 py-3 rounded-full font-bold transition-all ${activeTab === 'review' ? 'bg-gold text-royal-red shadow-lg' : 'bg-gold/10 text-gold opacity-50 hover:opacity-100'}`}
+              className={cn(
+                "px-8 py-3 rounded-full font-bold transition-all",
+                activeTab === 'review' 
+                  ? (isDark ? "bg-gold text-royal-red shadow-lg" : "bg-royal-red text-white shadow-lg")
+                  : (isDark ? "bg-gold/10 text-gold opacity-50" : "bg-royal-red/10 text-royal-red opacity-50 hover:bg-royal-red/20")
+              )}
             >
-              Review Queue {reviewIdeas.length > 0 && <span className="ml-2 px-2 py-0.5 bg-gold text-royal-red text-[10px] rounded-full">{reviewIdeas.length}</span>}
+              Review Queue {reviewIdeas.length > 0 && <span className={cn("ml-2 px-2 py-0.5 text-[10px] rounded-full", isDark ? "bg-gold text-royal-red" : "bg-white text-royal-red")}>{reviewIdeas.length}</span>}
             </button>
           )}
         </div>
@@ -199,16 +216,19 @@ export default function IdeaPage() {
             exit={{ opacity: 0, y: -20 }}
             className="space-y-8"
           >
-            <div className="bg-gold/10 border border-gold/20 p-8 rounded-[2.5rem] space-y-6">
+            <div className={cn("border p-8 rounded-[2.5rem] space-y-6", isDark ? "bg-gold/10 border-gold/20" : "bg-white border-royal-red/10 shadow-sm")}>
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold flex items-center gap-2 text-gold">
-                  <FileText size={20} className="text-gold" />
+                <h3 className={cn("text-xl font-bold flex items-center gap-2", isDark ? "text-gold" : "text-royal-red")}>
+                  <FileText size={20} className={isDark ? "text-gold" : "text-royal-red"} />
                   Private Teaching Notes
                 </h3>
                 <button 
                   onClick={handleSaveNotepad}
                   disabled={isSavingNotepad}
-                  className="flex items-center gap-2 px-4 py-2 bg-gold text-royal-red rounded-xl text-xs font-bold disabled:opacity-50"
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50",
+                    isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white"
+                  )}
                 >
                   <Save size={14} />
                   {isSavingNotepad ? 'Saving...' : 'Save Notes'}
@@ -219,7 +239,10 @@ export default function IdeaPage() {
                 onChange={e => setNotepad(e.target.value)}
                 placeholder="Write your private teaching plans or system notes here..."
                 rows={15}
-                className="w-full px-6 py-4 bg-royal-red/50 text-gold placeholder:text-gold/40 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/10 resize-none font-mono text-sm"
+                className={cn(
+                  "w-full px-6 py-4 rounded-2xl border focus:outline-none focus:ring-2 resize-none font-mono text-sm",
+                  isDark ? "bg-royal-red/50 text-gold border-gold/20 focus:ring-gold/10 placeholder:text-gold/40" : "bg-royal-red/5 text-royal-red border-royal-red/10 focus:ring-royal-red/10 placeholder:text-royal-red/40"
+                )}
               />
             </div>
           </motion.div>
@@ -231,13 +254,13 @@ export default function IdeaPage() {
             exit={{ opacity: 0, y: -20 }}
             className="space-y-8"
           >
-            <form onSubmit={handleSubmitIdea} className="bg-gold/10 border border-gold/20 p-10 rounded-[3rem] space-y-8">
+            <form onSubmit={handleSubmitIdea} className={cn("border p-10 rounded-[3rem] space-y-8", isDark ? "bg-gold/10 border-gold/20" : "bg-white border-royal-red/10 shadow-sm")}>
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-black tracking-tight flex items-center gap-3 text-gold">
-                  <Lightbulb size={28} className="text-gold" />
+                <h3 className={cn("text-2xl font-black tracking-tight flex items-center gap-3", isDark ? "text-gold" : "text-royal-red")}>
+                  <Lightbulb size={28} className={isDark ? "text-gold" : "text-royal-red"} />
                   PROPOSE IDEA
                 </h3>
-                <div className="px-4 py-1.5 bg-gold/10 rounded-full text-[10px] font-black uppercase tracking-widest opacity-50 text-gold">
+                <div className={cn("px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest opacity-50", isDark ? "bg-gold/10 text-gold" : "bg-royal-red/10 text-royal-red")}>
                   Reviewer: {nextRank}
                 </div>
               </div>
@@ -248,20 +271,29 @@ export default function IdeaPage() {
                   placeholder="Title of your proposal"
                   value={newIdea.title}
                   onChange={e => setNewIdea({ ...newIdea, title: e.target.value })}
-                  className="w-full px-8 py-5 bg-royal-red/50 text-gold placeholder:text-gold/40 rounded-[2rem] border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/10 transition-all"
+                  className={cn(
+                    "w-full px-8 py-5 rounded-[2rem] border focus:outline-none focus:ring-2 transition-all",
+                    isDark ? "bg-royal-red/50 text-gold border-gold/20 focus:ring-gold/10 placeholder:text-gold/40" : "bg-royal-red/5 text-royal-red border-royal-red/10 focus:ring-royal-red/10 placeholder:text-royal-red/40"
+                  )}
                 />
                 <textarea 
                   placeholder="Describe your proposal in detail..."
                   value={newIdea.description}
                   onChange={e => setNewIdea({ ...newIdea, description: e.target.value })}
                   rows={4}
-                  className="w-full px-8 py-5 bg-royal-red/50 text-gold placeholder:text-gold/40 rounded-[2rem] border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/10 resize-none transition-all"
+                  className={cn(
+                    "w-full px-8 py-5 rounded-[2rem] border focus:outline-none focus:ring-2 resize-none transition-all",
+                    isDark ? "bg-royal-red/50 text-gold border-gold/20 focus:ring-gold/10 placeholder:text-gold/40" : "bg-royal-red/5 text-royal-red border-royal-red/10 focus:ring-royal-red/10 placeholder:text-royal-red/40"
+                  )}
                 />
               </div>
               <button 
                 type="submit"
                 disabled={isSubmitting || !newIdea.title || !newIdea.description}
-                className="w-full py-5 bg-gold text-royal-red rounded-[2rem] font-black uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-50 hover:scale-[1.02] active:scale-95 transition-all shadow-xl"
+                className={cn(
+                  "w-full py-5 rounded-[2rem] font-black uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-50 hover:scale-[1.02] active:scale-95 transition-all shadow-xl",
+                  isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white"
+                )}
               >
                 {isSubmitting ? 'Transmitting...' : <><Send size={20} /> Submit to {nextRank}</>}
               </button>
@@ -269,7 +301,7 @@ export default function IdeaPage() {
 
             <div className="space-y-4">
               {myIdeas.map(idea => (
-                <IdeaCard key={idea.id} idea={idea} />
+                <IdeaCard key={idea.id} idea={idea} isDark={isDark} />
               ))}
             </div>
           </motion.div>
@@ -293,6 +325,7 @@ export default function IdeaPage() {
                   idea={idea} 
                   onReview={handleReview}
                   canReview
+                  isDark={isDark}
                 />
               ))
             )}
@@ -303,7 +336,7 @@ export default function IdeaPage() {
   );
 }
 
-function IdeaCard({ idea, onReview, canReview }: { idea: Idea, onReview?: (id: string, approve: boolean) => void, canReview?: boolean }) {
+function IdeaCard({ idea, onReview, canReview, isDark }: { idea: Idea, onReview?: (id: string, approve: boolean) => void, canReview?: boolean, isDark?: boolean }) {
   const getStatusLabel = (status: string) => {
     if (status === 'pending') return `Awaiting ${idea.currentReviewerRank}s`;
     if (status === 'rejected') return 'Rejected';
@@ -315,38 +348,41 @@ function IdeaCard({ idea, onReview, canReview }: { idea: Idea, onReview?: (id: s
   };
 
   const getStatusColor = (status: string) => {
-    if (status === 'pending') return 'bg-gold/10 text-gold';
+    if (status === 'pending') return isDark ? 'bg-gold/10 text-gold' : 'bg-royal-red/10 text-royal-red';
     if (status === 'rejected') return 'bg-red-500/10 text-red-500';
-    return 'bg-gold/20 text-gold';
+    return isDark ? 'bg-gold/20 text-gold' : 'bg-royal-red/20 text-royal-red';
   };
 
   return (
-    <div className="bg-gold/10 border border-gold/20 p-8 rounded-[2.5rem] space-y-4 transition-all">
+    <div className={cn("border p-8 rounded-[2.5rem] space-y-4 transition-all text-left", isDark ? "bg-gold/10 border-gold/20" : "bg-white border-royal-red/10 shadow-sm")}>
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${getStatusColor(idea.status)}`}>
+          <div className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest", getStatusColor(idea.status))}>
             {getStatusLabel(idea.status)}
           </div>
-          <h4 className="text-2xl font-bold tracking-tight text-gold">{idea.title}</h4>
-          <p className="text-xs opacity-50 flex items-center gap-2 text-gold">
+          <h4 className={cn("text-2xl font-bold tracking-tight", isDark ? "text-gold" : "text-royal-red")}>{idea.title}</h4>
+          <p className={cn("text-xs opacity-50 flex items-center gap-2", isDark ? "text-gold" : "text-royal-red")}>
             <UserIcon size={12} /> {idea.authorName} • {new Date(idea.createdAt).toLocaleDateString()}
           </p>
         </div>
       </div>
       
-      <p className="opacity-70 leading-relaxed text-gold">{idea.description}</p>
+      <p className={cn("opacity-70 leading-relaxed", isDark ? "text-gold" : "text-royal-red")}>{idea.description}</p>
 
       {canReview && onReview && (
-        <div className="flex gap-3 pt-4 border-t border-gold/10">
+        <div className={cn("flex gap-3 pt-4 border-t", isDark ? "border-gold/10" : "border-royal-red/10")}>
           <button 
             onClick={() => onReview(idea.id, true)}
-            className="flex-1 py-3 bg-gold text-royal-red rounded-2xl font-bold flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
+            className={cn(
+              "flex-1 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform",
+              isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white"
+            )}
           >
             <CheckCircle2 size={18} /> Approve
           </button>
           <button 
             onClick={() => onReview(idea.id, false)}
-            className="flex-1 py-3 bg-red-500 text-royal-red rounded-2xl font-bold flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
+            className="flex-1 py-3 bg-red-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
           >
             <XCircle size={18} /> Reject
           </button>

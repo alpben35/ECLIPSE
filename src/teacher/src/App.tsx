@@ -27,7 +27,7 @@ export const AuthContext = createContext<{
 
 import TutorPage from './pages/TutorPage';
 import ProgressPage from './pages/ProgressPage';
-import LandingPage from '@/pages/LandingPage';
+import LandingPage from './pages/LandingPage';
 import AdminPage from './pages/AdminPage';
 import IdeaPage from './pages/IdeaPage';
 import RankPage from './pages/RankPage';
@@ -210,21 +210,19 @@ export default function App() {
     <AuthContext.Provider value={authContextValue}>
       <ThemeContext.Provider value={themeContextValue}>
         <ErrorBoundary>
-          <div className="min-h-screen bg-royal-red text-gold selection:bg-gold selection:text-royal-red">
-            <Router basename="/teacher">
-              <Layout>
-                <Routes>
-                  <Route path="/" element={user ? <Navigate to="/tutor" /> : <LandingPage />} />
-                  <Route path="/auth" element={user ? <Navigate to="/tutor" /> : <AuthPage />} />
-                  <Route path="/tutor" element={<ProtectedRoute><TutorPage /></ProtectedRoute>} />
-                  <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
-                  <Route path="/ideas" element={<ProtectedRoute><IdeaPage /></ProtectedRoute>} />
-                  <Route path="/ranks" element={<ProtectedRoute><RankPage /></ProtectedRoute>} />
-                  <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
-                  <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
-                </Routes>
-              </Layout>
-            </Router>
+          <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red", isDark ? "bg-royal-red text-gold" : "bg-zinc-50 text-royal-red")}>
+            <Layout>
+              <Routes>
+                <Route path="/" element={user ? <Navigate to="/tutor" /> : <LandingPage />} />
+                <Route path="/auth" element={user ? <Navigate to="/tutor" /> : <AuthPage />} />
+                <Route path="/tutor" element={<ProtectedRoute><TutorPage /></ProtectedRoute>} />
+                <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
+                <Route path="/ideas" element={<ProtectedRoute><IdeaPage /></ProtectedRoute>} />
+                <Route path="/ranks" element={<ProtectedRoute><RankPage /></ProtectedRoute>} />
+                <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+                <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
+              </Routes>
+            </Layout>
           </div>
         </ErrorBoundary>
       </ThemeContext.Provider>
@@ -255,8 +253,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     if (this.state.hasError) {
       let displayError = "Something went wrong.";
       try {
-        const parsed = JSON.parse(this.state.error.message);
-        if (parsed.error) displayError = `Firestore Error: ${parsed.error} (${parsed.operationType} on ${parsed.path})`;
+        if (typeof this.state.error.message === 'string') {
+          const parsed = JSON.parse(this.state.error.message);
+          if (parsed && typeof parsed === 'object' && parsed.error) {
+            displayError = `Firestore Error: ${parsed.error}`;
+            if (parsed.operationType) displayError += ` (${parsed.operationType} on ${parsed.path})`;
+          }
+        }
       } catch (e) {
         displayError = this.state.error.message || String(this.state.error);
       }
@@ -320,7 +323,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-gold/20 bg-royal-red/80 backdrop-blur-md">
+      <header className={cn("sticky top-0 z-50 border-b border-gold/20 backdrop-blur-md transition-colors", isDark ? "bg-royal-red/80" : "bg-white/80")}>
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex flex-col">
@@ -445,10 +448,10 @@ function Layout({ children }: { children: React.ReactNode }) {
             initial={{ opacity: 0, x: '100%' }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: '100%' }}
-            className="fixed inset-0 z-[60] bg-royal-red p-6 flex flex-col gap-8 text-gold"
+            className={cn("fixed inset-0 z-[60] p-6 flex flex-col gap-8 transition-colors", isDark ? "bg-royal-red text-gold" : "bg-white text-royal-red")}
           >
             <div className="flex justify-end">
-              <button onClick={() => setIsMenuOpen(false)} className="text-gold"><X size={32} /></button>
+              <button onClick={() => setIsMenuOpen(false)} className={cn(isDark ? "text-gold" : "text-royal-red")}><X size={32} /></button>
             </div>
             <div className="flex flex-col gap-6 text-2xl font-bold">
               {user ? (

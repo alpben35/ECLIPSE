@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Search, Trash2, Shield, User as UserIcon, Loader2, ArrowUp, ArrowDown, Ban, UserPlus, UserMinus, Bug, Settings, Sparkles, Globe, ChevronRight } from 'lucide-react';
 import { db, handleFirestoreError, OperationType, decryptData } from '@/lib/firebase';
 import { collection, query, onSnapshot, doc, deleteDoc, where, updateDoc, addDoc, orderBy, limit, setDoc, getDoc } from 'firebase/firestore';
-import { AuthContext } from '@/lib/contexts';
+import { AuthContext, ThemeContext } from '@/lib/contexts';
 import { OWNER_EMAIL, RANKS } from '@/constants';
 import { clsx, type ClassValue } from 'clsx';
 import { Link } from 'react-router-dom';
@@ -48,6 +48,7 @@ interface BugReport {
 
 export default function AdminPage() {
   const { user: currentUser, profile } = useContext(AuthContext);
+  const { isDark } = useContext(ThemeContext);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [bugs, setBugs] = useState<BugReport[]>([]);
@@ -310,28 +311,28 @@ export default function AdminPage() {
       <div className="flex flex-col gap-6 text-left">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight text-gold">Teacher Admin Console</h1>
-            <p className="opacity-50 mt-2 text-gold">Manage educators and system access.</p>
+            <h1 className={cn("text-4xl font-bold tracking-tight", isDark ? "text-gold" : "text-royal-red")}>Teacher Admin Console</h1>
+            <p className={cn("opacity-50 mt-2", isDark ? "text-gold" : "text-royal-red/80")}>Manage educators and system access.</p>
           </div>
           
           {(isOwner || isTempOwner) && (
-            <div className="flex items-center gap-4 p-4 bg-gold/5 rounded-3xl border border-gold/10">
+            <div className={cn("flex items-center gap-4 p-4 rounded-3xl border", isDark ? "bg-gold/5 border-gold/10" : "bg-white border-royal-red/10 shadow-sm")}>
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-gold">System Maintenance</span>
-                <span className="text-[10px] opacity-50 uppercase tracking-widest text-gold">Restrict user access</span>
+                <span className={cn("text-sm font-bold", isDark ? "text-gold" : "text-royal-red")}>System Maintenance</span>
+                <span className={cn("text-[10px] opacity-50 uppercase tracking-widest", isDark ? "text-gold" : "text-royal-red")}>Restrict user access</span>
               </div>
               <button 
                 onClick={handleToggleMaintenance}
                 className={cn(
                   "relative w-14 h-7 rounded-full transition-all duration-300",
-                  maintenance ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]" : "bg-gold/10"
+                  maintenance ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]" : (isDark ? "bg-gold/10" : "bg-royal-red/10")
                 )}
               >
                 <motion.div 
                   animate={{ x: maintenance ? 32 : 4 }}
-                  className="absolute top-1 left-0 w-5 h-5 rounded-full bg-gold shadow-sm flex items-center justify-center"
+                  className={cn("absolute top-1 left-0 w-5 h-5 rounded-full shadow-sm flex items-center justify-center", isDark ? "bg-gold" : "bg-royal-red")}
                 >
-                  <Settings size={10} className={maintenance ? "animate-spin text-red-500" : "opacity-30 text-royal-red"} />
+                  <Settings size={10} className={cn("transition-colors", maintenance ? "animate-spin text-white" : (isDark ? "opacity-30 text-royal-red" : "opacity-30 text-white"))} />
                 </motion.div>
               </button>
             </div>
@@ -339,12 +340,14 @@ export default function AdminPage() {
         </div>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 p-1 bg-gold/5 rounded-2xl border border-gold/10 overflow-x-auto">
+          <div className={cn("flex items-center gap-2 p-1 rounded-2xl border overflow-x-auto", isDark ? "bg-gold/5 border-gold/10" : "bg-royal-red/5 border-royal-red/10")}>
             <button 
               onClick={() => setActiveTab('users')}
               className={cn(
                 "px-6 py-2 rounded-xl font-bold text-sm transition-all whitespace-nowrap",
-                activeTab === 'users' ? "bg-gold text-royal-red" : "text-gold opacity-50 hover:opacity-100"
+                activeTab === 'users' 
+                  ? (isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white shadow-sm")
+                  : (isDark ? "text-gold opacity-50 hover:opacity-100" : "text-royal-red opacity-50 hover:opacity-100")
               )}
             >
               Educators
@@ -353,7 +356,9 @@ export default function AdminPage() {
               onClick={() => setActiveTab('logs')}
               className={cn(
                 "px-6 py-2 rounded-xl font-bold text-sm transition-all whitespace-nowrap",
-                activeTab === 'logs' ? "bg-gold text-royal-red" : "text-gold opacity-50 hover:opacity-100"
+                activeTab === 'logs' 
+                  ? (isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white shadow-sm")
+                  : (isDark ? "text-gold opacity-50 hover:opacity-100" : "text-royal-red opacity-50 hover:opacity-100")
               )}
             >
               Audit Log
@@ -363,7 +368,9 @@ export default function AdminPage() {
                 onClick={() => setActiveTab('bugs')}
                 className={cn(
                   "px-6 py-2 rounded-xl font-bold text-sm transition-all whitespace-nowrap",
-                  activeTab === 'bugs' ? "bg-gold text-royal-red" : "text-gold opacity-50 hover:opacity-100"
+                  activeTab === 'bugs' 
+                    ? (isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white shadow-sm")
+                    : (isDark ? "text-gold opacity-50 hover:opacity-100" : "text-royal-red opacity-50 hover:opacity-100")
                 )}
               >
                 Bugs
@@ -374,7 +381,9 @@ export default function AdminPage() {
                 onClick={() => setActiveTab('settings')}
                 className={cn(
                   "px-6 py-2 rounded-xl font-bold text-sm transition-all whitespace-nowrap",
-                  activeTab === 'settings' ? "bg-gold text-royal-red" : "text-gold opacity-50 hover:opacity-100"
+                  activeTab === 'settings' 
+                    ? (isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white shadow-sm")
+                    : (isDark ? "text-gold opacity-50 hover:opacity-100" : "text-royal-red opacity-50 hover:opacity-100")
                 )}
               >
                 Settings
@@ -384,13 +393,18 @@ export default function AdminPage() {
 
           {activeTab === 'users' && (
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30 text-gold" size={20} />
+              <Search className={cn("absolute left-4 top-1/2 -translate-y-1/2 opacity-30", isDark ? "text-gold" : "text-royal-red")} size={20} />
               <input 
                 type="text"
                 placeholder="Search educators..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gold/10 text-gold placeholder:text-gold/40 rounded-2xl border border-gold/20 focus:outline-none focus:ring-2 focus:ring-gold/10 transition-all"
+                className={cn(
+                  "w-full pl-12 pr-4 py-3 rounded-2xl border focus:outline-none focus:ring-2 transition-all",
+                  isDark 
+                    ? "bg-gold/10 text-gold border-gold/20 focus:ring-gold/10 placeholder:text-gold/40" 
+                    : "bg-white text-royal-red border-royal-red/10 focus:ring-royal-red/10 placeholder:text-royal-red/40"
+                )}
               />
             </div>
           )}
@@ -404,45 +418,48 @@ export default function AdminPage() {
               key={user.uid}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center justify-between p-6 bg-gold/10 rounded-3xl border border-gold/20 transition-all"
+              className={cn(
+                "flex items-center justify-between p-6 rounded-3xl border transition-all text-left",
+                isDark ? "bg-gold/10 border-gold/20" : "bg-white border-royal-red/10 shadow-sm"
+              )}
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gold/10 rounded-2xl flex items-center justify-center">
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", isDark ? "bg-gold/10" : "bg-royal-red/5")}>
                   {user.email === OWNER_EMAIL || user.rank === 'Owner' ? (
-                    <Shield className="text-gold" size={24} />
+                    <Shield className={isDark ? "text-gold" : "text-royal-red"} size={24} />
                   ) : user.rank === 'Temporary Owner' ? (
-                    <Shield className="text-gold" size={24} />
+                    <Shield className={isDark ? "text-gold" : "text-royal-red"} size={24} />
                   ) : (
-                    <UserIcon className="opacity-50 text-gold" size={24} />
+                    <UserIcon className={cn("opacity-50", isDark ? "text-gold" : "text-royal-red")} size={24} />
                   )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-gold">{user.displayName || 'Anonymous'}</h4>
+                    <h4 className={cn("font-bold", isDark ? "text-gold" : "text-royal-red")}>{user.displayName || 'Anonymous'}</h4>
                     <span className={cn(
                       "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
-                      user.banned ? "bg-red-500 text-royal-red" : "bg-gold/20 text-gold opacity-50"
+                      user.banned ? "bg-red-500 text-white" : (isDark ? "bg-gold/20 text-gold opacity-50" : "bg-royal-red/10 text-royal-red opacity-50")
                     )}>
                       {user.rank || 'Welcome'} {user.banned && '• BANNED'}
                     </span>
                   </div>
-                  <p className="text-sm opacity-50 text-gold">{user.email}</p>
+                  <p className={cn("text-sm opacity-50", isDark ? "text-gold" : "text-royal-red")}>{user.email}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-4">
                 {user.email !== OWNER_EMAIL && (
-                  <div className="flex items-center gap-1 bg-gold/10 p-1 rounded-xl">
+                  <div className={cn("flex items-center gap-1 p-1 rounded-xl", isDark ? "bg-gold/10" : "bg-royal-red/5")}>
                     <button 
                       onClick={() => handleUpdateRank(user.uid, user.email, user.rank || 'Welcome', 'down')}
-                      className="p-2 hover:bg-gold/20 rounded-lg transition-colors text-gold"
+                      className={cn("p-2 rounded-lg transition-colors", isDark ? "hover:bg-gold/20 text-gold" : "hover:bg-royal-red/10 text-royal-red")}
                       title="Demote"
                     >
                       <ArrowDown size={14} />
                     </button>
                     <button 
                       onClick={() => handleUpdateRank(user.uid, user.email, user.rank || 'Welcome', 'up')}
-                      className="p-2 hover:bg-gold/20 rounded-lg transition-colors text-gold"
+                      className={cn("p-2 rounded-lg transition-colors", isDark ? "hover:bg-gold/20 text-gold" : "hover:bg-royal-red/10 text-royal-red")}
                       title="Promote"
                     >
                       <ArrowUp size={14} />
@@ -451,7 +468,7 @@ export default function AdminPage() {
                       onClick={() => handleToggleBan(user.uid, user.email, !!user.banned)}
                       className={cn(
                         "p-2 rounded-lg transition-colors",
-                        user.banned ? "bg-red-500 text-royal-red" : "hover:bg-gold/20 text-gold"
+                        user.banned ? "bg-red-500 text-white" : (isDark ? "hover:bg-gold/20 text-gold" : "hover:bg-royal-red/10 text-royal-red")
                       )}
                       title={user.banned ? "Unban" : "Ban"}
                     >
@@ -462,7 +479,7 @@ export default function AdminPage() {
                         onClick={() => handleToggleTempOwner(user.uid, user.email, user.rank || 'Welcome')}
                         className={cn(
                           "p-2 rounded-lg transition-colors",
-                          user.rank === 'Temporary Owner' ? "bg-gold text-royal-red" : "hover:bg-gold/20 text-gold"
+                          user.rank === 'Temporary Owner' ? (isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white") : (isDark ? "hover:bg-gold/20 text-gold" : "hover:bg-royal-red/10 text-royal-red")
                         )}
                         title={user.rank === 'Temporary Owner' ? "Remove Temp Owner" : "Make Temp Owner"}
                       >
@@ -473,8 +490,8 @@ export default function AdminPage() {
                 )}
 
                 <div className="text-right hidden sm:block min-w-[100px]">
-                  <p className="text-xs font-bold uppercase tracking-widest opacity-30 text-gold">Joined</p>
-                  <p className="text-sm font-medium text-gold">
+                  <p className={cn("text-xs font-bold uppercase tracking-widest opacity-30", isDark ? "text-gold" : "text-royal-red")}>Joined</p>
+                  <p className={cn("text-sm font-medium", isDark ? "text-gold" : "text-royal-red")}>
                     {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
                   </p>
                 </div>
@@ -482,7 +499,7 @@ export default function AdminPage() {
                 {user.email !== OWNER_EMAIL && user.uid !== currentUser?.uid && (
                   <button 
                     onClick={() => handleDeleteUser(user.uid, user.email)}
-                    className="p-3 hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-all text-gold"
+                    className={cn("p-3 rounded-xl transition-all", isDark ? "hover:bg-red-500/10 hover:text-red-500 text-gold" : "hover:bg-red-500/10 hover:text-red-500 text-royal-red")}
                   >
                     <Trash2 size={20} />
                   </button>
@@ -498,13 +515,16 @@ export default function AdminPage() {
           )}
         </div>
       ) : activeTab === 'logs' ? (
-        <div className="space-y-4">
+        <div className="space-y-4 text-left">
           {logs.map((log) => (
             <motion.div 
               key={log.id}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="p-4 bg-gold/5 rounded-2xl border border-gold/10 flex items-start justify-between gap-4"
+              className={cn(
+                "p-4 rounded-2xl border flex items-start justify-between gap-4 transition-colors",
+                isDark ? "bg-gold/5 border-gold/10" : "bg-white border-royal-red/10 shadow-sm"
+              )}
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -512,24 +532,24 @@ export default function AdminPage() {
                     "text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest",
                     log.action.includes('BAN') ? "bg-red-500/20 text-red-500" :
                     log.action.includes('DELETE') ? "bg-red-500/20 text-red-500" :
-                    "bg-gold/20 text-gold"
+                    (isDark ? "bg-gold/20 text-gold" : "bg-royal-red/10 text-royal-red")
                   )}>
                     {log.action.replace('_', ' ')}
                   </span>
-                  <span className="text-xs opacity-30 font-bold text-gold">
+                  <span className={cn("text-xs opacity-30 font-bold", isDark ? "text-gold" : "text-royal-red")}>
                     {format(new Date(log.timestamp), 'MMM d, HH:mm:ss')}
                   </span>
                 </div>
-                <p className="text-sm font-medium text-gold">
+                <p className={cn("text-sm font-medium", isDark ? "text-gold" : "text-royal-red")}>
                   <span className="opacity-50">Admin:</span> {log.adminEmail}
                 </p>
-                <p className="text-sm text-gold">
+                <p className={cn("text-sm", isDark ? "text-gold" : "text-royal-red")}>
                   {log.details}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-30 text-gold">Target</p>
-                <p className="text-xs font-bold text-gold">{log.targetEmail}</p>
+                <p className={cn("text-[10px] font-black uppercase tracking-widest opacity-30", isDark ? "text-gold" : "text-royal-red")}>Target</p>
+                <p className={cn("text-xs font-bold", isDark ? "text-gold" : "text-royal-red")}>{log.targetEmail}</p>
               </div>
             </motion.div>
           ))}
@@ -540,13 +560,16 @@ export default function AdminPage() {
           )}
         </div>
       ) : activeTab === 'bugs' ? (
-        <div className="space-y-8">
+        <div className="space-y-8 text-left">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gold">Reported Bugs</h2>
+            <h2 className={cn("text-2xl font-bold", isDark ? "text-gold" : "text-royal-red")}>Reported Bugs</h2>
             <button 
               onClick={handleSummarizeBugs}
               disabled={summarizing || bugs.length === 0}
-              className="flex items-center gap-2 px-6 py-3 bg-gold text-royal-red rounded-2xl font-bold hover:scale-105 transition-all disabled:opacity-50"
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-2xl font-bold hover:scale-105 transition-all disabled:opacity-50",
+                isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white"
+              )}
             >
               {summarizing ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} />}
               Summarize with AI
@@ -557,18 +580,18 @@ export default function AdminPage() {
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-6 bg-gold/10 border border-gold/20 rounded-3xl space-y-4"
+              className={cn("p-6 border rounded-3xl space-y-4", isDark ? "bg-gold/10 border-gold/20" : "bg-royal-red/5 border-royal-red/10")}
             >
-              <div className="flex items-center gap-2 text-gold">
+              <div className={cn("flex items-center gap-2", isDark ? "text-gold" : "text-royal-red")}>
                 <Sparkles size={20} />
                 <h3 className="font-bold">AI Summary</h3>
               </div>
-              <div className="text-gold opacity-80 whitespace-pre-wrap leading-relaxed">
+              <div className={cn("opacity-80 whitespace-pre-wrap leading-relaxed", isDark ? "text-gold" : "text-royal-red")}>
                 {summary}
               </div>
               <button 
                 onClick={() => setSummary('')}
-                className="text-xs font-bold text-gold opacity-50 hover:opacity-100"
+                className={cn("text-xs font-bold opacity-50 hover:opacity-100", isDark ? "text-gold" : "text-royal-red")}
               >
                 Clear Summary
               </button>
@@ -581,82 +604,83 @@ export default function AdminPage() {
                 key={bug.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-6 bg-gold/5 border border-gold/10 rounded-3xl space-y-4 flex items-center justify-between gap-4"
+                className={cn("p-6 border rounded-3xl space-y-4 flex items-center justify-between gap-4", isDark ? "bg-gold/5 border-gold/10" : "bg-white border-royal-red/10 shadow-sm")}
               >
                 <div className="flex-1 space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gold/10 rounded-xl text-gold">
+                      <div className={cn("p-2 rounded-xl", isDark ? "bg-gold/10 text-gold" : "bg-royal-red/10 text-royal-red")}>
                         <Bug size={20} />
                       </div>
                       <div>
-                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-gold/20 text-gold rounded-full">
+                        <span className={cn("text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full", isDark ? "bg-gold/20 text-gold" : "bg-royal-red/10 text-royal-red")}>
                           {bug.type}
                         </span>
-                        <p className="text-xs opacity-50 text-gold mt-1">
+                        <p className={cn("text-xs opacity-50 mt-1", isDark ? "text-gold" : "text-royal-red")}>
                           {format(new Date(bug.createdAt), 'MMM d, yyyy HH:mm')}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-gold">{bug.email}</p>
-                      <p className="text-[10px] opacity-30 text-gold uppercase font-black">Reporter</p>
+                      <p className={cn("text-sm font-bold", isDark ? "text-gold" : "text-royal-red")}>{bug.email}</p>
+                      <p className={cn("text-[10px] opacity-30 uppercase font-black", isDark ? "text-gold" : "text-royal-red")}>Reporter</p>
                     </div>
                   </div>
-                  <p className="text-gold leading-relaxed">
+                  <p className={cn("leading-relaxed", isDark ? "text-gold" : "text-royal-red")}>
                     {decryptData(bug.description)}
                   </p>
                 </div>
                 <button 
                   onClick={() => handleCompleteBug(bug.id)}
-                  className="px-4 py-2 bg-gold text-royal-red rounded-xl text-xs font-bold hover:scale-105 transition-all whitespace-nowrap"
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-xs font-bold hover:scale-105 transition-all whitespace-nowrap",
+                    isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white"
+                  )}
                 >
                   Complete
                 </button>
               </motion.div>
             ))}
-            {bugs.filter(b => b.status !== 'completed').length === 0 && (
-              <div className="text-center py-20 opacity-30">
-                <p className="text-lg">No active bugs reported yet. System is stable.</p>
-              </div>
-            )}
           </div>
         </div>
       ) : (
         <div className="space-y-8 text-left">
-          <div className="p-8 bg-gold/5 rounded-[2rem] border border-gold/10">
-            <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gold">
+          <div className={cn("p-8 rounded-[2rem] border transition-colors", isDark ? "bg-gold/5 border-gold/10" : "bg-white border-royal-red/10 shadow-sm")}>
+            <h3 className={cn("text-xl font-bold mb-6 flex items-center gap-2", isDark ? "text-gold" : "text-royal-red")}>
               <Settings size={20} />
               System Settings
             </h3>
             
             <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 bg-gold/5 rounded-2xl border border-gold/10">
-                <div>
-                  <p className="font-bold text-gold">Maintenance Mode</p>
-                  <p className="text-sm opacity-50 text-gold">Restrict access to the platform for maintenance.</p>
+              <div className={cn("flex items-center justify-between p-4 rounded-2xl border transition-colors", isDark ? "bg-gold/5 border-gold/10" : "bg-royal-red/5 border-royal-red/10")}>
+                <div className="text-left">
+                  <p className={cn("font-bold", isDark ? "text-gold" : "text-royal-red")}>Maintenance Mode</p>
+                  <p className={cn("text-sm opacity-50", isDark ? "text-gold" : "text-royal-red/80")}>Restrict access to the platform for maintenance.</p>
                 </div>
                 <button 
                   onClick={handleToggleMaintenance}
                   className={cn(
-                    "px-6 py-2 rounded-xl text-sm font-bold transition-all",
-                    maintenance ? "bg-red-500 text-royal-red" : "bg-gold text-royal-red"
+                    "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ml-4",
+                    maintenance ? "bg-red-500 text-white" : (isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white")
                   )}
                 >
                   {maintenance ? 'Disable' : 'Enable'}
                 </button>
               </div>
 
-              <div className="pt-8 border-t border-gold/10">
-                <h4 className="font-bold mb-4 flex items-center gap-2 text-gold">
+              <div className={cn("pt-8 border-t", isDark ? "border-gold/10" : "border-royal-red/10")}>
+                <h4 className={cn("font-bold mb-4 flex items-center gap-2", isDark ? "text-gold" : "text-royal-red")}>
                   <Globe size={18} />
                   Infrastructure
                 </h4>
                 <Link 
                   to="/teacher/dns"
-                  className="inline-flex items-center gap-3 p-6 bg-gold text-royal-red rounded-3xl font-bold hover:scale-105 transition-all shadow-xl group"
+                  className={cn(
+                    "inline-flex items-center gap-3 p-6 rounded-3xl font-bold hover:scale-105 transition-all shadow-xl group",
+                    isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white"
+                  )}
                 >
-                  <div className="p-3 bg-royal-red/10 rounded-2xl group-hover:scale-110 transition-transform">
+                  <div className={cn("p-3 rounded-2xl group-hover:scale-110 transition-transform", isDark ? "bg-royal-red/10" : "bg-white/10")}>
                     <Globe size={24} />
                   </div>
                   <div className="flex flex-col items-start leading-none">

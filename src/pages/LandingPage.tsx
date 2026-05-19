@@ -79,9 +79,9 @@ export default function LandingPage() {
       </div>
 
       <div className="mt-32 p-12 bg-black text-white dark:bg-white dark:text-black rounded-[3rem] text-center space-y-8">
-        <Zap size={48} className="mx-auto" />
-        <h2 className="text-4xl font-bold">Ready to eclipse the competition?</h2>
-        <p className="opacity-50 max-w-xl mx-auto">Join thousands of students using AI to supercharge their education.</p>
+        <Zap size={48} className="mx-auto text-gold animate-pulse" />
+        <h2 className="text-4xl font-black tracking-tight uppercase italic">Your Future is Waiting</h2>
+        <p className="opacity-70 max-w-xl mx-auto text-lg leading-relaxed">Join thousands of students who are already supercharging their education with the power of artificial intelligence.</p>
         <Link 
           to="/auth"
           className="px-8 py-4 bg-white text-black dark:bg-black dark:text-white rounded-2xl font-bold inline-block"

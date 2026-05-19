@@ -163,7 +163,7 @@ export default function AuthPage() {
           <h1 className={cn("text-5xl font-black tracking-tighter uppercase italic leading-none mb-4", isDark ? "text-white" : "text-black")}>
             Eclipse <span className="opacity-50">AI</span>
           </h1>
-          <p className={cn("text-sm px-4 opacity-50", isDark ? "text-white" : "text-black")}>
+          <p className={cn("text-sm px-4 opacity-70", isDark ? "text-white" : "text-black")}>
             Master your future with the most powerful AI tutor ever built. Sign in to continue your journey.
           </p>
         </div>
@@ -217,7 +217,7 @@ export default function AuthPage() {
                   <h2 className="text-xl font-bold text-white mb-2 italic uppercase">
                     {forgotStep === 'email' ? 'Reset Password' : forgotStep === 'phone' ? 'Verify Phone' : 'Success!'}
                   </h2>
-                  <p className="text-xs text-white/40">
+                  <p className="text-xs text-white/60">
                     {forgotStep === 'email' 
                       ? "Enter your email address to begin recovery." 
                       : forgotStep === 'phone' 
@@ -403,7 +403,7 @@ export default function AuthPage() {
                         onChange={e => setConfirmPassword(e.target.value)}
                         className={cn(
                           "w-full pl-12 pr-6 py-4 rounded-2xl focus:outline-none focus:ring-1 transition-all font-bold",
-                          isDark ? "bg-white/5 text-white focus:ring-white/20" : "bg-black/5 text-black focus:ring-black/20"
+                          isDark ? "bg-white/5 text-white focus:ring-white/20" : "bg-black/10 text-black focus:ring-black/20"
                         )}
                       />
                     </div>
@@ -456,7 +456,7 @@ export default function AuthPage() {
             )}
           </AnimatePresence>
 
-          <p className="text-[10px] text-center text-white/30 mt-8 leading-relaxed font-bold uppercase tracking-widest px-8">
+          <p className={cn("text-[10px] text-center text-white/60 mt-8 leading-relaxed font-bold uppercase tracking-widest px-8")}>
             By signing in, you agree to our Terms of Service and Privacy Policy. This application uses advanced AI and does not replace human professional advice.
           </p>
         </div>

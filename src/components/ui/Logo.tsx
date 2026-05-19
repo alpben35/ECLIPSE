@@ -24,35 +24,35 @@ export default function Logo({
 
   const colors = {
     student: {
-      light: { base: 'bg-black', eclipse: 'hidden' }, 
-      dark: { base: 'bg-white', eclipse: 'bg-zinc-950' },
-      glow: 'bg-blue-500/20 dark:bg-white/20'
+      light: { base: 'bg-black', glow: 'bg-emerald-500/30' }, 
+      dark: { base: 'bg-white', glow: 'bg-emerald-400/20' },
+      glow: 'bg-emerald-500/20 dark:bg-emerald-400/20'
     },
     teacher: {
       base: 'bg-gold',
       eclipse: 'bg-royal-red',
-      glow: 'bg-gold/30'
+      glow: 'bg-gold/60' 
     }
   };
 
   return (
-    <div className={cn("relative shrink-0 flex items-center justify-center", sizes[size], className)} id="app-logo">
+    <div className={cn("relative shrink-0 flex items-center justify-center transition-all", sizes[size], className)}>
       {/* Corona / Glow Effect */}
       <motion.div
         animate={animate ? {
-          scale: [1, 1.1, 1],
+          scale: [1, 1.3, 1],
           opacity: [0.3, 0.6, 0.3],
         } : {}}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         className={cn(
-          "absolute inset-[-10%] rounded-full blur-lg transition-all duration-500",
+          "absolute inset-[-20%] rounded-full blur-xl transition-all duration-500",
           variant === 'teacher' ? colors.teacher.glow : colors.student.glow
         )}
       />
 
       {/* The Base Circle */}
       <div className={cn(
-        "absolute inset-0 rounded-full z-10 transition-colors duration-500 shadow-lg",
+        "absolute inset-0 rounded-full z-10 transition-colors duration-500 shadow-2xl",
         variant === 'teacher' 
           ? colors.teacher.base 
           : "bg-black dark:bg-white"
@@ -63,8 +63,8 @@ export default function Logo({
         className={cn(
           "absolute inset-0 rounded-full z-20 scale-95 transition-all duration-500",
           variant === 'teacher'
-            ? "translate-x-[15%] " + colors.teacher.eclipse
-            : "hidden dark:block translate-x-[15%] bg-zinc-950"
+            ? cn("translate-x-[25%]", colors.teacher.eclipse)
+            : "translate-x-[15%] bg-white dark:bg-black hidden dark:block"
         )}
       />
     </div>

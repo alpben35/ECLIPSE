@@ -260,11 +260,77 @@ async function startServer() {
     }
   });
 
-  // AI Proxy Routes
-  app.post('/api/tutor/ask', async (req, res) => {
+  // AI Helper with Retry Logic
+async function callGemini(params: {
+  contents: any[],
+  systemInstruction?: string,
+  model?: string,
+  temperature?: number,
+  isStream?: boolean,
+  onChunk?: (text: string) => void
+}) {
+  // Use gemini-flash-latest as the primary stable model
+  const modelName = params.model || 'gemini-flash-latest';
+  const config = {
+    systemInstruction: params.systemInstruction,
+    temperature: params.temperature ?? 0.0,
+    safetySettings
+  };
+
+  let lastError;
+  const maxRetries = 4;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      if (params.isStream && params.onChunk) {
+        const stream = await getAI().models.generateContentStream({
+          model: modelName,
+          contents: params.contents,
+          config
+        });
+        for await (const chunk of stream) {
+          if (chunk.text) params.onChunk(chunk.text);
+        }
+        return;
+      } else {
+        const response = await getAI().models.generateContent({
+          model: modelName,
+          contents: params.contents,
+          config
+        });
+        return response.text || "";
+      }
+    } catch (error: any) {
+      lastError = error;
+      const is503 = error.status === 503 || error.code === 503 || error.message?.includes('503') || error.message?.includes('UNAVAILABLE') || error.message?.includes('Overloaded');
+      const is429 = error.status === 429 || error.code === 429 || error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED') || error.message?.includes('Rate limit');
+      const is404 = error.status === 404 || error.code === 404 || error.message?.includes('404') || error.message?.includes('NOT_FOUND');
+      
+      if (is503 || is429) {
+        const delay = Math.pow(2, i) * 1500 + Math.random() * 1000;
+        console.warn(`[Gemini Helper] ${is503 ? '503/Overloaded' : '429/Rate'} error, retry ${i + 1}/${maxRetries} in ${Math.round(delay)}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+
+      if (is404 && modelName !== 'gemini-flash-latest') {
+        console.warn(`[Gemini Helper] 404 error for ${modelName}, falling back to gemini-flash-latest...`);
+        return callGemini({ ...params, model: 'gemini-flash-latest' });
+      }
+
+      throw error;
+    }
+  }
+  
+  if (lastError?.message?.includes('RESOURCE_EXHAUSTED') || lastError?.message?.includes('429')) {
+    throw new Error("The AI is currently receiving too many requests. Please wait a few seconds and try again.");
+  }
+  throw lastError;
+}
+
+// AI Proxy Routes
+    app.post('/api/tutor/ask', async (req, res) => {
     try {
       const { prompt, mode, subject, history, imageData } = req.body;
-      const isImageGen = mode === 'design';
       
       const contents = (history || []).map((m: any) => ({
         role: m.role === 'ai' || m.role === 'model' ? 'model' : 'user',
@@ -283,11 +349,9 @@ async function startServer() {
       userParts.push({ text: prompt || "Please assist." });
       contents.push({ role: 'user', parts: userParts });
 
-      const modelName = isImageGen ? 'gemini-2.5-flash-image' : 'gemini-3-flash-preview'; 
+      const modelName = 'gemini-flash-latest'; 
       
-      const systemPrompt = isImageGen 
-        ? "You are Eclipse Vision, an expert AI designer. Manifest high-quality visual concepts from user descriptions. ALWAYS generate an image when asked. Be concise in text response."
-        : `You are Eclipse AI, a world-class academic tutor. 
+      const systemPrompt = `You are Eclipse AI, a world-class academic tutor. 
       Your primary goal is absolute mathematical and factual accuracy.
       
       TONE:
@@ -306,52 +370,34 @@ async function startServer() {
       
       Current Mode: ${mode}
       Current Subject: ${subject}
-
+ 
       Instructions:
       - 'teach': Guide step-by-step SOCRATICALLY. Do not give the answer immediately.
       - 'solve': Provide complete, perfectly accurate solutions.
       - 'revise': Create practice questions to verify understanding.`;
-
-      const response = await getAI().models.generateContent({
-        model: modelName,
+ 
+      const text = await callGemini({
         contents,
-        config: {
-          systemInstruction: systemPrompt,
-          temperature: isImageGen ? 0.7 : 0.0,
-          imageConfig: isImageGen ? { aspectRatio: '1:1' } : undefined,
-          safetySettings
-        }
+        systemInstruction: systemPrompt,
+        model: modelName
       });
-
-      const text = response.text || "";
-      const images = response.candidates?.[0]?.content?.parts
-        ?.filter((part: any) => part.inlineData)
-        .map((part: any) => ({
-          data: part.inlineData.data,
-          mimeType: part.inlineData.mimeType
-        }));
-
-      res.json({ text, images: images && images.length > 0 ? images : undefined });
+ 
+      res.json({ text });
     } catch (error: any) {
       console.error("[AI Proxy Error]", error);
       res.status(500).json({ error: error.message });
     }
   });
-
+ 
   app.post('/api/tutor/ask-stream', async (req, res) => {
     try {
       const { prompt, mode, subject, history, imageData } = req.body;
-      const isImageGen = mode === 'design';
-
-      if (isImageGen) {
-        return res.status(400).json({ error: "Streaming not supported for image generation." });
-      }
-
+ 
       const contents = (history || []).map((m: any) => ({
         role: m.role === 'ai' || m.role === 'model' ? 'model' : 'user',
         parts: [{ text: m.content }]
       }));
-
+ 
       const userParts: any[] = [];
       if (imageData) {
         userParts.push({ 
@@ -363,7 +409,7 @@ async function startServer() {
       }
       userParts.push({ text: prompt || "Please assist." });
       contents.push({ role: 'user', parts: userParts });
-
+ 
       const systemPrompt = `You are Eclipse AI, a world-class academic tutor. 
       Your primary goal is absolute mathematical and factual accuracy.
       
@@ -384,29 +430,24 @@ async function startServer() {
       
       Current Mode: ${mode}
       Current Subject: ${subject}
-
+ 
       Instructions:
       - Respond professionally. If in 'teach' mode, be Socratic and guide the student.`;
-
+ 
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
-
-      const stream = await getAI().models.generateContentStream({
-        model: 'gemini-3-flash-preview',
+ 
+      await callGemini({
         contents,
-        config: {
-          systemInstruction: systemPrompt,
-          temperature: 0.0,
-          safetySettings
+        systemInstruction: systemPrompt,
+        model: 'gemini-flash-latest',
+        isStream: true,
+        onChunk: (text) => {
+          res.write(`data: ${JSON.stringify({ text })}\n\n`);
         }
       });
-
-      for await (const chunk of stream) {
-        if (chunk.text) {
-          res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
-        }
-      }
+ 
       res.write('data: [DONE]\n\n');
       res.end();
     } catch (error: any) {
@@ -415,7 +456,7 @@ async function startServer() {
       res.end();
     }
   });
-
+ 
   app.post('/api/tutor/summarize', async (req, res) => {
     try {
       const { messages } = req.body;
@@ -424,28 +465,24 @@ async function startServer() {
         parts: [{ text: m.content }]
       }));
       
-      const response = await getAI().models.generateContent({
-        model: 'gemini-3-flash-preview',
+      const text = await callGemini({
         contents,
-        config: {
-          systemInstruction: "You are a helpful academic assistant summarizing a learning session. Use clean markdown for summaries.",
-          temperature: 0.1,
-          safetySettings
-        }
+        systemInstruction: "You are a helpful academic assistant summarizing a learning session. Use clean markdown for summaries.",
+        model: 'gemini-flash-latest',
+        temperature: 0.1
       });
-
-      res.json({ text: response.text || "" });
+ 
+      res.json({ text });
     } catch (error: any) {
       console.error("[AI Summarize Error]", error);
       res.status(500).json({ error: error.message });
     }
   });
-
+ 
   app.post('/api/tutor/analyze-paper', async (req, res) => {
     try {
       const { base64Data, mimeType, subject } = req.body;
-      const response = await getAI().models.generateContent({
-        model: 'gemini-3-flash-preview',
+      const text = await callGemini({
         contents: [
           {
             role: 'user',
@@ -455,33 +492,27 @@ async function startServer() {
             ]
           }
         ],
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.1,
-          safetySettings
-        }
+        model: 'gemini-flash-latest',
+        temperature: 0.1
       });
-
-      res.json(JSON.parse(response.text || '{}'));
+ 
+      res.json(JSON.parse(text || '{}'));
     } catch (error: any) {
       console.error("[AI Analyze Error]", error);
       res.status(500).json({ error: error.message });
     }
   });
-
+ 
   app.post('/api/gemini', async (req, res) => {
     try {
       const { contents, systemInstruction, model } = req.body;
-      const response = await getAI().models.generateContent({
-        model: model || 'gemini-3-flash-preview',
+      const text = await callGemini({
         contents,
-        config: {
-          systemInstruction,
-          temperature: 0.1,
-          safetySettings
-        }
+        systemInstruction,
+        model,
+        temperature: 0.1
       });
-      res.json({ text: response.text || "" });
+      res.json({ text });
     } catch (error: any) {
       console.error("[Gemini Proxy Error]", error);
       res.status(500).json({ error: error.message });

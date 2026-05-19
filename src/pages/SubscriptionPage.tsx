@@ -16,11 +16,27 @@ const TIERS = [
     features: [
       '40 AI prompts per day',
       'Basic progress tracking',
-      'Standard tutor response speed',
+      'Standard icons only',
       'Access to all subjects'
     ],
     buttonText: 'Current Plan',
     highlight: false
+  },
+  {
+    id: 'intermediate',
+    priceId: import.meta.env.VITE_STRIPE_PRICE_ID_INTERMEDIATE || 'price_lite',
+    name: 'Intermediate',
+    price: '£15',
+    description: 'Step towards authority',
+    features: [
+      '100 AI prompts per day',
+      'Custom profile uploads',
+      'Faster AI processing',
+      'Increased streak bonuses'
+    ],
+    buttonText: 'Level Up',
+    highlight: false,
+    icon: <Crown className="text-black dark:text-white" />
   },
   {
     id: 'premium',

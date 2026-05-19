@@ -4,8 +4,8 @@ import { Send, Mic, Sparkles, Brain, ChevronDown, Share2, Copy, Check, MessageSq
 import { askTutor, summarizeChat } from '@/lib/gemini';
 import { SUBJECTS } from '@/lib/constants';
 import { db, handleFirestoreError, OperationType, encryptData, decryptData } from '@/lib/firebase';
-import { collection, addDoc, query, onSnapshot, orderBy, limit, deleteDoc, doc, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { AuthContext } from '@/lib/contexts';
+import { collection, addDoc, query, onSnapshot, orderBy, limit, deleteDoc, doc, getDocs, writeBatch, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { AuthContext, ThemeContext } from '@/lib/contexts';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { clsx, type ClassValue } from 'clsx';
@@ -95,6 +95,7 @@ interface Message {
 
 export default function TutorPage() {
   const { user, profile, addXp } = useContext(AuthContext);
+  const { isDark } = useContext(ThemeContext);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<'question' | 'test' | 'assignment'>('question');
@@ -158,6 +159,17 @@ export default function TutorPage() {
   const handleSend = async () => {
     const messageText = input.trim();
     if (!messageText || isTyping || !user) return;
+
+    if (messageText.toLowerCase() === 'hello world') {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          unlockedGlobe: true
+        });
+        alert("✨ SECRET UNLOCKED: You've unlocked the Globe profile icon! Check your Profile Settings.");
+      } catch (err) {
+        console.error("Failed to unlock globe:", err);
+      }
+    }
 
     setInput('');
     setIsTyping(true);
@@ -289,14 +301,14 @@ export default function TutorPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-6rem)]">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
-          <div className="flex bg-gold/10 p-1 rounded-xl border border-gold/20">
+          <div className={cn("flex p-1 rounded-xl border transition-colors", isDark ? "bg-gold/10 border-gold/20" : "bg-royal-red/10 border-royal-red/20")}>
             <button 
               onClick={() => setMode('question')}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
                 mode === 'question' 
-                  ? "bg-gold text-royal-red shadow-md" 
-                  : "text-gold opacity-50 hover:opacity-80"
+                  ? (isDark ? "bg-gold text-royal-red shadow-md" : "bg-royal-red text-white shadow-md") 
+                  : (isDark ? "text-gold opacity-50 hover:opacity-80" : "text-royal-red opacity-50 hover:opacity-80")
               )}
             >
               <Brain size={16} />
@@ -307,8 +319,8 @@ export default function TutorPage() {
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
                 mode === 'test' 
-                  ? "bg-gold text-royal-red shadow-md" 
-                  : "text-gold opacity-50 hover:opacity-80"
+                  ? (isDark ? "bg-gold text-royal-red shadow-md" : "bg-royal-red text-white shadow-md") 
+                  : (isDark ? "text-gold opacity-50 hover:opacity-80" : "text-royal-red opacity-50 hover:opacity-80")
               )}
             >
               <Sparkles size={16} />
@@ -319,8 +331,8 @@ export default function TutorPage() {
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
                 mode === 'assignment' 
-                  ? "bg-gold text-royal-red shadow-md" 
-                  : "text-gold opacity-50 hover:opacity-80"
+                  ? (isDark ? "bg-gold text-royal-red shadow-md" : "bg-royal-red text-white shadow-md") 
+                  : (isDark ? "text-gold opacity-50 hover:opacity-80" : "text-royal-red opacity-50 hover:opacity-80")
               )}
             >
               <BookOpen size={16} />
@@ -331,7 +343,10 @@ export default function TutorPage() {
           <button
             onClick={handleSummarize}
             disabled={isSummarizing}
-            className="flex items-center gap-2 px-4 py-2 bg-gold/10 hover:bg-gold/20 border border-gold/20 rounded-xl text-sm font-semibold text-gold transition-all disabled:opacity-50"
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-semibold transition-all disabled:opacity-50",
+              isDark ? "bg-gold/10 hover:bg-gold/20 border-gold/20 text-gold" : "bg-royal-red/5 hover:bg-royal-red/10 border-royal-red/10 text-royal-red"
+            )}
           >
             <ListRestart size={16} />
             Summarize
@@ -339,7 +354,10 @@ export default function TutorPage() {
 
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-gold/10 hover:bg-gold/20 border border-gold/20 rounded-xl text-sm font-semibold text-gold transition-all"
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-semibold transition-all",
+              isDark ? "bg-gold/10 hover:bg-gold/20 border-gold/20 text-gold" : "bg-royal-red/5 hover:bg-royal-red/10 border-royal-red/10 text-royal-red"
+            )}
           >
             <Download size={16} />
             Export
@@ -347,7 +365,10 @@ export default function TutorPage() {
 
           <button
             onClick={clearChat}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl text-sm font-semibold text-red-500 transition-all"
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-semibold transition-all",
+              isDark ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-500" : "bg-red-50 hover:bg-red-100 border-red-200 text-red-600"
+            )}
           >
             <Trash2 size={16} />
             Clear
@@ -356,8 +377,10 @@ export default function TutorPage() {
           <button
             onClick={() => setShowCalculator(!showCalculator)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 border border-gold/20 rounded-xl text-sm font-semibold transition-all",
-              showCalculator ? "bg-gold text-royal-red" : "bg-gold/10 text-gold hover:bg-gold/20"
+              "flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-semibold transition-all",
+              showCalculator 
+                ? (isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white") 
+                : (isDark ? "bg-gold/10 text-gold hover:bg-gold/20 border-gold/20" : "bg-white text-royal-red border-royal-red/20 hover:bg-royal-red/5")
             )}
           >
             <CalculatorIcon size={16} />
@@ -367,8 +390,10 @@ export default function TutorPage() {
           <button
             onClick={() => setUseHandwriting(!useHandwriting)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 border border-gold/20 rounded-xl text-sm font-semibold transition-all",
-              useHandwriting ? "bg-gold text-royal-red" : "bg-gold/10 text-gold hover:bg-gold/20"
+              "flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-semibold transition-all",
+              useHandwriting 
+                ? (isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white") 
+                : (isDark ? "bg-gold/10 text-gold hover:bg-gold/20 border-gold/20" : "bg-white text-royal-red border-royal-red/20 hover:bg-royal-red/5")
             )}
             title="Toggle Handwriting Font"
           >
@@ -380,7 +405,10 @@ export default function TutorPage() {
         <div className="relative">
           <button 
             onClick={() => setShowSubjectMenu(!showSubjectMenu)}
-            className="flex items-center gap-2 px-4 py-2 bg-gold/10 border border-gold/20 rounded-xl text-sm font-medium text-gold"
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-medium transition-colors",
+              isDark ? "bg-gold/10 border-gold/20 text-gold" : "bg-white border-royal-red/20 text-royal-red"
+            )}
           >
             {subject.name}
             <ChevronDown size={16} className={cn("transition-transform", showSubjectMenu && "rotate-180")} />
@@ -392,7 +420,10 @@ export default function TutorPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="absolute top-full right-0 mt-2 w-64 max-h-80 overflow-y-auto bg-royal-red border border-gold/10 rounded-xl shadow-2xl z-50 p-2"
+                className={cn(
+                  "absolute top-full right-0 mt-2 w-64 max-h-80 overflow-y-auto border rounded-xl shadow-2xl z-50 p-2",
+                  isDark ? "bg-royal-red border-gold/10" : "bg-white border-royal-red/10"
+                )}
               >
                 {SUBJECTS.map(s => (
                   <button 
@@ -400,7 +431,9 @@ export default function TutorPage() {
                     onClick={() => { setSubject(s); setShowSubjectMenu(false); }}
                     className={cn(
                       "w-full text-left px-4 py-2 rounded-lg text-sm transition-colors",
-                      subject.id === s.id ? "bg-gold text-royal-red" : "hover:bg-gold/5"
+                      subject.id === s.id 
+                        ? (isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white") 
+                        : (isDark ? "text-gold hover:bg-gold/5" : "text-royal-red hover:bg-royal-red/5")
                     )}
                   >
                     {s.name}
@@ -525,25 +558,25 @@ export default function TutorPage() {
       </div>
 
       <div className="relative mb-4">
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 md:gap-2">
           <button 
             id="mic-button"
             onClick={startVoice}
             title="Voice Typing"
             className={cn(
-              "p-2.5 rounded-xl transition-all",
+              "p-2 md:p-2.5 rounded-xl transition-all",
               isListening 
                 ? "bg-gold text-royal-red shadow-lg shadow-gold/40 animate-pulse scale-110" 
                 : "bg-gold/10 hover:bg-gold/20 text-gold"
             )}
           >
-            <Mic size={22} />
+            <Mic size={20} className="md:w-[22px] md:h-[22px]" />
           </button>
           <button 
             title="Upload Content"
-            className="p-2.5 rounded-xl bg-gold/10 hover:bg-gold/20 text-gold transition-colors"
+            className="p-2 md:p-2.5 rounded-xl bg-gold/10 hover:bg-gold/20 text-gold transition-colors"
           >
-            <Upload size={22} />
+            <Upload size={20} className="md:w-[22px] md:h-[22px]" />
           </button>
         </div>
         
@@ -553,13 +586,21 @@ export default function TutorPage() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
           placeholder={isListening ? "Listening..." : `Create content for ${subject.name}...`}
-          className="w-full pl-24 pr-14 py-5 bg-gold/10 border border-gold/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-gold/20 transition-all text-base placeholder:text-gold/40 text-gold"
+          className={cn(
+            "w-full pl-24 md:pl-28 pr-14 md:pr-16 py-4 md:py-5 border rounded-2xl focus:outline-none focus:ring-2 transition-all text-sm md:text-base",
+            isDark 
+              ? "bg-gold/10 border-gold/20 focus:ring-gold/20 placeholder:text-gold/40 text-gold" 
+              : "bg-white border-royal-red/20 focus:ring-royal-red/10 placeholder:text-royal-red/30 text-royal-red shadow-sm"
+          )}
         />
 
         <button 
           onClick={handleSend}
           disabled={!input.trim() || isTyping}
-          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-gold text-royal-red rounded-xl disabled:opacity-30 transition-all hover:scale-105 active:scale-95"
+          className={cn(
+            "absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl disabled:opacity-30 transition-all hover:scale-105 active:scale-95",
+            isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white"
+          )}
         >
           <Send size={20} />
         </button>

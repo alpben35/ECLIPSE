@@ -8,11 +8,11 @@ import { Plus, Upload, FileText, Trash2, TrendingUp, Award, Clock, Loader2, Fold
 import { db, auth, storage, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { collection, addDoc, query, onSnapshot, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { SUBJECTS } from '@/lib/constants';
+import { SUBJECTS, OWNER_EMAIL } from '@/lib/constants';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { AuthContext } from '@/lib/contexts';
+import { AuthContext, ThemeContext } from '@/lib/contexts';
 import confetti from 'canvas-confetti';
 
 function cn(...inputs: ClassValue[]) {
@@ -21,6 +21,7 @@ function cn(...inputs: ClassValue[]) {
 
 export default function ProgressPage() {
   const { user, profile, addXp } = useContext(AuthContext);
+  const { isDark } = useContext(ThemeContext);
   const [scores, setScores] = useState<any[]>([]);
   const [papers, setPapers] = useState<any[]>([]);
   const [newScore, setNewScore] = useState({ 
@@ -130,6 +131,16 @@ export default function ProgressPage() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    const rank = profile?.rank || 'Welcome';
+    const canUpload = ['Intermediate', 'Champion', 'Master', 'Admin', 'Temporary Owner', 'Owner'].includes(rank) || 
+                      user.email === OWNER_EMAIL;
+
+    if (!canUpload) {
+      alert("Basic accounts cannot upload files. Upgrade to Champion or higher to unlock this feature.");
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     setIsUploading(true);
     try {
       const storageRef = ref(storage, `users/${user.uid}/papers/${Date.now()}_${file.name}`);
@@ -221,10 +232,10 @@ export default function ProgressPage() {
     <div className="max-w-6xl mx-auto px-4 py-12 space-y-12 text-center">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 text-left">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-gold">
+          <h1 className={cn("text-4xl font-bold tracking-tight", isDark ? "text-gold" : "text-royal-red")}>
             {!filterSubject ? 'Class Progress' : `${filterSubject} Progress`}
           </h1>
-          <p className="opacity-50 mt-2 text-gold">
+          <p className={cn("opacity-50 mt-2", isDark ? "text-gold" : "text-royal-red/80")}>
             {!filterSubject 
               ? 'Select a subject folder below to view detailed progress records.' 
               : `Viewing performance metrics and growth for ${filterSubject}.`}
@@ -237,7 +248,10 @@ export default function ProgressPage() {
                 setFilterSubject(null);
                 localStorage.removeItem('teacher_selected_subject');
               }}
-              className="px-4 py-2 bg-gold/10 hover:bg-gold/20 border border-gold/20 rounded-xl text-sm font-bold text-gold transition-all"
+              className={cn(
+                "px-4 py-2 border rounded-xl text-sm font-bold transition-all",
+                isDark ? "bg-gold/10 hover:bg-gold/20 border-gold/20 text-gold" : "bg-white border-royal-red/10 text-royal-red hover:bg-royal-red/5"
+              )}
             >
               Back to Folders
             </button>
@@ -245,17 +259,25 @@ export default function ProgressPage() {
           <select 
             value={filterSubject || ''}
             onChange={(e) => setFilterSubject(e.target.value || null)}
-            className="px-4 py-2 bg-gold/5 rounded-xl text-sm font-semibold focus:outline-none border border-transparent hover:border-gold/10 transition-all text-gold"
+            className={cn(
+              "px-4 py-2 rounded-xl text-sm font-semibold focus:outline-none border transition-all",
+              isDark 
+                ? "bg-gold/5 border-transparent hover:border-gold/10 text-gold" 
+                : "bg-white border-royal-red/10 text-royal-red"
+            )}
           >
-            <option value="" className="bg-royal-red">Select Folder...</option>
-            <option value="Overall" className="bg-royal-red">Overall Progress</option>
+            <option value="" className={isDark ? "bg-royal-red" : "bg-white"}>Select Folder...</option>
+            <option value="Overall" className={isDark ? "bg-royal-red" : "bg-white"}>Overall Progress</option>
             {SUBJECTS.map(s => (
-              <option key={s.id} value={s.name} className="bg-royal-red">{s.name}</option>
+              <option key={s.id} value={s.name} className={isDark ? "bg-royal-red" : "bg-white"}>{s.name}</option>
             ))}
           </select>
           <button 
             onClick={() => openAddScore()}
-            className="flex items-center gap-2 px-6 py-2 bg-gold text-royal-red rounded-xl text-sm font-bold shadow-lg hover:scale-105 transition-all"
+            className={cn(
+              "flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold shadow-lg hover:scale-105 transition-all",
+              isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white shadow-royal-red/20"
+            )}
           >
             <Plus size={16} />
             Add Record
@@ -270,32 +292,32 @@ export default function ProgressPage() {
           className="space-y-12"
         >
           <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
-            <div className="p-8 bg-gold/10 border border-gold/20 rounded-3xl">
-              <TrendingUp className="mb-4 opacity-50 text-gold" />
-              <h3 className="text-3xl font-bold text-gold">{filteredScores.length}</h3>
-              <p className="text-sm opacity-50 text-gold">Assessments Recorded</p>
+            <div className={cn("p-8 border rounded-3xl", isDark ? "bg-gold/10 border-gold/20" : "bg-white border-royal-red/10 shadow-sm")}>
+              <TrendingUp className={cn("mb-4 opacity-50", isDark ? "text-gold" : "text-royal-red")} />
+              <h3 className={cn("text-3xl font-bold", isDark ? "text-gold" : "text-royal-red")}>{filteredScores.length}</h3>
+              <p className={cn("text-sm opacity-50", isDark ? "text-gold" : "text-royal-red")}>Assessments Recorded</p>
             </div>
             
-            <div className="p-8 bg-gold/10 border border-gold/20 rounded-3xl">
-              <Award className="mb-4 opacity-50 text-gold" />
-              <h3 className="text-3xl font-bold text-gold">
+            <div className={cn("p-8 border rounded-3xl", isDark ? "bg-gold/10 border-gold/20" : "bg-white border-royal-red/10 shadow-sm")}>
+              <Award className={cn("mb-4 opacity-50", isDark ? "text-gold" : "text-royal-red")} />
+              <h3 className={cn("text-3xl font-bold", isDark ? "text-gold" : "text-royal-red")}>
                 {displayScore}%
               </h3>
-              <p className="text-sm opacity-50 text-gold">Latest Average</p>
+              <p className={cn("text-sm opacity-50", isDark ? "text-gold" : "text-royal-red")}>Latest Average</p>
             </div>
 
-            <div className="p-8 bg-gold/10 border border-gold/20 rounded-3xl">
-              <Clock className="mb-4 opacity-50 text-gold" />
-              <h3 className="text-3xl font-bold text-gold">
+            <div className={cn("p-8 border rounded-3xl", isDark ? "bg-gold/10 border-gold/20" : "bg-white border-royal-red/10 shadow-sm")}>
+              <Clock className={cn("mb-4 opacity-50", isDark ? "text-gold" : "text-royal-red")} />
+              <h3 className={cn("text-3xl font-bold", isDark ? "text-gold" : "text-royal-red")}>
                 {filteredScores.length > 0 ? new Date(filteredScores[filteredScores.length - 1].date).toLocaleDateString() : 'N/A'}
               </h3>
-              <p className="text-sm opacity-50 text-gold">Last Assessment</p>
+              <p className={cn("text-sm opacity-50", isDark ? "text-gold" : "text-royal-red")}>Last Assessment</p>
             </div>
           </div>
 
-          <div className="p-8 bg-gold/10 border border-gold/20 rounded-3xl">
+          <div className={cn("p-8 border rounded-3xl", isDark ? "bg-gold/10 border-gold/20" : "bg-white border-royal-red/10 shadow-sm")}>
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-gold">{filterSubject} Growth</h2>
+              <h2 className={cn("text-2xl font-bold", isDark ? "text-gold" : "text-royal-red")}>{filterSubject} Growth</h2>
             </div>
 
             <div className="h-80 w-full">
@@ -303,41 +325,42 @@ export default function ProgressPage() {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorPct" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FFD700" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#FFD700" stopOpacity={0}/>
+                      <stop offset="5%" stopColor={isDark ? "#FFD700" : "#7B0000"} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={isDark ? "#FFD700" : "#7B0000"} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#FFD700" opacity={0.1} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? "#FFD700" : "#7B0000"} opacity={0.1} />
                   <XAxis 
                     dataKey="index" 
                     tickFormatter={(idx) => chartData[idx]?.date}
-                    stroke="#FFD700" 
+                    stroke={isDark ? "#FFD700" : "#7B0000"} 
                     fontSize={12} 
                     tickLine={false} 
                     axisLine={false} 
                   />
-                  <YAxis stroke="#FFD700" fontSize={12} unit="%" tickLine={false} axisLine={false} domain={[0, 100]} />
+                  <YAxis stroke={isDark ? "#FFD700" : "#7B0000"} fontSize={12} unit="%" tickLine={false} axisLine={false} domain={[0, 100]} />
                   <Tooltip 
                     shared={true}
-                    cursor={{ stroke: '#FFD700', strokeWidth: 1, strokeDasharray: '4 4' }}
+                    cursor={{ stroke: isDark ? '#FFD700' : '#7B0000', strokeWidth: 1, strokeDasharray: '4 4' }}
                     contentStyle={{ 
-                      backgroundColor: '#7B0000', 
-                      borderColor: 'rgba(255,215,0,0.2)',
+                      backgroundColor: isDark ? '#7B0000' : '#FFFFFF', 
+                      borderColor: isDark ? 'rgba(255,215,0,0.2)' : 'rgba(123,0,0,0.1)',
                       borderRadius: '12px',
-                      color: '#FFD700',
+                      color: isDark ? '#FFD700' : '#7B0000',
                       fontSize: '12px',
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                     }}
                     labelFormatter={(idx) => chartData[idx]?.date}
                   />
                   <Area 
                     type="monotone" 
                     dataKey="percentage" 
-                    stroke="#FFD700" 
+                    stroke={isDark ? "#FFD700" : "#7B0000"} 
                     fillOpacity={1} 
                     fill="url(#colorPct)" 
                     strokeWidth={3}
-                    activeDot={{ r: 6, strokeWidth: 0, fill: '#FFD700' }}
+                    activeDot={{ r: 6, strokeWidth: 0, fill: isDark ? '#FFD700' : '#7B0000' }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -346,9 +369,9 @@ export default function ProgressPage() {
         </motion.div>
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-6 text-left">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gold">Subject Folders</h2>
+          <h2 className={cn("text-2xl font-bold", isDark ? "text-gold" : "text-royal-red")}>Subject Folders</h2>
         </div>
         
         <div className={cn(
@@ -373,24 +396,24 @@ export default function ProgressPage() {
                 className={cn(
                   "group relative border rounded-3xl p-8 transition-all cursor-pointer shadow-sm hover:shadow-xl",
                   filterSubject === s.name 
-                    ? "bg-gold border-gold text-royal-red shadow-gold/20" 
-                    : "bg-gold/10 border-gold/20 text-gold"
+                    ? (isDark ? "bg-gold border-gold text-royal-red shadow-gold/20" : "bg-royal-red border-royal-red text-white shadow-royal-red/20")
+                    : (isDark ? "bg-gold/10 border-gold/20 text-gold" : "bg-white border-royal-red/10 text-royal-red")
                 )}
               >
                 <div className="flex flex-col gap-4">
                   <div className={cn(
                     "w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm group-hover:rotate-6 group-hover:shadow-lg",
                     filterSubject === s.name 
-                      ? "bg-royal-red text-gold" 
-                      : "bg-gold/10 text-gold group-hover:bg-gold group-hover:text-royal-red"
+                      ? (isDark ? "bg-royal-red text-gold" : "bg-white text-royal-red")
+                      : (isDark ? "bg-gold/10 text-gold group-hover:bg-gold group-hover:text-royal-red" : "bg-royal-red/5 text-royal-red group-hover:bg-royal-red group-hover:text-white")
                   )}>
                     <Folder size={28} />
                   </div>
-                  <div>
+                  <div className="text-left">
                     <h4 className="font-bold text-lg truncate">{s.name}</h4>
                     <p className={cn(
                       "text-xs uppercase font-bold tracking-widest",
-                      filterSubject === s.name ? "text-royal-red/60" : "opacity-50"
+                      filterSubject === s.name ? "opacity-60" : "opacity-50"
                     )}>
                       {subjectScores.length} Records
                     </p>
@@ -399,17 +422,21 @@ export default function ProgressPage() {
                 {avg !== null && (
                   <div className="mt-4">
                     <div className={cn(
-                      "h-1 w-full rounded-full overflow-hidden",
-                      filterSubject === s.name ? "bg-royal-red/20" : "bg-gold/10"
+                      "h-1.5 w-full rounded-full overflow-hidden",
+                      filterSubject === s.name 
+                        ? (isDark ? "bg-royal-red/20" : "bg-white/20") 
+                        : (isDark ? "bg-gold/10" : "bg-royal-red/10")
                     )}>
                       <div className={cn(
                         "h-full transition-all",
-                        filterSubject === s.name ? "bg-royal-red" : "bg-gold"
+                        filterSubject === s.name 
+                          ? (isDark ? "bg-royal-red" : "bg-white") 
+                          : (isDark ? "bg-gold" : "bg-royal-red")
                       )} style={{ width: `${avg}%` }} />
                     </div>
                     <p className={cn(
-                      "text-[10px] mt-1 font-bold",
-                      filterSubject === s.name ? "text-royal-red" : "text-gold"
+                      "text-[10px] mt-1 font-bold text-left",
+                      filterSubject === s.name ? "" : ""
                     )}>{avg}% Class Avg</p>
                   </div>
                 )}
@@ -425,16 +452,17 @@ export default function ProgressPage() {
           animate={{ opacity: 1 }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-12"
         >
-          <div className="space-y-6">
+          <div className="space-y-6 text-left">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gold">Teaching Resources</h2>
+              <h2 className={cn("text-2xl font-bold", isDark ? "text-gold" : "text-royal-red")}>Teaching Resources</h2>
             </div>
             
             <div 
               onClick={() => !isUploading && fileInputRef.current?.click()}
               className={cn(
-                "border-2 border-dashed border-gold/20 rounded-3xl p-12 text-center space-y-4 cursor-pointer transition-colors",
-                isUploading ? "opacity-50 cursor-not-allowed" : "hover:border-gold/40"
+                "border-2 border-dashed rounded-3xl p-12 text-center space-y-4 cursor-pointer transition-all",
+                isUploading ? "opacity-50 cursor-not-allowed" : "hover:border-opacity-60 hover:bg-black/5",
+                isDark ? "border-gold/20" : "border-royal-red/20"
               )}
             >
               <input 
@@ -445,26 +473,29 @@ export default function ProgressPage() {
                 accept=".pdf,.doc,.docx,.jpg,.png"
               />
               {isUploading ? (
-                <Loader2 className="mx-auto animate-spin text-gold" size={48} />
+                <Loader2 className={cn("mx-auto animate-spin", isDark ? "text-gold" : "text-royal-red")} size={48} />
               ) : (
-                <Upload className="mx-auto opacity-30 text-gold" size={48} />
+                <Upload className={cn("mx-auto opacity-30", isDark ? "text-gold" : "text-royal-red")} size={48} />
               )}
               <div>
-                <p className="font-bold text-gold">{isUploading ? "Uploading..." : "Upload Lesson Plan / Worksheet"}</p>
-                <p className="text-sm opacity-50 text-gold">Click to browse files</p>
+                <p className={cn("font-bold", isDark ? "text-gold" : "text-royal-red")}>{isUploading ? "Uploading..." : "Upload Lesson Plan / Worksheet"}</p>
+                <p className={cn("text-sm opacity-50", isDark ? "text-gold" : "text-royal-red/60")}>Click to browse files</p>
               </div>
             </div>
             
             <div className="space-y-4">
               {papers.filter(p => p.subject === filterSubject).map(paper => (
-                <div key={paper.id} className="flex items-center justify-between p-4 bg-gold/10 border border-gold/20 rounded-2xl">
+                <div key={paper.id} className={cn(
+                  "flex items-center justify-between p-4 border rounded-2xl transition-colors",
+                  isDark ? "bg-gold/10 border-gold/20" : "bg-white border-royal-red/10 shadow-sm"
+                )}>
                   <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gold/10 rounded-xl">
-                      <FileText size={20} className="text-gold" />
+                    <div className={cn("p-3 rounded-xl", isDark ? "bg-gold/10" : "bg-royal-red/5")}>
+                      <FileText size={20} className={isDark ? "text-gold" : "text-royal-red"} />
                     </div>
                     <div className="overflow-hidden">
-                      <p className="font-bold truncate max-w-[200px] text-gold">{paper.fileName}</p>
-                      <p className="text-xs opacity-50 text-gold">{paper.subject} • {new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(paper.uploadedAt))}</p>
+                      <p className={cn("font-bold truncate max-w-[200px]", isDark ? "text-gold" : "text-royal-red")}>{paper.fileName}</p>
+                      <p className={cn("text-xs opacity-50", isDark ? "text-gold" : "text-royal-red")}>{paper.subject} • {new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(paper.uploadedAt))}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -472,13 +503,13 @@ export default function ProgressPage() {
                       href={paper.paperUrl} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="p-2 hover:bg-gold/10 rounded-lg transition-colors text-gold"
+                      className={cn("p-2 rounded-lg transition-colors", isDark ? "hover:bg-gold/10 text-gold" : "hover:bg-royal-red/5 text-royal-red")}
                     >
                       <FileText size={18} />
                     </a>
                     <button 
                       onClick={() => deletePaper(paper)}
-                      className="p-2 hover:text-red-500 transition-colors text-gold"
+                      className={cn("p-2 hover:text-red-500 transition-colors", isDark ? "text-gold" : "text-royal-red")}
                     >
                       <Trash2 size={18} />
                     </button>
@@ -488,22 +519,25 @@ export default function ProgressPage() {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gold">Recent Assessments</h2>
+          <div className="space-y-6 text-left">
+            <h2 className={cn("text-2xl font-bold", isDark ? "text-gold" : "text-royal-red")}>Recent Assessments</h2>
             <div className="space-y-4">
               {filteredScores.slice().reverse().map(score => (
-                <div key={score.id} className="flex items-center justify-between p-6 bg-gold/10 border border-gold/20 rounded-3xl">
+                <div key={score.id} className={cn(
+                  "flex items-center justify-between p-6 border rounded-3xl transition-colors",
+                  isDark ? "bg-gold/10 border-gold/20" : "bg-white border-royal-red/10 shadow-sm"
+                )}>
                   <div>
-                    <p className="font-bold text-gold">{score.subject}</p>
-                    <p className="text-sm opacity-50 text-gold">{new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(score.date))}</p>
+                    <p className={cn("font-bold", isDark ? "text-gold" : "text-royal-red")}>{score.subject}</p>
+                    <p className={cn("text-sm opacity-50", isDark ? "text-gold" : "text-royal-red")}>{new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(score.date))}</p>
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gold">{score.percentage}%</p>
+                      <p className={cn("text-2xl font-bold", isDark ? "text-gold" : "text-royal-red")}>{score.percentage}%</p>
                     </div>
                     <button 
                       onClick={() => deleteScore(score.id)}
-                      className="p-2 hover:text-red-500 transition-colors text-gold"
+                      className={cn("p-2 hover:text-red-500 transition-colors", isDark ? "text-gold" : "text-royal-red")}
                     >
                       <Trash2 size={18} />
                     </button>
@@ -523,28 +557,34 @@ export default function ProgressPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsAddingScore(false)}
-              className="absolute inset-0 bg-royal-red/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-md bg-royal-red rounded-3xl p-8 shadow-2xl border border-gold/20"
+              className={cn(
+                "relative w-full max-w-md rounded-3xl p-8 shadow-2xl border transition-colors",
+                isDark ? "bg-royal-red border-gold/20" : "bg-white border-royal-red/10"
+              )}
             >
-              <h3 className="text-2xl font-bold mb-6 text-gold">Add Assessment Record</h3>
+              <h3 className={cn("text-2xl font-bold mb-6", isDark ? "text-gold" : "text-royal-red")}>Add Assessment Record</h3>
               <form onSubmit={handleAddScore} className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold uppercase opacity-50 mb-2 block text-gold">Subject</label>
+                  <label className={cn("text-xs font-bold uppercase opacity-50 mb-2 block", isDark ? "text-gold" : "text-royal-red")}>Subject</label>
                   <select 
                     value={newScore.subject}
                     onChange={e => setNewScore({...newScore, subject: e.target.value})}
-                    className="w-full p-4 bg-gold/5 rounded-2xl focus:outline-none font-bold text-gold"
+                    className={cn(
+                      "w-full p-4 rounded-2xl focus:outline-none font-bold transition-colors",
+                      isDark ? "bg-gold/5 text-gold" : "bg-royal-red/5 text-royal-red"
+                    )}
                   >
-                    {SUBJECTS.map(s => <option key={s.id} value={s.name} className="bg-royal-red">{s.name}</option>)}
+                    {SUBJECTS.map(s => <option key={s.id} value={s.name} className={isDark ? "bg-royal-red" : "bg-white"}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase opacity-50 mb-2 block text-gold">Class Average (%)</label>
+                  <label className={cn("text-xs font-bold uppercase opacity-50 mb-2 block", isDark ? "text-gold" : "text-royal-red")}>Class Average (%)</label>
                   <input 
                     type="number"
                     required
@@ -552,23 +592,32 @@ export default function ProgressPage() {
                     max="100"
                     value={newScore.percentage}
                     onChange={e => setNewScore({...newScore, percentage: e.target.value})}
-                    className="w-full p-4 bg-gold/5 rounded-2xl focus:outline-none text-gold"
+                    className={cn(
+                      "w-full p-4 rounded-2xl focus:outline-none transition-colors",
+                      isDark ? "bg-gold/5 text-gold" : "bg-royal-red/5 text-royal-red"
+                    )}
                     placeholder="e.g. 85"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase opacity-50 mb-2 block text-gold">Date</label>
+                  <label className={cn("text-xs font-bold uppercase opacity-50 mb-2 block", isDark ? "text-gold" : "text-royal-red")}>Date</label>
                   <input 
                     type="date"
                     required
                     value={newScore.date}
                     onChange={e => setNewScore({...newScore, date: e.target.value})}
-                    className="w-full p-4 bg-gold/5 rounded-2xl focus:outline-none text-gold"
+                    className={cn(
+                      "w-full p-4 rounded-2xl focus:outline-none transition-colors",
+                      isDark ? "bg-gold/5 text-gold" : "bg-royal-red/5 text-royal-red"
+                    )}
                   />
                 </div>
                 <button 
                   type="submit"
-                  className="w-full py-4 bg-gold text-royal-red rounded-2xl font-bold mt-4"
+                  className={cn(
+                    "w-full py-4 rounded-2xl font-bold mt-4 shadow-lg transition-all",
+                    isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white shadow-royal-red/20"
+                  )}
                 >
                   Save Record
                 </button>

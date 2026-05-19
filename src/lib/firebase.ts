@@ -27,10 +27,8 @@ export const decryptData = (ciphertext: string): string => {
     // Only return decrypted if successfully parsed as UTF-8
     if (decrypted && decrypted.length > 0) return decrypted;
     
-    // If decryption succeeds but result is empty, it might be due to a wrong key or partial data
-    if (ciphertext && ciphertext.length > 5) {
-      console.warn("Decryption yielded empty string - possible key mismatch or corrupted data.");
-    }
+    // If decryption results in empty string, it's safer to return original
+    // instead of logging a warning for every potentially non-encrypted field
   } catch (e) {
     // Fail silently and return original ciphertext
     console.error("Decryption Error:", e);
@@ -72,7 +70,7 @@ export interface FirestoreErrorInfo {
  * Specialized for Firebase objects which often have internal circularity.
  */
 function safeStringify(obj: any): string {
-  const cache = new Set();
+  const cache = new WeakSet();
   return JSON.stringify(obj, (key, value) => {
     if (typeof value === 'object' && value !== null) {
       if (cache.has(value)) {
@@ -81,12 +79,10 @@ function safeStringify(obj: any): string {
       cache.add(value);
       
       // Specifically handle common Firebase objects to prevent recursion issues
-      // as some internal properties might still be problematic for the cache set
-      if (value.constructor?.name === 'FirebaseAppImpl' || 
-          value.constructor?.name === 'UserImpl' || 
-          value.constructor?.name === 'AuthImpl') {
-        return `[Firebase ${value.constructor.name}]`;
-      }
+      // Checking for common internal properties since constructor names can be minified
+      if (value.uid && value.auth) return `[Firebase User]`;
+      if (value.currentUser && value.config) return `[Firebase Auth]`;
+      if (value.app && value.type === 'firestore') return `[Firestore Instance]`;
     }
     return value;
   });

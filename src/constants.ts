@@ -1,5 +1,6 @@
 export const RANKS = [
-  { name: 'Free', minDays: 0, price: 0 },
+  { name: 'Welcome', minDays: 0, price: 0 },
+  { name: 'Intermediate', minDays: 90, price: 15 },
   { name: 'Champion', minDays: 180, price: 25 },
   { name: 'Master', minDays: 730, price: 150 },
   { name: 'Admin', minDays: 1825, price: 500 },

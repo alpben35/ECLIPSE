@@ -30,7 +30,6 @@ const GroupsPage = React.lazy(() => import('./pages/GroupsPage'));
 const GroupDetailPage = React.lazy(() => import('./pages/GroupDetailPage'));
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
 const SubscriptionPage = React.lazy(() => import('./pages/SubscriptionPage'));
-const VisionPage = React.lazy(() => import('./pages/VisionPage'));
 const DnsPage = React.lazy(() => import('./pages/DnsPage'));
 
 export default function StudentApp() {
@@ -88,9 +87,11 @@ export default function StudentApp() {
 
   const handleLogout = () => signOut(auth);
 
-  const xpForNextLevel = Math.pow(profile?.level || 1, 2) * 100;
-  const currentLevelXp = Math.pow((profile?.level || 1) - 1, 2) * 100;
-  const progress = profile ? ((profile.xp - currentLevelXp) / (xpForNextLevel - currentLevelXp)) * 100 : 0;
+  const xpForNextLevel = Math.max(1, Math.pow(profile?.level || 1, 2) * 100);
+  const currentLevelXp = Math.pow(Math.max(0, (profile?.level || 1) - 1), 2) * 100;
+  const progress = profile && xpForNextLevel > currentLevelXp 
+    ? Math.min(100, Math.max(0, (((profile.xp || 0) - currentLevelXp) / (xpForNextLevel - currentLevelXp)) * 100)) 
+    : 0;
 
   const [easterEggs, setEasterEggs] = useState<any[]>([]);
 
@@ -138,19 +139,19 @@ export default function StudentApp() {
       <div className="flex flex-col min-h-screen">
         <header className="sticky top-0 z-50 border-b border-black/10 dark:border-white/10 bg-inherit/80 backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-8">
-                <div className="flex flex-col justify-center">
-                  <div className="flex items-center gap-3">
-                    <Link to="/" className="flex items-center gap-3 group">
-                      <Logo size="sm" />
+            <div className="flex items-center gap-2 lg:gap-6 shrink-0 min-w-0">
+                <div className="flex flex-col justify-center shrink-0 min-w-0">
+                  <div className="flex items-center gap-2 lg:gap-3 shrink-0">
+                    <Link to="/" className="flex items-center gap-2 lg:gap-3 group shrink-0">
+                      <Logo size="sm" className="w-8 h-8 lg:w-10 lg:h-10" />
                     </Link>
-                    <div className="flex flex-col items-center">
-                      <Link to="/" className="font-bold text-xl tracking-tighter leading-none hover:opacity-70 transition-opacity">
+                    <div className="flex flex-col shrink-0 min-w-0">
+                      <Link to="/" className="font-bold text-base lg:text-xl tracking-tighter leading-none hover:opacity-70 transition-opacity truncate">
                         ECLIPSE
                       </Link>
                       <Link 
                         to={"/teacher" + (location.pathname === '/' ? '' : location.pathname)}
-                        className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100 transition-all text-center"
+                        className="text-[8px] lg:text-[10px] font-black uppercase tracking-[0.2em] opacity-60 hover:opacity-100 transition-all text-left"
                       >
                         Switch to Teacher
                       </Link>
@@ -158,13 +159,13 @@ export default function StudentApp() {
                   </div>
                 </div>
 
-                <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full ml-4">
+                <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full ml-2 lg:ml-4">
                   <Shield size={10} className="text-green-500" />
                   <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">Secure Connection</span>
                 </div>
 
               {user && (
-                <div className="hidden lg:flex items-center gap-4 pl-8 border-l border-black/10 dark:border-white/10">
+                <div className="hidden lg:flex items-center gap-4 pl-4 lg:pl-8 border-l border-black/10 dark:border-white/10">
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="flex flex-col">
@@ -222,7 +223,7 @@ export default function StudentApp() {
                       "text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-widest transition-all px-2 py-1 rounded-lg whitespace-nowrap",
                       isActive
                         ? "bg-black text-white dark:bg-white dark:text-black opacity-100 shadow-lg" 
-                        : "opacity-40 hover:opacity-100"
+                        : "opacity-60 hover:opacity-100"
                     )}
                   >
                     {item.name}
@@ -397,7 +398,6 @@ export default function StudentApp() {
                   <Route path="/ideas" element={<ProtectedRoute><IdeaPage /></ProtectedRoute>} />
                   <Route path="/ranks" element={<ProtectedRoute><RankPage /></ProtectedRoute>} />
                   <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
-                  <Route path="/vision" element={<ProtectedRoute><VisionPage /></ProtectedRoute>} />
                   <Route path="/dns" element={<ProtectedRoute adminOnly><DnsPage /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
                   <Route path="/auth" element={user ? <Navigate to="/tutor" /> : <AuthPage />} />
@@ -443,6 +443,7 @@ export default function StudentApp() {
           currentUsername={profile?.displayName || user?.displayName || ''}
           currentPhotoURL={profile?.photoURL || user?.photoURL || ''}
           currentPhone={profile?.phone || ''}
+          profile={profile}
         />
 
         <AnimatePresence>

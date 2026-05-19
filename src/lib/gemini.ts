@@ -1,35 +1,6 @@
-export async function generateImage(prompt: string, aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' = '1:1') {
-  try {
-    const response = await fetch('/api/tutor/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, mode: 'design', subject: 'Visual Arts' })
-    });
-    
-    if (!response.ok) {
-      const text = await response.text();
-      try {
-        const err = JSON.parse(text);
-        throw new Error(err.error || "Image gen failed");
-      } catch (e) {
-        throw new Error(text || "Image gen failed");
-      }
-    }
-
-    const data = await response.json();
-    if (!data.images || data.images.length === 0) {
-      throw new Error("No image generated.");
-    }
-    return data.images[0];
-  } catch (error: any) {
-    console.error("Gemini Image Gen Error:", error);
-    throw new Error(error.message || "Failed to manifest your vision.");
-  }
-}
-
 export async function askTutor(
   prompt: string, 
-  mode: 'teach' | 'solve' | 'revise' | 'design' | 'question' | 'test' | 'assignment' | 'vision', 
+  mode: 'teach' | 'solve' | 'revise' | 'question' | 'test' | 'assignment', 
   subject: string, 
   history: { role: 'user' | 'ai', content: string }[] = [], 
   imageData?: { data: string, mimeType: string }
@@ -65,7 +36,7 @@ export async function askTutor(
 
 export async function askTutorStream(
   prompt: string, 
-  mode: 'teach' | 'solve' | 'revise' | 'design' | 'question' | 'test' | 'assignment' | 'vision', 
+  mode: 'teach' | 'solve' | 'revise' | 'question' | 'test' | 'assignment', 
   subject: string, 
   onChunk: (text: string) => void,
   history: { role: 'user' | 'ai', content: string }[] = [], 

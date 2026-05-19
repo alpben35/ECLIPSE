@@ -20,7 +20,7 @@ import ProfileSettingsModal from '@/components/ProfileSettingsModal';
 // --- Components ---
 const TutorPage = React.lazy(() => import('./pages/TutorPage'));
 const ProgressPage = React.lazy(() => import('./pages/ProgressPage'));
-const LandingPage = React.lazy(() => import('@/pages/LandingPage'));
+const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const AdminPage = React.lazy(() => import('./pages/AdminPage'));
 const IdeaPage = React.lazy(() => import('./pages/IdeaPage'));
 const RankPage = React.lazy(() => import('./pages/RankPage'));
@@ -28,7 +28,6 @@ const GroupsPage = React.lazy(() => import('./pages/GroupsPage'));
 const GroupDetailPage = React.lazy(() => import('./pages/GroupDetailPage'));
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
 const SubscriptionPage = React.lazy(() => import('@/pages/SubscriptionPage'));
-const VisionPage = React.lazy(() => import('@/pages/VisionPage'));
 const DnsPage = React.lazy(() => import('@/pages/DnsPage'));
 
 export default function TeacherApp() {
@@ -69,9 +68,11 @@ export default function TeacherApp() {
 
   const handleLogout = () => signOut(auth);
 
-  const xpForNextLevel = Math.pow(profile?.level || 1, 2) * 100;
-  const currentLevelXp = Math.pow((profile?.level || 1) - 1, 2) * 100;
-  const progress = profile ? ((profile.xp - currentLevelXp) / (xpForNextLevel - currentLevelXp)) * 100 : 0;
+  const xpForNextLevel = Math.max(1, Math.pow(profile?.level || 1, 2) * 100);
+  const currentLevelXp = Math.pow(Math.max(0, (profile?.level || 1) - 1), 2) * 100;
+  const progress = profile && xpForNextLevel > currentLevelXp 
+    ? Math.min(100, Math.max(0, ((profile.xp - currentLevelXp) / (xpForNextLevel - currentLevelXp)) * 100)) 
+    : 0;
 
   return (
     <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red bg-royal-red text-gold")}>
@@ -80,7 +81,7 @@ export default function TeacherApp() {
           <motion.div 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
-            className="bg-royal-red text-white py-2 px-4 text-center text-xs font-black uppercase tracking-widest z-[100] relative border-b border-gold/20"
+            className="bg-royal-red text-gold py-2 px-4 text-center text-xs font-black uppercase tracking-widest z-[100] relative border-b border-gold/20"
           >
             Domain {window.location.hostname} is not authorized in Firebase. Features may not work.
           </motion.div>
@@ -89,34 +90,34 @@ export default function TeacherApp() {
       <div className="flex flex-col min-h-screen">
         <header className={cn("sticky top-0 z-50 border-b backdrop-blur-md transition-colors shadow-2xl border-gold/20 bg-royal-red/90")}>
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-8">
-              <div className="flex flex-col justify-center">
-                <div className="flex items-center gap-3">
-                  <Link to="/" className="group">
-                    <Logo size="sm" variant="teacher" />
+            <div className="flex items-center gap-4 lg:gap-8 min-w-0">
+              <div className="flex flex-col justify-center min-w-0">
+                <div className="flex items-center gap-2 lg:gap-3 shrink-0">
+                  <Link to="/" className="group shrink-0">
+                    <Logo size="md" variant="teacher" className="lg:w-12 lg:h-12" />
                   </Link>
-                  <div className="flex flex-col items-center">
-                    <Link to="/" className="flex items-center gap-1 hover:opacity-70 transition-opacity">
-                      <span className="font-bold text-xl tracking-tighter text-gold">ECLIPSE</span>
-                      <span className="text-base handwriting text-gold">Teacher</span>
+                  <div className="flex flex-col min-w-0">
+                    <Link to="/" className="flex items-center gap-2 lg:gap-3 hover:opacity-70 transition-opacity">
+                      <span className="font-bold text-lg lg:text-2xl tracking-tighter text-gold">ECLIPSE</span>
+                      <span className="text-base lg:text-xl handwriting text-gold">Teacher</span>
                     </Link>
-                    <Link 
-                      to={location.pathname.replace(/^\/teacher/, '') || '/'}
-                      className="text-[9px] font-black uppercase tracking-[0.2em] text-gold/40 hover:text-gold transition-all text-center"
+                    <button 
+                      onClick={() => window.location.href = '/'}
+                      className="text-[8px] lg:text-[10px] font-black uppercase tracking-[0.2em] text-gold/60 hover:text-gold transition-all text-left cursor-pointer"
                     >
                       Switch to Student
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full ml-4">
+              <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full ml-4">
                 <Shield size={10} className="text-gold" />
                 <span className="text-[10px] font-bold text-gold uppercase tracking-widest">Secure Connection</span>
               </div>
 
               {user && (
-                <div className="hidden lg:flex items-center gap-4 pl-8 border-l border-gold/10">
+                <div className="hidden lg:flex items-center gap-4 pl-4 lg:pl-8 border-l border-gold/10">
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="flex flex-col">
@@ -147,14 +148,14 @@ export default function TeacherApp() {
 
             <nav className="flex items-center gap-1 sm:gap-4 md:gap-8 overflow-x-auto no-scrollbar py-2">
               {navItems.map((item) => (
-                <Link 
+                  <Link 
                   key={item.path} 
                   to={item.path}
                   className={cn(
                     "text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-widest transition-all px-2 py-1 rounded-lg whitespace-nowrap",
                     location.pathname === item.path 
                       ? "bg-gold text-royal-red opacity-100 shadow-lg" 
-                      : "text-gold opacity-40 hover:opacity-100"
+                      : "text-gold opacity-60 hover:opacity-100"
                   )}
                 >
                   {item.name}
@@ -331,7 +332,6 @@ export default function TeacherApp() {
                   <Route path="/ideas" element={<ProtectedRoute><IdeaPage /></ProtectedRoute>} />
                   <Route path="/ranks" element={<ProtectedRoute><RankPage /></ProtectedRoute>} />
                   <Route path="/subscription" element={<SubscriptionPage />} />
-                  <Route path="/vision" element={<ProtectedRoute><VisionPage /></ProtectedRoute>} />
                   <Route path="/dns" element={<ProtectedRoute adminOnly><DnsPage /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
                 </Routes>
@@ -370,6 +370,7 @@ export default function TeacherApp() {
           currentUsername={profile?.displayName || user?.displayName || ''}
           currentPhotoURL={profile?.photoURL || user?.photoURL || ''}
           currentPhone={profile?.phone || ''}
+          profile={profile}
         />
 
         <AnimatePresence>

@@ -6,6 +6,7 @@ import { updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCre
 import { doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { cn } from '../lib/utils';
+import { OWNER_EMAIL } from '../constants';
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
@@ -13,9 +14,10 @@ interface ProfileSettingsModalProps {
   currentUsername: string;
   currentPhotoURL?: string;
   currentPhone?: string;
+  profile: any;
 }
 
-export default function ProfileSettingsModal({ isOpen, onClose, currentUsername, currentPhotoURL, currentPhone }: ProfileSettingsModalProps) {
+export default function ProfileSettingsModal({ isOpen, onClose, currentUsername, currentPhotoURL, currentPhone, profile }: ProfileSettingsModalProps) {
   const [username, setUsername] = useState(currentUsername);
   const [photoURL, setPhotoURL] = useState(currentPhotoURL || '');
   const [phone, setPhone] = useState(currentPhone || '');
@@ -28,6 +30,11 @@ export default function ProfileSettingsModal({ isOpen, onClose, currentUsername,
   const [success, setSuccess] = useState<string | null>(null);
   const [step, setStep] = useState<'options' | 'username' | 'password' | 'phone' | 'photo'>('options');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const rank = profile?.rank || 'Welcome';
+  const isOwner = profile?.email === OWNER_EMAIL || auth.currentUser?.email === OWNER_EMAIL || rank === 'Owner' || rank === 'Temporary Owner';
+  const isAdmin = rank === 'Admin' || isOwner;
+  const isPremium = ['Intermediate', 'Champion', 'Master'].includes(rank) || isAdmin || profile?.tier === 'premium' || profile?.tier === 'admin' || profile?.tier === 'intermediate';
 
   const reauthenticate = async (password: string) => {
     if (!auth.currentUser || !auth.currentUser.email) return;
@@ -58,6 +65,11 @@ export default function ProfileSettingsModal({ isOpen, onClose, currentUsername,
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !auth.currentUser) return;
+    
+    if (!isPremium) {
+      setError("Basic accounts cannot upload custom profile pictures. Upgrade to Champion or higher!");
+      return;
+    }
     
     setLoading(true);
     setError(null);

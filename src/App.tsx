@@ -27,17 +27,17 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 // Moved to constants.ts
 
 // --- Components ---
-const TutorPage = React.lazy(() => import('./pages/TutorPage'));
-const ProgressPage = React.lazy(() => import('./pages/ProgressPage'));
-const LandingPage = React.lazy(() => import('./pages/LandingPage'));
-const AdminPage = React.lazy(() => import('./pages/AdminPage'));
-const IdeaPage = React.lazy(() => import('./pages/IdeaPage'));
-const RankPage = React.lazy(() => import('./pages/RankPage'));
-const AuthPage = React.lazy(() => import('./pages/AuthPage'));
-const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
-const SubscriptionPage = React.lazy(() => import('./pages/SubscriptionPage'));
-const TeacherApp = React.lazy(() => import('./teacher/src/TeacherApp'));
-const StudentApp = React.lazy(() => import('./StudentApp'));
+const TutorPage = React.lazy(() => import('@/pages/TutorPage'));
+const ProgressPage = React.lazy(() => import('@/pages/ProgressPage'));
+const LandingPage = React.lazy(() => import('@/pages/LandingPage'));
+const AdminPage = React.lazy(() => import('@/pages/AdminPage'));
+const IdeaPage = React.lazy(() => import('@/pages/IdeaPage'));
+const RankPage = React.lazy(() => import('@/pages/RankPage'));
+const AuthPage = React.lazy(() => import('@/pages/AuthPage'));
+const PrivacyPolicy = React.lazy(() => import('@/pages/PrivacyPolicy'));
+const SubscriptionPage = React.lazy(() => import('@/pages/SubscriptionPage'));
+const TeacherApp = React.lazy(() => import('@/teacher/src/TeacherApp'));
+const StudentApp = React.lazy(() => import('@/StudentApp'));
 import SplashScreen from './components/PWA/SplashScreen';
 import AddToHomeScreen from './components/PWA/AddToHomeScreen';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
@@ -136,7 +136,8 @@ export default function App() {
               level: 1,
               streak: 0,
               lastActive: new Date().toISOString(),
-              rank: currentUser.email === OWNER_EMAIL ? 'Owner' : 'Free Student',
+              rank: currentUser.email === OWNER_EMAIL ? 'Owner' : 'Welcome',
+              photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=😊`,
               loginDays: 1,
               tier: currentUser.email === OWNER_EMAIL ? 'admin' : 'free',
               promptsToday: 0,
@@ -423,11 +424,13 @@ export default function App() {
               <div className="w-12 h-12 border-4 border-black dark:border-white border-t-transparent rounded-full animate-spin" />
             </div>
           }>
-            <Routes>
-              <Route path="/teacher/*" element={<TeacherApp />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/*" element={<StudentApp />} />
-            </Routes>
+            <AnimatePresence mode="wait">
+              <Routes>
+                <Route path="/teacher/*" element={<TeacherApp />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/*" element={<StudentApp />} />
+              </Routes>
+            </AnimatePresence>
           </React.Suspense>
         </ErrorBoundary>
 
@@ -438,7 +441,7 @@ export default function App() {
 }
 
 
-export { ThemeContext };
+export { ErrorBoundary };
 
 function UsernameSetup({ profile, onComplete }: { profile: any, onComplete: (username: string) => void }) {
   const [username, setUsername] = useState('');
@@ -573,8 +576,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     if (this.state.hasError) {
       let displayError = "Something went wrong.";
       try {
-        const parsed = JSON.parse(this.state.error.message);
-        if (parsed.error) displayError = `Firestore Error: ${parsed.error} (${parsed.operationType} on ${parsed.path})`;
+        if (typeof this.state.error.message === 'string') {
+          const parsed = JSON.parse(this.state.error.message);
+          if (parsed && typeof parsed === 'object' && parsed.error) {
+            displayError = `Firestore Error: ${parsed.error}`;
+            if (parsed.operationType) displayError += ` (${parsed.operationType} on ${parsed.path})`;
+          }
+        }
       } catch (e) {
         displayError = this.state.error.message || String(this.state.error);
       }

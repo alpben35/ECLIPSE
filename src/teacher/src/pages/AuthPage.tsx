@@ -126,12 +126,15 @@ export default function AuthPage() {
   };
 
   return (
-    <div className={cn("min-h-screen flex items-center justify-center px-4 py-12 transition-colors duration-500 bg-royal-red")}>
+    <div className={cn("min-h-screen flex items-center justify-center px-4 py-12 transition-colors duration-500")}>
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className={cn(
-          "w-full max-w-md border rounded-[3rem] p-8 md:p-12 shadow-2xl transition-all relative overflow-hidden bg-gold/10 border-gold/20 shadow-gold/10"
+          "w-full max-w-md border rounded-[3rem] p-8 md:p-12 shadow-2xl transition-all relative overflow-hidden",
+          isDark 
+            ? "bg-gold/10 border-gold/20 shadow-gold/10" 
+            : "bg-white border-gold shadow-xl"
         )}
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gold/30" />
@@ -139,10 +142,10 @@ export default function AuthPage() {
           <div className="flex justify-center mb-6">
             <Logo size="lg" variant="teacher" />
           </div>
-          <h1 className={cn("text-5xl font-black tracking-tighter uppercase italic leading-none text-gold mb-2")}>
+          <h1 className={cn("text-5xl font-black tracking-tighter uppercase italic leading-none mb-2", isDark ? "text-gold" : "text-royal-red")}>
             {mode === 'login' ? 'Teacher Portal' : mode === 'register' ? 'Join Eclipse' : mode === 'forgot' ? 'Reset Password' : 'Verify Email'}
           </h1>
-          <p className={cn("text-xs font-bold uppercase tracking-widest text-gold opacity-50")}>
+          <p className={cn("text-xs font-bold uppercase tracking-widest opacity-70", isDark ? "text-gold" : "text-royal-red")}>
             {mode === 'login' ? 'Enter the educator console.' : 
              mode === 'register' ? 'Deploy your teaching credentials.' : 
              mode === 'forgot' ? 'Trigger password recovery link.' :
@@ -211,39 +214,39 @@ export default function AuthPage() {
           <form onSubmit={handleAuth} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className={cn("text-[10px] font-bold uppercase tracking-widest opacity-50 ml-2", isDark ? "text-gold" : "text-royal-red")}>Email Address</label>
+              <label className={cn("text-[10px] font-bold uppercase tracking-widest opacity-80 ml-2", isDark ? "text-gold" : "text-royal-red")}>Email Address</label>
                 <div className="relative">
                   <Mail className={cn("absolute left-4 top-1/2 -translate-y-1/2 opacity-30", isDark ? "text-gold" : "text-royal-red")} size={20} />
-                  <input 
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="teacher@school.edu"
-                    className={cn(
-                      "w-full pl-12 pr-4 py-4 rounded-2xl border focus:outline-none focus:ring-2 transition-all",
-                      isDark ? "bg-gold/10 text-gold border-gold/20 focus:ring-gold/10" : "bg-royal-red/5 text-royal-red border-royal-red/10 focus:ring-royal-red/5 placeholder:text-royal-red/30"
-                    )}
-                  />
+                    <input 
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="teacher@school.edu"
+                      className={cn(
+                        "w-full pl-12 pr-4 py-4 rounded-2xl border focus:outline-none focus:ring-2 transition-all",
+                        isDark ? "bg-gold/15 text-gold border-gold/40 focus:ring-gold/30" : "bg-royal-red/10 text-royal-red border-royal-red/30 focus:ring-royal-red/20 placeholder:text-royal-red/50"
+                      )}
+                    />
                 </div>
               </div>
 
               {mode !== 'forgot' && (
                 <div className="space-y-2">
-                  <label className={cn("text-[10px] font-bold uppercase tracking-widest opacity-50 ml-2", isDark ? "text-gold" : "text-royal-red")}>Password</label>
+                  <label className={cn("text-[10px] font-bold uppercase tracking-widest opacity-80 ml-2", isDark ? "text-gold" : "text-royal-red")}>Password</label>
                   <div className="relative">
                     <Lock className={cn("absolute left-4 top-1/2 -translate-y-1/2 opacity-30", isDark ? "text-gold" : "text-royal-red")} size={20} />
-                    <input 
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className={cn(
-                        "w-full pl-12 pr-4 py-4 rounded-2xl border focus:outline-none focus:ring-2 transition-all",
-                        isDark ? "bg-gold/10 text-gold border-gold/20 focus:ring-gold/10" : "bg-royal-red/5 text-royal-red border-royal-red/10 focus:ring-royal-red/5 placeholder:text-royal-red/30"
-                      )}
-                    />
+                  <input 
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className={cn(
+                      "w-full pl-12 pr-4 py-4 rounded-2xl border focus:outline-none focus:ring-2 transition-all",
+                      isDark ? "bg-gold/15 text-gold border-gold/40 focus:ring-gold/30" : "bg-royal-red/10 text-royal-red border-royal-red/30 focus:ring-royal-red/20 placeholder:text-royal-red/50"
+                    )}
+                  />
                   </div>
                 </div>
               )}
@@ -251,7 +254,7 @@ export default function AuthPage() {
               {mode === 'register' && (
                 <>
                   <div className="space-y-2">
-                    <label className={cn("text-[10px] font-bold uppercase tracking-widest opacity-50 ml-2", isDark ? "text-gold" : "text-royal-red")}>Username</label>
+                    <label className={cn("text-[10px] font-bold uppercase tracking-widest opacity-80 ml-2", isDark ? "text-gold" : "text-royal-red")}>Username</label>
                     <div className="relative">
                       <User className={cn("absolute left-4 top-1/2 -translate-y-1/2 opacity-30", isDark ? "text-gold" : "text-royal-red")} size={20} />
                       <input 
@@ -262,14 +265,14 @@ export default function AuthPage() {
                         placeholder="Professor X"
                         className={cn(
                           "w-full pl-12 pr-4 py-4 rounded-2xl border focus:outline-none focus:ring-2 transition-all",
-                          isDark ? "bg-gold/10 text-gold border-gold/20 focus:ring-gold/10" : "bg-royal-red/5 text-royal-red border-royal-red/10 focus:ring-royal-red/5 placeholder:text-royal-red/30"
+                          isDark ? "bg-gold/15 text-gold border-gold/40 focus:ring-gold/30" : "bg-royal-red/10 text-royal-red border-royal-red/30 focus:ring-royal-red/20 placeholder:text-royal-red/50"
                         )}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className={cn("text-[10px] font-bold uppercase tracking-widest opacity-50 ml-2", isDark ? "text-gold" : "text-royal-red")}>Phone Number</label>
+                    <label className={cn("text-[10px] font-bold uppercase tracking-widest opacity-80 ml-2", isDark ? "text-gold" : "text-royal-red")}>Phone Number</label>
                     <div className="relative">
                       <Phone className={cn("absolute left-4 top-1/2 -translate-y-1/2 opacity-30", isDark ? "text-gold" : "text-royal-red")} size={20} />
                       <input 
@@ -280,7 +283,7 @@ export default function AuthPage() {
                         placeholder="+1 (555) 000-0000"
                         className={cn(
                           "w-full pl-12 pr-4 py-4 rounded-2xl border focus:outline-none focus:ring-2 transition-all",
-                          isDark ? "bg-gold/10 text-gold border-gold/20 focus:ring-gold/10" : "bg-royal-red/5 text-royal-red border-royal-red/10 focus:ring-royal-red/5 placeholder:text-royal-red/30"
+                          isDark ? "bg-gold/15 text-gold border-gold/40 focus:ring-gold/30" : "bg-royal-red/10 text-royal-red border-royal-red/30 focus:ring-royal-red/20 placeholder:text-royal-red/50"
                         )}
                       />
                     </div>
