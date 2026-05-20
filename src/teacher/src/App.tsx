@@ -315,7 +315,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className={cn("sticky top-0 z-50 border-b border-gold/20 backdrop-blur-md transition-colors", isDark ? "bg-royal-red/80" : "bg-white/80")}>
+      <header className="sticky top-0 z-50 bg-transparent transition-colors">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex flex-col">

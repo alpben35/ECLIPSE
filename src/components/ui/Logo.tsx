@@ -24,9 +24,9 @@ export default function Logo({
 
   const colors = {
     student: {
-      light: { base: 'bg-black', glow: 'bg-blue-500/40' }, 
+      light: { base: 'bg-black', glow: 'bg-black/10' }, 
       dark: { base: 'bg-white', glow: 'bg-white/30' },
-      glow: 'bg-blue-500/30 dark:bg-white/20'
+      glow: 'bg-black/10 dark:bg-white/20'
     },
     teacher: {
       base: 'bg-gold',
@@ -70,3 +70,5 @@ export default function Logo({
     </div>
   );
 }
+
+

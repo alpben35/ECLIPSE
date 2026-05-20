@@ -89,7 +89,7 @@ export default function TeacherApp() {
       </AnimatePresence>
       <div className="flex flex-col min-h-screen">
         {location.pathname !== '/teacher/auth' && (
-          <header className={cn("sticky top-0 z-50 border-b backdrop-blur-md transition-colors shadow-2xl", isDark ? "border-gold/20 bg-royal-red/90 text-gold" : "border-royal-red/25 bg-[#FAF7F0]/90 text-royal-red")}>
+          <header className={cn("sticky top-0 z-50 transition-colors bg-transparent", isDark ? "text-gold" : "text-royal-red")}>
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-4 lg:gap-8 min-w-0">
               <div className="flex flex-col justify-center min-w-0">

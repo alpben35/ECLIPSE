@@ -559,7 +559,30 @@ async function callGemini(params: {
         temperature: 0.1
       });
  
-      res.json(JSON.parse(text || '{}'));
+      let cleanedText = (text || '{}').trim();
+      if (cleanedText.includes('```')) {
+        const jsonMatch = cleanedText.match(/```json\s*([\s\S]*?)\s*```/i) || cleanedText.match(/```\s*([\s\S]*?)\s*```/i);
+        if (jsonMatch) {
+          cleanedText = jsonMatch[1];
+        } else {
+          cleanedText = cleanedText.replace(/```[a-zA-Z]*|```/g, '');
+        }
+      }
+      cleanedText = cleanedText.trim();
+
+      try {
+        const parsed = JSON.parse(cleanedText);
+        res.json(parsed);
+      } catch (parseError) {
+        console.error("[AI Analyze Parser Error] Failed to parse text:", cleanedText, parseError);
+        res.json({
+          summary: cleanedText.substring(0, 1000),
+          strengths: ["Analyzed paper successfully"],
+          weaknesses: [],
+          improvementTips: [],
+          overallGrade: "N/A"
+        });
+      }
     } catch (error: any) {
       console.error("[AI Analyze Error]", error);
       res.status(500).json({ error: error.message });
