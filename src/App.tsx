@@ -299,7 +299,7 @@ export default function App() {
   }
 
   // FORCE USERNAME SETUP
-  if (user && profile && !profile.username && location.pathname !== '/auth') {
+  if (user && profile && !profile.username && location.pathname !== '/auth' && !location.pathname.startsWith('/teacher')) {
     return <UsernameSetup profile={profile} onComplete={(username) => setProfile({...profile, username})} />;
   }
 

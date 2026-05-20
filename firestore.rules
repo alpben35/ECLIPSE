@@ -16,7 +16,11 @@ service cloud.firestore {
     function isAdmin() { 
       return isSignedIn() && (
         request.auth.token.email == 'alp.ben@gmail.com' || 
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        request.auth.token.email.endsWith('@eclipseapp.co.uk') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rank in ['Owner', 'Temporary Owner', 'Admin']
+        ))
       );
     }
 

@@ -260,7 +260,14 @@ async function startServer() {
     }
   });
 
-  // AI Helper with Retry Logic
+  // AI Helper with Robust Round-Based Fallbacks, Exponential Backoff, and Mid-Stream Safety
+const TEXT_MODEL_FALLBACKS = [
+  'gemini-3.5-flash',
+  'gemini-2.5-flash',
+  'gemini-flash-latest',
+  'gemini-3.1-flash-lite'
+];
+
 async function callGemini(params: {
   contents: any[],
   systemInstruction?: string,
@@ -269,64 +276,114 @@ async function callGemini(params: {
   isStream?: boolean,
   onChunk?: (text: string) => void
 }) {
-  // Use gemini-3.5-flash as the primary stable model
-  const modelName = params.model || 'gemini-3.5-flash';
-  const config = {
-    systemInstruction: params.systemInstruction,
-    temperature: params.temperature ?? 0.0,
-    safetySettings
-  };
+  const primaryModel = params.model || 'gemini-3.5-flash';
+  
+  // Set up sequential model fallback order starting from the requested model, falling back to alternatives
+  let modelSequence = [...TEXT_MODEL_FALLBACKS];
+  const reqIndex = modelSequence.indexOf(primaryModel);
+  if (reqIndex !== -1) {
+    modelSequence = modelSequence.slice(reqIndex);
+  } else {
+    modelSequence = [primaryModel, ...modelSequence];
+  }
 
-  let lastError;
-  const maxRetries = 6;
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      if (params.isStream && params.onChunk) {
-        const stream = await getAI().models.generateContentStream({
-          model: modelName,
-          contents: params.contents,
-          config
-        });
-        for await (const chunk of stream) {
-          if (chunk.text) params.onChunk(chunk.text);
-        }
-        return;
-      } else {
-        const response = await getAI().models.generateContent({
-          model: modelName,
-          contents: params.contents,
-          config
-        });
-        return response.text || "";
-      }
-    } catch (error: any) {
-      lastError = error;
-      const is503 = error.status === 503 || error.code === 503 || error.message?.includes('503') || error.message?.includes('UNAVAILABLE') || error.message?.includes('Overloaded');
-      const is429 = error.status === 429 || error.code === 429 || error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED') || error.message?.includes('Rate limit');
-      const is404 = error.status === 404 || error.code === 404 || error.message?.includes('404') || error.message?.includes('NOT_FOUND');
+  let lastError: any = null;
+  const maxRounds = 3; // Number of times to cycle through the entire sequence of engines
+  
+  for (let round = 0; round < maxRounds; round++) {
+    for (let modelIdx = 0; modelIdx < modelSequence.length; modelIdx++) {
+      const currentModelName = modelSequence[modelIdx];
+      let yieldedAny = false;
       
-      // If we hit a 503/429 on the 3rd retry, try a fallback model
-      if ((is503 || is429) && i === 2 && modelName === 'gemini-3.5-flash') {
-        console.warn(`[Gemini Helper] Model ${modelName} is struggling. Trying fallback gemini-flash-latest...`);
-        return callGemini({ ...params, model: 'gemini-flash-latest' });
-      }
+      try {
+        console.log(`[Gemini Helper] [Round ${round + 1}/${maxRounds}] Trying model: ${currentModelName}...`);
+        
+        const config = {
+          systemInstruction: params.systemInstruction,
+          temperature: params.temperature ?? 0.0,
+          safetySettings
+        };
 
-      if (is503 || is429) {
-        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-        console.warn(`[Gemini Helper] ${is503 ? '503/Overloaded' : '429/Rate'} error, retry ${i + 1}/${maxRetries} in ${Math.round(delay)}ms...`);
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
+        if (params.isStream && params.onChunk) {
+          const stream = await getAI().models.generateContentStream({
+            model: currentModelName,
+            contents: params.contents,
+            config
+          });
+          
+          for await (const chunk of stream) {
+            if (chunk.text) {
+              yieldedAny = true;
+              params.onChunk(chunk.text);
+            }
+          }
+          return;
+        } else {
+          const response = await getAI().models.generateContent({
+            model: currentModelName,
+            contents: params.contents,
+            config
+          });
+          return response.text || "";
+        }
+      } catch (error: any) {
+        lastError = error;
+        
+        // If we already successfully yielded text to the client mid-stream,
+        // we MUST NOT retry with a new model or connection because doing so
+        // would repeat early segments. Bubble the error up to let the stream close naturally.
+        if (yieldedAny) {
+          console.error(`[Gemini Helper] Stream disconnected mid-way after yielding content on ${currentModelName}. Bubbling error to prevent duplicate outputs.`);
+          throw error;
+        }
 
-      if (is404 && modelName !== 'gemini-3.5-flash') {
-        console.warn(`[Gemini Helper] 404 error for ${modelName}, falling back to gemini-3.5-flash...`);
-        return callGemini({ ...params, model: 'gemini-3.5-flash' });
-      }
+        const errMessage = error.message || "";
+        const errStatus = error.status || error.code || error.error?.code || "";
+        
+        const is503 = errStatus === 503 || 
+                      errMessage.includes('503') || 
+                      errMessage.includes('UNAVAILABLE') || 
+                      errMessage.includes('Overloaded') || 
+                      errMessage.includes('Service Unavailable') ||
+                      errMessage.includes('high demand') ||
+                      errMessage.includes('temporary');
+                      
+        const is429 = errStatus === 429 || 
+                      errMessage.includes('429') || 
+                      errMessage.includes('RESOURCE_EXHAUSTED') || 
+                      errMessage.includes('Rate limit') || 
+                      errMessage.includes('Too Many Requests');
+                      
+        const is404 = errStatus === 404 || 
+                      errMessage.includes('404') || 
+                      errMessage.includes('NOT_FOUND');
 
-      throw error;
+        const isTemporaryError = is503 || is429 || is404;
+
+        if (isTemporaryError) {
+          // If there is another model available in this sequence, immediately try it without sleeping!
+          if (modelIdx < modelSequence.length - 1) {
+            const nextModelName = modelSequence[modelIdx + 1];
+            console.warn(`[Gemini Helper] Model ${currentModelName} failed (${is503 ? '503 Overloaded' : is429 ? '429 Rate Limit' : '404 Not Found'}). Immediately pivoting to fallback ${nextModelName}...`);
+            continue;
+          }
+          
+          // If all models in the sequence failed, apply exponential backoff before the next round begins
+          if (round < maxRounds - 1 && modelIdx === modelSequence.length - 1) {
+            const delay = Math.pow(2, round) * 1500 + Math.random() * 1000;
+            console.warn(`[Gemini Helper] Entire model sequence busy in Round ${round + 1}. Backing off for ${Math.round(delay)}ms before starting Round ${round + 2}...`);
+            await new Promise(r => setTimeout(r, delay));
+            break; // Breaks out of the model sequence loop to trigger the next backoff round
+          }
+        }
+
+        // Fatal/Non-temporary error (e.g. invalid arguments or billing issues), throw instantly
+        throw error;
+      }
     }
   }
-  
+
+  // Raise standard user-friendly rate limit error or last fallback exception
   if (lastError?.message?.includes('RESOURCE_EXHAUSTED') || lastError?.message?.includes('429')) {
     throw new Error("The AI is currently receiving too many requests. Please wait a few seconds and try again.");
   }

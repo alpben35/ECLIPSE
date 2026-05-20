@@ -13,17 +13,7 @@ import { db, auth, handleFirestoreError, OperationType } from './lib/firebase';
 import { RANKS, OWNER_EMAIL } from '@/constants';
 import { cn } from '@/lib/utils';
 
-const ThemeContext = createContext<{
-  isDark: boolean;
-  toggleTheme: () => void;
-}>({ isDark: false, toggleTheme: () => {} });
-
-export const AuthContext = createContext<{
-  user: User | null;
-  profile: any | null;
-  loading: boolean;
-  addXp: (amount: number) => Promise<void>;
-}>({ user: null, profile: null, loading: true, addXp: async () => {} });
+import { ThemeContext, AuthContext } from '@/lib/contexts';
 
 import TutorPage from './pages/TutorPage';
 import ProgressPage from './pages/ProgressPage';
@@ -37,7 +27,7 @@ import SubscriptionPage from '@/pages/SubscriptionPage';
 import Logo from '@/components/ui/Logo';
 
 export default function App() {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +50,7 @@ export default function App() {
               uid: currentUser.uid,
               displayName: currentUser.displayName,
               email: currentUser.email,
-              theme: isDark ? 'dark' : 'light',
+              theme: 'dark',
               createdAt: new Date().toISOString(),
               xp: 0,
               level: 1,
@@ -73,7 +63,7 @@ export default function App() {
             setProfile(newProfile);
           } else {
             const data = userSnap.data();
-            setIsDark(data.theme === 'dark');
+            setIsDark(true);
             
             const today = new Date().toDateString();
             const lastActiveDate = data.lastActive ? new Date(data.lastActive) : null;
@@ -144,28 +134,30 @@ export default function App() {
   }, [user, profile]);
 
   const toggleTheme = React.useCallback(() => {
-    const newTheme = !isDark;
-    setIsDark(newTheme);
-    if (user) {
-      setDoc(doc(db, 'users', user.uid), { theme: newTheme ? 'dark' : 'light' }, { merge: true })
-        .catch(error => handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`));
-    }
-  }, [isDark, user]);
+    // Teacher portal is dark-only
+  }, []);
+
+  const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
+  const isAdmin = isOwner || 
+                  user?.email === OWNER_EMAIL || 
+                  user?.uid === 'GTk39aFMkFTSARasXr2F4XgdtMM2' || 
+                  profile?.rank === 'Temporary Owner' || 
+                  profile?.rank === 'Admin';
 
   const authContextValue = React.useMemo(() => ({ 
     user, 
     profile, 
     loading, 
     addXp,
-    maintenance
-  }), [user, profile, loading, addXp, maintenance]);
+    maintenance,
+    isOwner,
+    isAdmin
+  }), [user, profile, loading, addXp, maintenance, isOwner, isAdmin]);
 
   const themeContextValue = React.useMemo(() => ({ 
     isDark, 
     toggleTheme 
   }), [isDark, toggleTheme]);
-
-  const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
 
   if (loading) {
     return (

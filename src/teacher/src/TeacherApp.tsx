@@ -173,17 +173,6 @@ export default function TeacherApp() {
             </nav>
 
             <div className="flex items-center gap-4">
-              <button 
-                onClick={toggleTheme}
-                className={cn(
-                  "p-2.5 rounded-xl border transition-all active:scale-95 shrink-0",
-                  isDark ? "bg-gold/10 hover:bg-gold/20 border-gold/20" : "bg-royal-red/10 hover:bg-royal-red/20 border-royal-red/20"
-                )}
-                title="Toggle Theme"
-              >
-                {isDark ? <Sun size={22} strokeWidth={2.5} className="text-green-500" /> : <Moon size={22} strokeWidth={2.5} className={isDark ? "text-gold" : "text-royal-red"} />}
-              </button>
-              
               {user ? (
                 <div className="flex items-center gap-4">
                   <div className="relative">
