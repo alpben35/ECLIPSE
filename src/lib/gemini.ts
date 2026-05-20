@@ -6,10 +6,25 @@ export async function askTutor(
   imageData?: { data: string, mimeType: string }
 ) {
   try {
+    const sanitizedHistory = (history || []).map(h => ({
+      role: h.role,
+      content: String(h.content || "")
+    }));
+    const sanitizedImageData = imageData ? {
+      data: String(imageData.data || ""),
+      mimeType: String(imageData.mimeType || "")
+    } : undefined;
+
     const response = await fetch('/api/tutor/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, mode, subject, history, imageData })
+      body: JSON.stringify({ 
+        prompt: String(prompt || ""), 
+        mode, 
+        subject: String(subject || ""), 
+        history: sanitizedHistory, 
+        imageData: sanitizedImageData 
+      })
     });
 
     if (!response.ok) {
@@ -43,10 +58,25 @@ export async function askTutorStream(
   imageData?: { data: string, mimeType: string }
 ) {
   try {
+    const sanitizedHistory = (history || []).map(h => ({
+      role: h.role,
+      content: String(h.content || "")
+    }));
+    const sanitizedImageData = imageData ? {
+      data: String(imageData.data || ""),
+      mimeType: String(imageData.mimeType || "")
+    } : undefined;
+
     const response = await fetch('/api/tutor/ask-stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, mode, subject, history, imageData })
+      body: JSON.stringify({ 
+        prompt: String(prompt || ""), 
+        mode, 
+        subject: String(subject || ""), 
+        history: sanitizedHistory, 
+        imageData: sanitizedImageData 
+      })
     });
 
     if (!response.ok) {
@@ -117,10 +147,14 @@ export async function askTutorStream(
 
 export async function summarizeChat(messages: { role: string, content: string }[]) {
   try {
+    const sanitizedMessages = (messages || []).map(m => ({
+      role: m.role,
+      content: String(m.content || "")
+    }));
     const response = await fetch('/api/tutor/summarize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages })
+      body: JSON.stringify({ messages: sanitizedMessages })
     });
 
     if (!response.ok) throw new Error("Summary failed");
