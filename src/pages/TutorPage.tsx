@@ -249,17 +249,35 @@ export default function TutorPage() {
       let fullText = "";
       setStreamingMessage("");
       
-      await askTutorStream(
-        messageText || "Please assist.", 
-        currentMode, 
-        currentSubject, 
-        (chunk) => {
-          fullText += chunk;
+      try {
+        await askTutorStream(
+          messageText || "Please assist.", 
+          currentMode, 
+          currentSubject, 
+          (chunk) => {
+            fullText += chunk;
+            setStreamingMessage(fullText);
+          },
+          chatHistory, 
+          imageData
+        );
+      } catch (streamErr) {
+        console.warn("Streaming failed, trying non-streaming fallback...", streamErr);
+        try {
+          const res = await askTutor(
+            messageText || "Please assist.", 
+            currentMode, 
+            currentSubject, 
+            chatHistory, 
+            imageData
+          );
+          fullText = res.text;
           setStreamingMessage(fullText);
-        },
-        chatHistory, 
-        imageData
-      );
+        } catch (fallbackErr: any) {
+          console.error("Both stream and non-stream tutor calls failed:", fallbackErr);
+          throw fallbackErr;
+        }
+      }
       
       setStreamingMessage(null);
 

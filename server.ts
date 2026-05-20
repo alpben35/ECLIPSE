@@ -27,7 +27,14 @@ function getStripe() {
 let genAIClient: GoogleGenAI | null = null;
 function getAI() {
   if (!genAIClient) {
-    const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    let key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    
+    // Robust fallback to project's API key from firebase-applet-config.json if environment variable is missing
+    if (!key && firebaseConfig && firebaseConfig.apiKey) {
+      console.log("[Gemini Helper] Environment API key not found. Using API key from firebase-applet-config.json as fallback.");
+      key = firebaseConfig.apiKey;
+    }
+
     if (!key) {
       throw new Error('GEMINI_API_KEY is not set in environment. Please visit the Settings > Secrets panel in AI Studio to provide your API key.');
     }
