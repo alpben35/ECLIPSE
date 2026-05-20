@@ -274,7 +274,8 @@ async function callGemini(params: {
   model?: string,
   temperature?: number,
   isStream?: boolean,
-  onChunk?: (text: string) => void
+  onChunk?: (text: string) => void,
+  responseMimeType?: string
 }) {
   const primaryModel = params.model || 'gemini-3.5-flash';
   
@@ -298,11 +299,15 @@ async function callGemini(params: {
       try {
         console.log(`[Gemini Helper] [Round ${round + 1}/${maxRounds}] Trying model: ${currentModelName}...`);
         
-        const config = {
+        const config: any = {
           systemInstruction: params.systemInstruction,
           temperature: params.temperature ?? 0.0,
           safetySettings
         };
+
+        if (params.responseMimeType) {
+          config.responseMimeType = params.responseMimeType;
+        }
 
         if (params.isStream && params.onChunk) {
           const stream = await getAI().models.generateContentStream({
@@ -500,6 +505,7 @@ async function callGemini(params: {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
  
       await callGemini({
         contents,
@@ -556,7 +562,8 @@ async function callGemini(params: {
           }
         ],
         model: 'gemini-3.5-flash',
-        temperature: 0.1
+        temperature: 0.1,
+        responseMimeType: 'application/json'
       });
  
       let cleanedText = (text || '{}').trim();
