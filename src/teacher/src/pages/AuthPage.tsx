@@ -142,14 +142,14 @@ export default function AuthPage() {
           <div className="flex justify-center mb-6">
             <Logo size="lg" variant="teacher" />
           </div>
-          <h1 className={cn("text-5xl font-black tracking-tighter uppercase italic leading-none mb-2", isDark ? "text-gold" : "text-royal-red")}>
+          <h1 className={cn("text-5xl font-black tracking-tighter uppercase italic leading-none mb-4", isDark ? "text-gold" : "text-royal-red")}>
             {mode === 'login' ? 'Teacher Portal' : mode === 'register' ? 'Join Eclipse' : mode === 'forgot' ? 'Reset Password' : 'Verify Email'}
           </h1>
-          <p className={cn("text-xs font-bold uppercase tracking-widest opacity-70", isDark ? "text-gold" : "text-royal-red")}>
-            {mode === 'login' ? 'Enter the educator console.' : 
-             mode === 'register' ? 'Deploy your teaching credentials.' : 
-             mode === 'forgot' ? 'Trigger password recovery link.' :
-             'System verification required.'}
+          <p className={cn("text-sm px-4 opacity-70", isDark ? "text-gold" : "text-royal-red")}>
+            {mode === 'login' ? 'Empower your classroom with the most advanced AI helper ever built. Sign in to continue your journey.' : 
+             mode === 'register' ? 'Join thousands of teachers supercharging their classroom with Eclipse.' : 
+             mode === 'forgot' ? 'Recover your password and resume your lessons in seconds.' :
+             'Securely verify your identity to protect student privacy and classrooms.'}
           </p>
         </div>
 

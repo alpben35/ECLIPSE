@@ -38,7 +38,7 @@ export default function LandingPage() {
             isDark ? "text-gold" : "text-royal-red"
           )}
         >
-          ELEVATE YOUR <br /> CLASSROOM.
+          MASTER EVERY <br /> SUBJECT.
         </motion.h1>
 
         <motion.p 

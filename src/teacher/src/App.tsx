@@ -210,7 +210,7 @@ export default function App() {
     <AuthContext.Provider value={authContextValue}>
       <ThemeContext.Provider value={themeContextValue}>
         <ErrorBoundary>
-          <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red", isDark ? "bg-royal-red text-gold" : "bg-zinc-50 text-royal-red")}>
+          <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red", isDark ? "bg-royal-red text-gold" : "bg-[#FAF7F0] text-royal-red")}>
             <Layout>
               <Routes>
                 <Route path="/" element={user ? <Navigate to="/tutor" /> : <LandingPage />} />

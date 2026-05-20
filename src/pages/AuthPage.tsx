@@ -214,10 +214,10 @@ export default function AuthPage() {
                 className="space-y-4"
               >
                 <div className="text-center mb-6">
-                  <h2 className="text-xl font-bold text-white mb-2 italic uppercase">
+                  <h2 className={cn("text-xl font-bold mb-2 italic uppercase", isDark ? "text-white" : "text-black")}>
                     {forgotStep === 'email' ? 'Reset Password' : forgotStep === 'phone' ? 'Verify Phone' : 'Success!'}
                   </h2>
-                  <p className="text-xs text-white/60">
+                  <p className={cn("text-xs", isDark ? "text-white/60" : "text-black/60")}>
                     {forgotStep === 'email' 
                       ? "Enter your email address to begin recovery." 
                       : forgotStep === 'phone' 
@@ -228,7 +228,7 @@ export default function AuthPage() {
                 
                 {forgotStep === 'email' && (
                   <div className="relative">
-                    <Mail size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30" />
+                    <Mail size={18} className={cn("absolute left-5 top-1/2 -translate-y-1/2", isDark ? "text-white/30" : "text-black/30")} />
                     <input 
                       type="email"
                       required
@@ -245,7 +245,7 @@ export default function AuthPage() {
 
                 {forgotStep === 'phone' && (
                   <div className="relative">
-                    <Shield size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30" />
+                    <Shield size={18} className={cn("absolute left-5 top-1/2 -translate-y-1/2", isDark ? "text-white/30" : "text-black/30")} />
                     <input 
                       type="tel"
                       required
@@ -288,7 +288,10 @@ export default function AuthPage() {
                   <button 
                     type="button"
                     onClick={() => { setMode('email-in'); setForgotStep('email'); setResetSent(false); }}
-                    className="w-full text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-opacity py-2"
+                    className={cn(
+                      "w-full text-[10px] font-black uppercase tracking-widest transition-all py-2",
+                      isDark ? "text-white/30 hover:text-white" : "text-black/40 hover:text-black"
+                    )}
                   >
                     Back to Sign In
                   </button>
@@ -335,7 +338,7 @@ export default function AuthPage() {
                   {mode === 'email-up' && (
                     <>
                       <div className="relative">
-                        <UserIcon size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30" />
+                        <UserIcon size={18} className={cn("absolute left-5 top-1/2 -translate-y-1/2", isDark ? "text-white/30" : "text-black/30")} />
                         <input 
                           type="text"
                           required
@@ -349,7 +352,7 @@ export default function AuthPage() {
                         />
                       </div>
                       <div className="relative">
-                        <Shield size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30" />
+                        <Shield size={18} className={cn("absolute left-5 top-1/2 -translate-y-1/2", isDark ? "text-white/30" : "text-black/30")} />
                         <input 
                           type="tel"
                           required
@@ -365,7 +368,7 @@ export default function AuthPage() {
                     </>
                   )}
                   <div className="relative">
-                    <Mail size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30" />
+                    <Mail size={18} className={cn("absolute left-5 top-1/2 -translate-y-1/2", isDark ? "text-white/30" : "text-black/30")} />
                     <input 
                       type="email"
                       required
@@ -379,7 +382,7 @@ export default function AuthPage() {
                     />
                   </div>
                   <div className="relative">
-                    <Lock size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30" />
+                    <Lock size={18} className={cn("absolute left-5 top-1/2 -translate-y-1/2", isDark ? "text-white/30" : "text-black/30")} />
                     <input 
                       type="password"
                       required
@@ -394,7 +397,7 @@ export default function AuthPage() {
                   </div>
                   {mode === 'email-up' && (
                     <div className="relative">
-                      <Lock size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30" />
+                      <Lock size={18} className={cn("absolute left-5 top-1/2 -translate-y-1/2", isDark ? "text-white/30" : "text-black/30")} />
                       <input 
                         type="password"
                         required
@@ -412,7 +415,10 @@ export default function AuthPage() {
                     <button 
                       type="button"
                       onClick={() => setMode('forgot')}
-                      className="text-[10px] font-bold uppercase tracking-widest text-white/30 hover:text-white transition-opacity"
+                      className={cn(
+                        "text-[10px] font-bold uppercase tracking-widest transition-opacity",
+                        isDark ? "text-white/30 hover:text-white" : "text-black/40 hover:text-black"
+                      )}
                     >
                       Forgot Password?
                     </button>
@@ -456,22 +462,25 @@ export default function AuthPage() {
             )}
           </AnimatePresence>
 
-          <p className={cn("text-[10px] text-center text-white/60 mt-8 leading-relaxed font-bold uppercase tracking-widest px-8")}>
+          <p className={cn("text-[10px] text-center mt-8 leading-relaxed font-bold uppercase tracking-widest px-8", isDark ? "text-white/60" : "text-black/60")}>
             By signing in, you agree to our Terms of Service and Privacy Policy. This application uses advanced AI and does not replace human professional advice.
           </p>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-white/5 text-center relative z-10 flex flex-col items-center gap-4">
+        <div className={cn("mt-12 pt-8 border-t text-center relative z-10 flex flex-col items-center gap-4", isDark ? "border-white/5" : "border-black/5")}>
           <div className="flex items-center gap-2 opacity-40">
-              <Sparkles size={12} className="text-white" />
-              <span className="text-[10px] font-mono tracking-tighter uppercase italic font-bold text-white">hello, world!</span>
+              <Sparkles size={12} className={isDark ? "text-white" : "text-black"} />
+              <span className={cn("text-[10px] font-mono tracking-tighter uppercase italic font-bold", isDark ? "text-white" : "text-black")}>hello, world!</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
-              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 leading-none">Eclipse OS v2.0.4-UK</p>
+              <p className={cn("text-[8px] font-black uppercase tracking-[0.3em] leading-none", isDark ? "text-white/20" : "text-black/20")}>Eclipse OS v2.0.4-UK</p>
           </div>
           <Link 
             to="/privacy" 
-            className="text-[10px] font-bold uppercase tracking-widest text-white/30 hover:text-white transition-opacity flex items-center justify-center gap-2 mt-2"
+            className={cn(
+              "text-[10px] font-bold uppercase tracking-widest transition-opacity flex items-center justify-center gap-2 mt-2",
+              isDark ? "text-white/30 hover:text-white" : "text-black/40 hover:text-black"
+            )}
           >
             <Shield size={12} />
             Privacy & Security

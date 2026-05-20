@@ -75,9 +75,9 @@ export default function TeacherApp() {
     : 0;
 
   return (
-    <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red bg-royal-red text-gold")}>
+    <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red", isDark ? "bg-royal-red text-gold" : "bg-[#FAF7F0] text-royal-red")}>
       <AnimatePresence>
-        {!connectivity.isAuthorized && window.location.hostname !== 'localhost' && (
+        {location.pathname !== '/teacher/auth' && !connectivity.isAuthorized && window.location.hostname !== 'localhost' && (
           <motion.div 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -88,64 +88,66 @@ export default function TeacherApp() {
         )}
       </AnimatePresence>
       <div className="flex flex-col min-h-screen">
-        <header className={cn("sticky top-0 z-50 border-b backdrop-blur-md transition-colors shadow-2xl border-gold/20 bg-royal-red/90")}>
+        {location.pathname !== '/teacher/auth' && (
+          <header className={cn("sticky top-0 z-50 border-b backdrop-blur-md transition-colors shadow-2xl", isDark ? "border-gold/20 bg-royal-red/90 text-gold" : "border-royal-red/25 bg-[#FAF7F0]/90 text-royal-red")}>
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-4 lg:gap-8 min-w-0">
               <div className="flex flex-col justify-center min-w-0">
                 <div className="flex items-center gap-2 lg:gap-3 shrink-0">
                   <Link to="/" className="group shrink-0">
-                    <Logo size="md" variant="teacher" className="lg:w-12 lg:h-12" />
+                    <Logo size="sm" variant="teacher" className="w-8 h-8 lg:w-10 lg:h-10" />
                   </Link>
                   <div className="flex flex-col min-w-0">
                     <Link to="/" className="flex items-center gap-2 lg:gap-3 hover:opacity-70 transition-opacity">
-                      <span className="font-bold text-lg lg:text-2xl tracking-tighter text-gold">ECLIPSE</span>
-                      <span className="text-base lg:text-xl handwriting text-gold">Teacher</span>
+                      <span className={cn("font-bold text-lg lg:text-2xl tracking-tighter transition-colors", isDark ? "text-gold" : "text-royal-red")}>ECLIPSE</span>
+                      <span className={cn("text-base lg:text-xl handwriting inline-block transition-colors", isDark ? "text-gold" : "text-royal-red")}>Teacher</span>
                     </Link>
                     <button 
                       onClick={() => window.location.href = '/'}
-                      className="mt-1 flex items-center gap-2 group cursor-pointer"
+                      className={cn("text-[9px] font-black uppercase tracking-widest transition-colors whitespace-nowrap text-left mt-1", isDark ? "text-gold/40 hover:text-gold" : "text-royal-red/60 hover:text-royal-red")}
                     >
-                      <div className="w-6 h-3 lg:w-8 lg:h-4 bg-gold/10 rounded-full relative transition-colors group-hover:bg-gold/20">
-                        <div className={cn(
-                          "absolute top-0.5 right-0.5 w-2 h-2 lg:w-3 lg:h-3 rounded-full bg-gold transition-transform translate-x-0"
-                        )} />
-                      </div>
-                      <span className="text-[7px] lg:text-[9px] font-black uppercase tracking-widest text-gold/40 group-hover:text-gold transition-colors whitespace-nowrap">
-                        Student Portal
-                      </span>
+                      Student Portal
                     </button>
                   </div>
                 </div>
               </div>
 
-              <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-gold/10 border border-gold/20 rounded-full ml-4">
-                <Shield size={10} className="text-gold" />
-                <span className="text-[10px] font-bold text-gold uppercase tracking-widest">Secure Connection</span>
+              <div className={cn(
+                "hidden xl:flex items-center gap-2 px-3 py-1 rounded-full ml-4 border transition-colors",
+                isDark 
+                  ? "bg-gold/10 border-gold/20 text-gold" 
+                  : "bg-royal-red/10 border-royal-red/20 text-royal-red"
+              )}>
+                <Shield size={10} className={isDark ? "text-gold" : "text-royal-red"} />
+                <span className="text-[10px] font-bold uppercase tracking-widest">Secure Connection</span>
               </div>
 
               {user && (
-                <div className="hidden lg:flex items-center gap-4 pl-4 lg:pl-8 border-l border-gold/10">
+                <div className={cn(
+                  "hidden lg:flex items-center gap-4 pl-4 lg:pl-8 border-l",
+                  isDark ? "border-gold/10" : "border-royal-red/10"
+                )}>
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
                           {profile?.email === OWNER_EMAIL ? 'Owner' : profile?.rank || 'Welcome'}
                         </span>
-                        <span className="text-[8px] font-bold text-gold uppercase tracking-widest">
+                        <span className={cn("text-[8px] font-bold uppercase tracking-widest", isDark ? "text-gold" : "text-royal-red")}>
                           Level {profile?.level || 1}
                         </span>
                       </div>
                       <div className="flex gap-0.5">
                         {[...Array(5)].map((_, i) => (
-                          <div key={i} className={cn("w-1 h-1 rounded-full", i < (profile?.streak % 5 || 0) ? "bg-gold" : "bg-gold/10")} />
+                          <div key={i} className={cn("w-1 h-1 rounded-full", i < (profile?.streak % 5 || 0) ? (isDark ? "bg-gold" : "bg-royal-red") : (isDark ? "bg-gold/10" : "bg-royal-red/10"))} />
                         ))}
                       </div>
                     </div>
-                    <div className="w-32 h-1 bg-gold/10 rounded-full overflow-hidden">
+                    <div className={cn("w-32 h-1 rounded-full overflow-hidden", isDark ? "bg-gold/10" : "bg-royal-red/10")}>
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
-                        className="h-full bg-gold/40" 
+                        className={cn("h-full", isDark ? "bg-gold/40" : "bg-royal-red/40")} 
                       />
                     </div>
                   </div>
@@ -153,7 +155,7 @@ export default function TeacherApp() {
               )}
             </div>
 
-            <nav className="flex items-center gap-1 sm:gap-4 md:gap-8 overflow-x-auto no-scrollbar py-2">
+            <nav className="flex items-center gap-1 sm:gap-2 lg:gap-4 xl:gap-8 overflow-x-auto no-scrollbar py-2 mx-1 lg:mx-4 flex-1 justify-center min-w-0">
               {navItems.map((item) => (
                   <Link 
                   key={item.path} 
@@ -161,8 +163,8 @@ export default function TeacherApp() {
                   className={cn(
                     "text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-widest transition-all px-2 py-1 rounded-lg whitespace-nowrap",
                     location.pathname === item.path 
-                      ? "bg-gold text-royal-red opacity-100 shadow-lg" 
-                      : "text-gold opacity-60 hover:opacity-100"
+                      ? (isDark ? "bg-gold text-royal-red opacity-100 shadow-lg animate-pulse" : "bg-royal-red text-white opacity-100 shadow-lg") 
+                      : (isDark ? "text-gold opacity-60 hover:opacity-100" : "text-royal-red opacity-60 hover:opacity-100")
                   )}
                 >
                   {item.name}
@@ -173,10 +175,13 @@ export default function TeacherApp() {
             <div className="flex items-center gap-4">
               <button 
                 onClick={toggleTheme}
-                className="p-2.5 rounded-xl bg-gold/10 hover:bg-gold/20 border border-gold/20 transition-all active:scale-95 shrink-0"
+                className={cn(
+                  "p-2.5 rounded-xl border transition-all active:scale-95 shrink-0",
+                  isDark ? "bg-gold/10 hover:bg-gold/20 border-gold/20" : "bg-royal-red/10 hover:bg-royal-red/20 border-royal-red/20"
+                )}
                 title="Toggle Theme"
               >
-                {isDark ? <Sun size={22} strokeWidth={2.5} className="text-green-500" /> : <Moon size={22} strokeWidth={2.5} className="text-green-500" />}
+                {isDark ? <Sun size={22} strokeWidth={2.5} className="text-green-500" /> : <Moon size={22} strokeWidth={2.5} className={isDark ? "text-gold" : "text-royal-red"} />}
               </button>
               
               {user ? (
@@ -189,7 +194,7 @@ export default function TeacherApp() {
                       <img 
                         src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} 
                         alt="Avatar" 
-                        className="w-8 h-8 rounded-full border border-gold/20 group-hover:border-gold/50 transition-colors"
+                        className={cn("w-8 h-8 rounded-full border transition-colors", isDark ? "border-gold/20 group-hover:border-gold/50" : "border-royal-red/20 group-hover:border-royal-red/50")}
                       />
                     </button>
 
@@ -209,28 +214,31 @@ export default function TeacherApp() {
                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
                             className="absolute right-0 w-72 pt-4 z-50"
                           >
-                            <div className={cn("border shadow-2xl p-6 overflow-hidden rounded-[2rem] bg-royal-red border-gold/20")}>
+                            <div className={cn(
+                              "border shadow-2xl p-6 overflow-hidden rounded-[2rem] transition-colors",
+                              isDark ? "bg-royal-red border-gold/20 text-gold" : "bg-[#FAF7F0] border-royal-red/25 text-royal-red"
+                            )}>
                             <div className="space-y-6">
-                              <div className={cn("flex items-center gap-4 pb-6 border-b border-gold/10")}>
-                                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center bg-gold/10")}>
-                                  <Award size={24} className="text-gold opacity-50" />
+                              <div className={cn("flex items-center gap-4 pb-6 border-b", isDark ? "border-gold/10" : "border-royal-red/10")}>
+                                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", isDark ? "bg-gold/10" : "bg-royal-red/10")}>
+                                  <Award size={24} className={cn("opacity-50", isDark ? "text-gold" : "text-royal-red")} />
                                 </div>
                                 <div className="flex flex-col min-w-0">
-                                  <p className={cn("text-[10px] font-bold uppercase tracking-widest opacity-30 text-gold")}>Teacher Profile</p>
-                                  <p className={cn("font-bold truncate text-lg tracking-tight text-gold")}>{profile?.displayName || user.displayName || 'Anonymous'}</p>
+                                  <p className={cn("text-[10px] font-bold uppercase tracking-widest opacity-35", isDark ? "text-gold" : "text-royal-red")}>Teacher Profile</p>
+                                  <p className={cn("font-bold truncate text-lg tracking-tight", isDark ? "text-gold" : "text-royal-red")}>{profile?.displayName || user.displayName || 'Anonymous'}</p>
                                 </div>
                               </div>
 
-                              <div className={cn("space-y-3")}>
-                                <p className={cn("text-[10px] font-bold uppercase tracking-widest opacity-30 ml-1 text-gold")}>Account Security</p>
-                                <div className={cn("p-4 rounded-2xl flex items-center justify-between bg-gold/5")}>
+                              <div className="space-y-3">
+                                <p className={cn("text-[10px] font-bold uppercase tracking-widest opacity-35 ml-1", isDark ? "text-gold" : "text-royal-red")}>Account Security</p>
+                                <div className={cn("p-4 rounded-2xl flex items-center justify-between", isDark ? "bg-gold/5" : "bg-royal-red/5")}>
                                   <div className="flex items-center gap-3">
-                                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center bg-gold/10")}>
-                                      <Lock size={14} className={cn("text-gold opacity-50")} />
+                                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", isDark ? "bg-gold/10" : "bg-royal-red/10")}>
+                                      <Lock size={14} className={cn("opacity-50", isDark ? "text-gold" : "text-royal-red")} />
                                     </div>
                                     <div className="flex flex-col">
-                                      <span className={cn("text-xs font-bold text-gold")}>Password</span>
-                                      <span className={cn("text-[10px] opacity-30 tracking-widest text-gold")}>••••••••</span>
+                                      <span className={cn("text-xs font-bold", isDark ? "text-gold" : "text-royal-red")}>Password</span>
+                                      <span className={cn("text-[10px] opacity-30 tracking-widest", isDark ? "text-gold" : "text-royal-red")}>••••••••</span>
                                     </div>
                                   </div>
                                 </div>
@@ -274,7 +282,7 @@ export default function TeacherApp() {
                                         });
                                     }
                                   }}
-                                  className="text-[10px] font-bold text-gold/30 hover:text-gold/60 transition-colors uppercase tracking-widest"
+                                  className={cn("text-[10px] font-bold transition-colors uppercase tracking-widest", isDark ? "text-gold/30 hover:text-gold/60" : "text-royal-red/40 hover:text-royal-red/70")}
                                 >
                                   Delete Account
                                 </button>
@@ -289,7 +297,7 @@ export default function TeacherApp() {
                   
                   <button 
                     onClick={handleLogout}
-                    className="hidden md:flex items-center gap-2 text-sm font-medium opacity-50 hover:opacity-100 transition-opacity text-gold"
+                    className={cn("hidden md:flex items-center gap-2 text-sm font-medium opacity-50 hover:opacity-100 transition-opacity", isDark ? "text-gold" : "text-royal-red")}
                   >
                     <LogOut size={16} />
                     Sign Out
@@ -298,7 +306,7 @@ export default function TeacherApp() {
               ) : (
                 <Link 
                   to="/teacher/auth"
-                  className="px-4 py-2 rounded-full bg-gold text-royal-red font-bold text-sm hover:scale-105 transition-transform shadow-lg"
+                  className={cn("px-4 py-2 rounded-full font-bold text-sm hover:scale-105 transition-all shadow-lg", isDark ? "bg-gold text-royal-red" : "bg-royal-red text-white")}
                 >
                   Teacher Login
                 </Link>
@@ -306,7 +314,7 @@ export default function TeacherApp() {
 
               {/* Standard Mobile Menu Trigger */}
               <button 
-                className="md:hidden p-2"
+                className={cn("lg:hidden p-2 transition-colors", isDark ? "text-gold" : "text-royal-red")}
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
               >
                 {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -314,6 +322,7 @@ export default function TeacherApp() {
             </div>
           </div>
         </header>
+        )}
 
         <main className="flex-1">
           <AnimatePresence mode="wait">
@@ -347,26 +356,28 @@ export default function TeacherApp() {
           </AnimatePresence>
         </main>
 
-        <footer className="py-12 border-t border-gold/10">
-          <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-6">
-            <div className="flex items-center gap-4">
-              <Link to="/privacy" className="text-xs font-bold opacity-50 hover:opacity-100 transition-opacity">Privacy Policy</Link>
-              <button 
-                onClick={() => setShowBugReport(true)}
-                className="px-4 py-2 bg-gold/10 hover:bg-gold/20 text-gold rounded-xl text-xs font-bold transition-all border border-gold/20"
-              >
-                Bug Report
-              </button>
-              <button 
-                onClick={() => setShowSupport(true)}
-                className="px-4 py-2 bg-gold text-royal-red hover:scale-105 rounded-xl text-xs font-bold transition-all shadow-lg"
-              >
-                Donate
-              </button>
+        {location.pathname !== '/teacher/auth' && (
+          <footer className="py-12 border-t border-gold/10">
+            <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-6">
+              <div className="flex items-center gap-4">
+                <Link to="/privacy" className="text-xs font-bold opacity-50 hover:opacity-100 transition-opacity">Privacy Policy</Link>
+                <button 
+                  onClick={() => setShowBugReport(true)}
+                  className="px-4 py-2 bg-gold/10 hover:bg-gold/20 text-gold rounded-xl text-xs font-bold transition-all border border-gold/20"
+                >
+                  Bug Report
+                </button>
+                <button 
+                  onClick={() => setShowSupport(true)}
+                  className="px-4 py-2 bg-gold text-royal-red hover:scale-105 rounded-xl text-xs font-bold transition-all shadow-lg"
+                >
+                  Donate
+                </button>
+              </div>
+              <p className="text-sm opacity-50">© 2024 Eclipse Teacher. Empowering educators with AI.</p>
             </div>
-            <p className="text-sm opacity-50">© 2024 Eclipse Teacher. Empowering educators with AI.</p>
-          </div>
-        </footer>
+          </footer>
+        )}
 
         <SupportModal isOpen={showSupport} onClose={() => setShowSupport(false)} isTeacher />
         <BugReportModal isOpen={showBugReport} onClose={() => setShowBugReport(false)} isTeacher />
@@ -386,21 +397,21 @@ export default function TeacherApp() {
               initial={{ opacity: 0, x: '100%' }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: '100%' }}
-              className="fixed inset-0 z-[60] bg-royal-red p-6 flex flex-col gap-8 text-gold"
+              className={cn("fixed inset-0 z-[60] p-6 flex flex-col gap-8 transition-colors", isDark ? "bg-royal-red text-gold" : "bg-[#FAF7F0] text-royal-red")}
             >
               <div className="flex justify-end">
-                <button onClick={() => setIsMenuOpen(false)} className="text-gold"><X size={32} /></button>
+                <button onClick={() => setIsMenuOpen(false)} className={cn("transition-colors", isDark ? "text-gold" : "text-royal-red")}><X size={32} /></button>
               </div>
               <div className="flex flex-col gap-6 text-2xl font-bold">
                 {user ? (
-                  <>
-                    {navItems.map(item => (
-                      <Link key={item.path} to={item.path} onClick={() => setIsMenuOpen(false)} className="text-gold">{item.name}</Link>
-                    ))}
-                    <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} className="text-left text-gold opacity-50">Sign Out</button>
-                  </>
+                   <>
+                     {navItems.map(item => (
+                       <Link key={item.path} to={item.path} onClick={() => setIsMenuOpen(false)} className={cn("transition-colors", isDark ? "text-gold" : "text-royal-red")}>{item.name}</Link>
+                     ))}
+                     <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} className={cn("text-left opacity-50 transition-colors", isDark ? "text-gold" : "text-royal-red")}>Sign Out</button>
+                   </>
                 ) : (
-                  <Link to="/teacher/auth" onClick={() => setIsMenuOpen(false)} className="text-gold">Sign In</Link>
+                  <Link to="/teacher/auth" onClick={() => setIsMenuOpen(false)} className={cn("transition-colors", isDark ? "text-gold" : "text-royal-red")}>Sign In</Link>
                 )}
               </div>
             </motion.div>

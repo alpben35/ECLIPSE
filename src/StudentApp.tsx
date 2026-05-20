@@ -110,7 +110,7 @@ export default function StudentApp() {
   return (
     <div className={cn("min-h-screen transition-colors duration-500", isDark ? "dark bg-black text-white" : "bg-white text-black")}>
       <AnimatePresence>
-        {!connectivity.isAuthorized && window.location.hostname !== 'localhost' && (
+        {location.pathname !== '/auth' && !connectivity.isAuthorized && window.location.hostname !== 'localhost' && (
           <motion.div 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -137,7 +137,8 @@ export default function StudentApp() {
         ))}
       </AnimatePresence>
       <div className="flex flex-col min-h-screen">
-        <header className="sticky top-0 z-50 border-b border-black/10 dark:border-white/10 bg-inherit/80 backdrop-blur-md">
+        {location.pathname !== '/auth' && (
+          <header className="sticky top-0 z-50 border-b border-black/10 dark:border-white/10 bg-white/80 dark:bg-black/80 backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-2 lg:gap-6 shrink-0 min-w-0">
                 <div className="flex flex-col justify-center shrink-0 min-w-0">
@@ -151,17 +152,9 @@ export default function StudentApp() {
                       </Link>
                       <Link 
                         to={"/teacher" + (location.pathname === '/' ? '' : location.pathname)}
-                        className="mt-1 flex items-center gap-2 group"
+                        className="text-[9px] font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity whitespace-nowrap mt-1"
                       >
-                        <div className="w-6 h-3 lg:w-8 lg:h-4 bg-black/10 dark:bg-white/10 rounded-full relative transition-colors group-hover:bg-black/20 dark:group-hover:bg-white/20">
-                          <div className={cn(
-                            "absolute top-0.5 left-0.5 w-2 h-2 lg:w-3 lg:h-3 rounded-full bg-black dark:bg-white transition-transform",
-                            location.pathname.startsWith('/teacher') ? "translate-x-3 lg:translate-x-4" : "translate-x-0"
-                          )} />
-                        </div>
-                        <span className="text-[7px] lg:text-[9px] font-black uppercase tracking-widest opacity-40 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                          {location.pathname.startsWith('/teacher') ? 'Teacher' : 'Teacher Portal'}
-                        </span>
+                        Teacher Portal
                       </Link>
                     </div>
                   </div>
@@ -386,6 +379,7 @@ export default function StudentApp() {
             </div>
           </div>
         </header>
+        )}
 
         <main className="flex-1">
           <AnimatePresence mode="wait">
@@ -419,26 +413,28 @@ export default function StudentApp() {
           </AnimatePresence>
         </main>
 
-        <footer className="py-12 border-t border-black/10 dark:border-white/10">
-          <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-6">
-            <div className="flex items-center gap-4">
-              <Link to="/privacy" className="text-xs font-bold opacity-50 hover:opacity-100 transition-opacity">Privacy Policy</Link>
-              <button 
-                onClick={() => setShowBugReport(true)}
-                className="px-4 py-2 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-xl text-xs font-bold transition-all border border-black/10 dark:border-white/10"
-              >
-                Bug Report
-              </button>
-              <button 
-                onClick={() => setShowSupport(true)}
-                className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black hover:scale-105 rounded-xl text-xs font-bold transition-all shadow-lg"
-              >
-                Donate
-              </button>
+        {location.pathname !== '/auth' && (
+          <footer className="py-12 border-t border-black/10 dark:border-white/10">
+            <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-6">
+              <div className="flex items-center gap-4">
+                <Link to="/privacy" className="text-xs font-bold opacity-50 hover:opacity-100 transition-opacity">Privacy Policy</Link>
+                <button 
+                  onClick={() => setShowBugReport(true)}
+                  className="px-4 py-2 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-xl text-xs font-bold transition-all border border-black/10 dark:border-white/10"
+                >
+                  Bug Report
+                </button>
+                <button 
+                  onClick={() => setShowSupport(true)}
+                  className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black hover:scale-105 rounded-xl text-xs font-bold transition-all shadow-lg"
+                >
+                  Donate
+                </button>
+              </div>
+              <p className="text-sm opacity-50">© 2024 Eclipse AI. Your ultimate study companion.</p>
             </div>
-            <p className="text-sm opacity-50">© 2024 Eclipse AI. Your ultimate study companion.</p>
-          </div>
-        </footer>
+          </footer>
+        )}
 
         <SupportModal isOpen={showSupport} onClose={() => setShowSupport(false)} />
         <BugReportModal isOpen={showBugReport} onClose={() => setShowBugReport(false)} />

@@ -30,7 +30,7 @@ export default function Logo({
     },
     teacher: {
       base: 'bg-gold',
-      eclipse: 'bg-zinc-950', // High contrast against royal-red
+      eclipse: 'bg-royal-red', 
       glow: 'bg-gold/50' 
     }
   };
@@ -63,8 +63,8 @@ export default function Logo({
         className={cn(
           "absolute inset-0 rounded-full z-20 scale-95 transition-all duration-500",
           variant === 'teacher'
-            ? cn("translate-x-[22%]", colors.teacher.eclipse)
-            : "translate-x-[15%] bg-white dark:bg-zinc-950 block"
+            ? cn("translate-x-[11%]", colors.teacher.eclipse)
+            : "translate-x-[9%] bg-white dark:bg-black block"
         )}
       />
     </div>
