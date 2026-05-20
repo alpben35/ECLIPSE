@@ -21,17 +21,29 @@ export const encryptData = (data: string): string => {
 export const decryptData = (ciphertext: string): string => {
   if (!ciphertext || typeof ciphertext !== 'string') return '';
   
-  try {
-    const bytes = CryptoJS.AES.decrypt(ciphertext, ENCRYPTION_KEY);
-    const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-    // Only return decrypted if successfully parsed as UTF-8
-    if (decrypted && decrypted.length > 0) return decrypted;
-    
-    // If decryption results in empty string, it's safer to return original
-    // instead of logging a warning for every potentially non-encrypted field
-  } catch (e) {
-    // Fail silently and return original ciphertext
-    console.error("Decryption Error:", e);
+  // Clean prefix check: standard CryptoJS AES ciphertext always starts with "U2FsdGVkX1" (represents "Salted__" in Base64)
+  if (!ciphertext.startsWith('U2FsdGVkX1')) {
+    return ciphertext;
+  }
+  
+  // Define candidate keys in order of likelihood
+  const candidateKeys = [
+    ENCRYPTION_KEY,
+    'eclipse-secure-v1-gen-lang-client-0438904042', // Original default projectId
+    'eclipse-secure-v1-', // Base key suffix
+  ];
+  
+  for (const key of candidateKeys) {
+    try {
+      const bytes = CryptoJS.AES.decrypt(ciphertext, key);
+      const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+      // Only return decrypted if successfully parsed as a valid, non-empty UTF-8 string
+      if (decrypted && decrypted.length > 0) {
+        return decrypted;
+      }
+    } catch (e) {
+      // Fail silently and fallback to next key
+    }
   }
   
   return ciphertext;
