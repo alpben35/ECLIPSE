@@ -29,8 +29,13 @@ export const decryptData = (ciphertext: string): string => {
   // Define candidate keys in order of likelihood
   const candidateKeys = [
     ENCRYPTION_KEY,
+    'eclipse-secure-v1-' + (firebaseConfig.projectId || ''),
+    firebaseConfig.projectId || '',
     'eclipse-secure-v1-gen-lang-client-0438904042', // Original default projectId
     'eclipse-secure-v1-', // Base key suffix
+    'eclipse-secure-v1',
+    'eclipse-secure',
+    'eclipse',
   ];
   
   for (const key of candidateKeys) {
