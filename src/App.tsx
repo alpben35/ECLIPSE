@@ -91,7 +91,9 @@ export default function App() {
       if (doc.exists()) {
         setMaintenance(doc.data().active || false);
       }
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'system/maintenance'));
+    }, (err) => {
+      console.warn('System maintenance check failed:', err);
+    });
 
     return () => unsubscribeMaintenance();
   }, []);
@@ -204,7 +206,8 @@ export default function App() {
           if (userData.username) {
             publicData.username = userData.username;
           }
-          setDoc(publicRef, publicData, { merge: true });
+          setDoc(publicRef, publicData, { merge: true })
+            .catch(err => console.error("Error writing public profile:", err));
 
           if (userData.banned) {
             setIsBanned(true);
@@ -212,8 +215,8 @@ export default function App() {
           }
         }, (err) => {
           console.error("Profile sync error:", err);
-          handleFirestoreError(err, OperationType.GET, `users/${currentUser.uid}`);
           setLoading(false);
+          setError(`Failed to sync profile: ${err instanceof Error ? err.message : String(err)}. Please verify your network and domain settings in Firebase.`);
         });
 
       } catch (err: any) {
