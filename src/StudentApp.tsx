@@ -138,7 +138,7 @@ export default function StudentApp() {
       </AnimatePresence>
       <div className="flex flex-col min-h-screen">
         {location.pathname !== '/auth' && (
-          <header className="sticky top-0 z-50 bg-transparent">
+          <header className={cn("sticky top-0 z-50 transition-colors border-b", isDark ? "bg-black border-white/10" : "bg-white border-black/10")}>
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-2 lg:gap-6 shrink-0 min-w-0">
                 <div className="flex flex-col justify-center shrink-0 min-w-0">

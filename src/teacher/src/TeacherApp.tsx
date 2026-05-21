@@ -89,7 +89,7 @@ export default function TeacherApp() {
       </AnimatePresence>
       <div className="flex flex-col min-h-screen">
         {location.pathname !== '/teacher/auth' && (
-          <header className={cn("sticky top-0 z-50 transition-colors bg-transparent", isDark ? "text-gold" : "text-royal-red")}>
+          <header className={cn("sticky top-0 z-50 transition-colors border-b", isDark ? "bg-royal-red border-gold/10 text-gold" : "bg-[#FAF7F0] border-royal-red/10 text-royal-red")}>
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-4 lg:gap-8 min-w-0">
               <div className="flex flex-col justify-center min-w-0">
@@ -155,7 +155,7 @@ export default function TeacherApp() {
               )}
             </div>
 
-            <nav className="flex items-center gap-1 sm:gap-2 lg:gap-4 xl:gap-8 overflow-x-auto no-scrollbar py-2 mx-1 lg:mx-4 flex-1 justify-center min-w-0">
+            <nav className="flex items-center gap-1 sm:gap-2 lg:gap-4 xl:gap-8 overflow-x-auto no-scrollbar py-2 mx-1 lg:mx-4 flex-1 justify-start lg:justify-center min-w-0">
               {navItems.map((item) => (
                   <Link 
                   key={item.path} 
@@ -173,6 +173,19 @@ export default function TeacherApp() {
             </nav>
 
             <div className="flex items-center gap-4">
+              <button 
+                onClick={toggleTheme}
+                className={cn(
+                  "p-2.5 rounded-2xl border transition-all active:scale-95 shrink-0",
+                  isDark 
+                    ? "bg-gold/10 border-gold/20 hover:bg-gold/25" 
+                    : "bg-royal-red/10 border-royal-red/20 hover:bg-royal-red/25"
+                )}
+                title="Toggle Theme"
+              >
+                {isDark ? <Sun size={20} className="text-gold" /> : <Moon size={20} className="text-royal-red" />}
+              </button>
+
               {user ? (
                 <div className="flex items-center gap-4">
                   <div className="relative">

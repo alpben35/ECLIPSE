@@ -15,7 +15,7 @@ export const storage = getStorage(app);
 const ENCRYPTION_KEY = 'eclipse-secure-v1-' + firebaseConfig.projectId;
 
 export const encryptData = (data: string): string => {
-  return CryptoJS.AES.encrypt(data, ENCRYPTION_KEY).toString();
+  return data;
 };
 
 export const decryptData = (ciphertext: string): string => {

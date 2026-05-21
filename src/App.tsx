@@ -36,8 +36,8 @@ const RankPage = React.lazy(() => import('@/pages/RankPage'));
 const AuthPage = React.lazy(() => import('@/pages/AuthPage'));
 const PrivacyPolicy = React.lazy(() => import('@/pages/PrivacyPolicy'));
 const SubscriptionPage = React.lazy(() => import('@/pages/SubscriptionPage'));
-const TeacherApp = React.lazy(() => import('@/teacher/src/TeacherApp'));
-const StudentApp = React.lazy(() => import('@/StudentApp'));
+const TeacherApp = React.lazy(() => import('./teacher/src/TeacherApp'));
+const StudentApp = React.lazy(() => import('./StudentApp'));
 import SplashScreen from './components/PWA/SplashScreen';
 import AddToHomeScreen from './components/PWA/AddToHomeScreen';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
@@ -182,12 +182,16 @@ export default function App() {
 
           if (userData.phone) userData.phone = decryptData(userData.phone);
           
+          if (!userData.username) {
+            userData.displayName = 'anonymous';
+          }
+          
           setProfile(userData);
           setLoading(false); // FINALLY ready to show the app
 
           // Update public profile logic
           const publicRef = doc(db, 'public_profiles', currentUser.uid);
-          const displayName = userData.displayName || currentUser.displayName || 'Anonymous';
+          const displayName = userData.username ? (userData.displayName || currentUser.displayName || 'Anonymous') : 'anonymous';
           const publicData: any = {
             uid: currentUser.uid,
             displayName: displayName,
@@ -298,10 +302,8 @@ export default function App() {
     );
   }
 
-  // FORCE USERNAME SETUP
-  if (user && profile && !profile.username && location.pathname !== '/auth' && !location.pathname.startsWith('/teacher')) {
-    return <UsernameSetup profile={profile} onComplete={(username) => setProfile({...profile, username})} />;
-  }
+  // FORCE USERNAME SETUP REMOVED
+
 
   if (error) {
     return (

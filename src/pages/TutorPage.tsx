@@ -99,6 +99,8 @@ interface Message {
   images?: { data: string, mimeType: string }[];
 }
 
+let hasClearedOnRefresh = false;
+
 export default function TutorPage() {
   const { user, profile, addXp } = useContext(AuthContext);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -117,6 +119,29 @@ export default function TutorPage() {
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!user || hasClearedOnRefresh) return;
+    hasClearedOnRefresh = true;
+
+    const clearChatOnRefresh = async () => {
+      try {
+        const q = query(collection(db, 'users', user.uid, 'messages'));
+        const snapshot = await getDocs(q);
+        if (snapshot.size > 0) {
+          const batch = writeBatch(db);
+          snapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+          });
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error("Failed to clear chat on load:", err);
+      }
+    };
+
+    clearChatOnRefresh();
+  }, [user]);
 
   const dailyGoal = 5;
   const questionsToday = messages.filter(m => m.role === 'user').length;
