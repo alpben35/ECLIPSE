@@ -672,17 +672,72 @@ async function callGemini(params: {
  
   app.post('/api/gemini', async (req, res) => {
     try {
-      const { contents, systemInstruction, model } = req.body;
+      const apiKeyValue = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!apiKeyValue) {
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      }
+
+      const { contents, systemInstruction, model, prompt, mode, subject, history, imageData } = req.body;
+
+      let finalContents = contents;
+      let finalSystemInstruction = systemInstruction;
+
+      // Translate legacy/tutor body format to contents if only prompt is present
+      if (!finalContents && prompt) {
+        finalContents = (history || []).map((m: any) => ({
+          role: m.role === 'ai' || m.role === 'model' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        }));
+
+        const userParts: any[] = [];
+        if (imageData) {
+          userParts.push({ 
+            inlineData: {
+              data: imageData.data,
+              mimeType: imageData.mimeType
+            }
+          });
+        }
+        userParts.push({ text: prompt || "Please assist." });
+        finalContents.push({ role: 'user', parts: userParts });
+
+        finalSystemInstruction = `You are Eclipse AI, a world-class academic tutor. 
+Your primary goal is absolute mathematical and factual accuracy.
+
+TONE:
+- Academic, professional, and encouraging.
+- Use standard formatting for clarity.
+
+PRECISION:
+- Double-check all calculations.
+- Read inputs with 100% precision.
+
+CRITICAL FORMATTING:
+- DO NOT use LaTeX delimiters like '$', '\\(', '\\)', '\\[', or '\\]'. 
+- DO NOT use structural symbols like backslashes, braces, or dollar signs for formula formatting.
+- Always write symbols and formulas in plain text (e.g. x^2, sqrt(x)).
+- Use bolding for emphasis (**bold**).
+
+Current Mode: ${mode || 'teach'}
+Current Subject: ${subject || 'general'}
+
+Instructions:
+- 'teach': Guide step-by-step SOCRATICALLY. Do not give the answer immediately.
+- 'solve': Provide complete, perfectly accurate solutions.
+- 'revise': Create practice questions to verify understanding.`;
+      }
+
       const text = await callGemini({
-        contents,
-        systemInstruction,
-        model,
+        contents: finalContents || [{ role: 'user', parts: [{ text: prompt || '' }] }],
+        systemInstruction: finalSystemInstruction,
+        model: model || 'gemini-3.5-flash',
         temperature: 0.1
       });
+
       res.json({ text });
     } catch (error: any) {
       console.error("[Gemini Proxy Error]", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || "Gemini processing failed" });
     }
   });
 
