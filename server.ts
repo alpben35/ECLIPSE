@@ -215,6 +215,7 @@ async function startServer() {
       if (!priceId || priceId === 'undefined') {
         console.log(`[Stripe Checkout] PriceId invalid/missing from client, attempting backend fallback for ${tierId}`);
         if (tierId === 'premium') priceId = process.env.STRIPE_PRICE_ID_PREMIUM;
+        else if (tierId === 'serious') priceId = process.env.STRIPE_PRICE_ID_SERIOUS;
         else if (tierId === 'admin') priceId = process.env.STRIPE_PRICE_ID_ADMIN;
         console.log(`[Stripe Checkout] Backend fallback result: ${priceId}`);
       }
@@ -222,7 +223,7 @@ async function startServer() {
       if (!priceId || priceId === 'undefined') {
         console.error(`[Stripe Checkout] CRITICAL: No Price ID found for tier "${tierId}"`);
         return res.status(400).json({ 
-          error: `Stripe Configuration Missing: No Price ID found for tier "${tierId}". Please set STRIPE_PRICE_ID_PREMIUM and STRIPE_PRICE_ID_ADMIN in the Secrets panel.` 
+          error: `Stripe Configuration Missing: No Price ID found for tier "${tierId}". Please set STRIPE_PRICE_ID_SERIOUS, STRIPE_PRICE_ID_PREMIUM, and STRIPE_PRICE_ID_ADMIN in the Secrets panel.` 
         });
       }
 
@@ -352,6 +353,17 @@ async function callGemini(params: {
         const errMessage = error.message || "";
         const errStatus = error.status || error.code || error.error?.code || "";
         
+        const isApiKeyBlocked = errMessage.includes('blocked') || 
+                                errMessage.includes('API_KEY_SERVICE_BLOCKED') || 
+                                errMessage.includes('restricted') || 
+                                errStatus === 403 ||
+                                errMessage.includes('PERMISSION_DENIED');
+        
+        if (isApiKeyBlocked) {
+          console.error("[Gemini Helper] Blocked key detected. Please add a valid GEMINI_API_KEY environment variable.");
+          throw new Error("Gemini API Authorization Failed. If you are running outside of AI Studio, please configure your GEMINI_API_KEY environment variable in your hosting platform (e.g., Firebase App Hosting, Cloud Run, or Render dashboard). Default Firebase Keys do not have Generative AI permissions.");
+        }
+
         const is503 = errStatus === 503 || 
                       errMessage.includes('503') || 
                       errMessage.includes('UNAVAILABLE') || 

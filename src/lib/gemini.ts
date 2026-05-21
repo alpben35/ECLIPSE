@@ -27,6 +27,11 @@ export async function askTutor(
       })
     });
 
+    const contentType = response.headers.get('Content-Type') || '';
+    if (contentType.includes('text/html')) {
+      throw new Error("Express server routing issue. The API returned an HTML page instead of JSON. Ensure your server-side Node/Express app is running and GEMINI_API_KEY is configured in your environment.");
+    }
+
     if (!response.ok) {
       const text = await response.text();
       try {
@@ -78,6 +83,11 @@ export async function askTutorStream(
         imageData: sanitizedImageData 
       })
     });
+
+    const contentType = response.headers.get('Content-Type') || '';
+    if (contentType.includes('text/html')) {
+      throw new Error("Express server routing issue. The API returned an HTML page instead of JSON/event-stream. Ensure your server-side Node/Express app is running and GEMINI_API_KEY is configured in your environment.");
+    }
 
     if (!response.ok) {
       const text = await response.text();
@@ -156,6 +166,11 @@ export async function summarizeChat(messages: { role: string, content: string }[
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: sanitizedMessages })
     });
+
+    const contentType = response.headers.get('Content-Type') || '';
+    if (contentType.includes('text/html')) {
+      throw new Error("Express server routing issue. The API returned an HTML page instead of JSON. Ensure your server-side Node/Express app is running and GEMINI_API_KEY is configured in your environment.");
+    }
 
     if (!response.ok) throw new Error("Summary failed");
     const data = await response.json();

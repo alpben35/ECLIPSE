@@ -14,13 +14,30 @@ const TIERS = [
     price: '£0',
     description: 'Perfect for casual learning',
     features: [
-      '40 AI prompts per day',
+      '15 AI prompts per day',
       'Basic progress tracking',
       'Standard icons only',
       'Access to all subjects'
     ],
     buttonText: 'Current Plan',
     highlight: false
+  },
+  {
+    id: 'serious',
+    priceId: import.meta.env.VITE_STRIPE_PRICE_ID_SERIOUS,
+    name: 'Eclipse Serious',
+    price: '£15',
+    period: '/month',
+    description: 'The standard study tier',
+    features: [
+      '40 AI prompts per day',
+      'Basic progress tracking',
+      'Standard icons only',
+      'Access to all subjects'
+    ],
+    buttonText: 'Get Serious',
+    highlight: false,
+    icon: <Crown className="text-black dark:text-white" />
   },
   {
     id: 'premium',
@@ -44,7 +61,7 @@ const TIERS = [
     id: 'admin',
     priceId: import.meta.env.VITE_STRIPE_PRICE_ID_ADMIN,
     name: 'Eclipse Admin',
-    price: '£500',
+    price: '£250',
     period: '/month',
     description: 'The ultimate power',
     features: [
@@ -297,14 +314,14 @@ export default function SubscriptionPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-20 max-w-7xl mx-auto">
           {TIERS.map((tier, index) => {
-            const tierOrder = ['free', 'premium', 'admin'];
+            const tierOrder = ['free', 'serious', 'premium', 'admin'];
             const userTierIndex = (profile?.tier === 'admin' || profile?.rank === 'Owner' || profile?.rank === 'Admin' || profile?.rank === 'Temporary Owner') 
-              ? 2 
+              ? 3 
               : tierOrder.indexOf(profile?.tier || 'free');
             const thisTierIndex = tierOrder.indexOf(tier.id);
-            const isCurrent = profile?.tier === tier.id || (tier.id === 'admin' && userTierIndex === 2 && !profile?.tier);
+            const isCurrent = profile?.tier === tier.id || (tier.id === 'admin' && userTierIndex === 3 && !profile?.tier);
             const isLegacy = thisTierIndex < userTierIndex;
 
             return (
