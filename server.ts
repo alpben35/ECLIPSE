@@ -1,16 +1,36 @@
-import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-import admin from 'firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
-import Stripe from 'stripe';
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import dotenv from 'dotenv';
 
 const buildDirname = typeof __dirname !== 'undefined' 
   ? __dirname 
   : path.dirname(fileURLToPath(import.meta.url));
+
+// 1. dotenv loads .env correctly before any API code or SDK initialization runs
+try {
+  dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+  dotenv.config({ path: path.resolve(buildDirname, '.env') });
+} catch (envErr: any) {
+  console.warn(`[Dotenv] Error attempting to load .env manually: ${envErr.message}`);
+}
+dotenv.config(); // fallback standard load
+
+// 2. GEMINI_API_KEY is validated at startup
+const startupApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+if (!startupApiKey) {
+  console.error("❌ [Startup Validation Error] GEMINI_API_KEY is not defined in .env or system environment variables!");
+} else if (startupApiKey.trim().length === 0) {
+  console.error("❌ [Startup Validation Error] GEMINI_API_KEY is defined but empty!");
+} else {
+  console.log("🚀 [Startup Validation Success] GEMINI_API_KEY is successfully loaded and validated on startup.");
+}
+
+import express from 'express';
+import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
+import Stripe from 'stripe';
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 
 if (process.cwd() !== buildDirname && fs.existsSync(buildDirname)) {
   try {
@@ -21,7 +41,22 @@ if (process.cwd() !== buildDirname && fs.existsSync(buildDirname)) {
   }
 }
 
-dotenv.config();
+// Support VitePWA reading parent package.json when running inside the sandbox container
+try {
+  const parentPkg = path.resolve(buildDirname, '../package.json');
+  if (!fs.existsSync(parentPkg)) {
+    const ourPkgPath = path.resolve(buildDirname, 'package.json');
+    if (fs.existsSync(ourPkgPath)) {
+      fs.copyFileSync(ourPkgPath, parentPkg);
+      console.log(`[CWD Fix] Successfully resolved parent package.json at: ${parentPkg}`);
+    } else {
+      fs.writeFileSync(parentPkg, JSON.stringify({ version: "0.0.0" }));
+      console.log(`[CWD Fix] Created dummy package.json at: ${parentPkg}`);
+    }
+  }
+} catch (e: any) {
+  console.log(`[CWD Fix] Parent package.json helper skipped: ${e.message}`);
+}
 
 let stripeClient: Stripe | null = null;
 function getStripe() {
@@ -125,6 +160,17 @@ async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
 
   app.set('trust proxy', 1);
+
+  // 3. GET /api/health returning JSON
+  app.get('/api/health', (req, res) => {
+    const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    res.status(200).json({
+      status: 'ok',
+      apiKeyConfigured: !!key,
+      environment: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString()
+    });
+  });
 
   // Stripe Webhook (Raw body required for signature verification)
   app.post('/api/webhook', express.raw({type: 'application/json'}), async (req, res) => {
@@ -638,6 +684,16 @@ async function callGemini(params: {
       console.error("[Gemini Proxy Error]", error);
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // 6. Ensure every error under /api returns JSON, not HTML
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
+  });
+
+  app.use('/api', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('[API Route Error Handler]:', err);
+    res.status(err.status || 500).json({ error: err.message || 'An unexpected API error occurred.' });
   });
 
   // Vite middleware for development
