@@ -3,7 +3,6 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { useState, useEffect } from 'react';
-import CryptoJS from 'crypto-js';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -11,47 +10,13 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-// Encryption Utility
-const ENCRYPTION_KEY = 'eclipse-secure-v1-' + firebaseConfig.projectId;
-
+// Encryption Utility (Disabled - storing/reading as plain-text)
 export const encryptData = (data: string): string => {
-  return data;
+  return data || '';
 };
 
 export const decryptData = (ciphertext: string): string => {
-  if (!ciphertext || typeof ciphertext !== 'string') return '';
-  
-  // Clean prefix check: standard CryptoJS AES ciphertext always starts with "U2FsdGVkX1" (represents "Salted__" in Base64)
-  if (!ciphertext.startsWith('U2FsdGVkX1')) {
-    return ciphertext;
-  }
-  
-  // Define candidate keys in order of likelihood
-  const candidateKeys = [
-    ENCRYPTION_KEY,
-    'eclipse-secure-v1-' + (firebaseConfig.projectId || ''),
-    firebaseConfig.projectId || '',
-    'eclipse-secure-v1-gen-lang-client-0438904042', // Original default projectId
-    'eclipse-secure-v1-', // Base key suffix
-    'eclipse-secure-v1',
-    'eclipse-secure',
-    'eclipse',
-  ];
-  
-  for (const key of candidateKeys) {
-    try {
-      const bytes = CryptoJS.AES.decrypt(ciphertext, key);
-      const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-      // Only return decrypted if successfully parsed as a valid, non-empty UTF-8 string
-      if (decrypted && decrypted.length > 0) {
-        return decrypted;
-      }
-    } catch (e) {
-      // Fail silently and fallback to next key
-    }
-  }
-  
-  return ciphertext;
+  return ciphertext || '';
 };
 
 export enum OperationType {

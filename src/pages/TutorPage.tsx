@@ -177,8 +177,14 @@ export default function TutorPage() {
           timestamp
         } as Message;
       }) as Message[];
-      // Reverse to show in chronological order
-      setMessages(loadedMessages.reverse());
+
+      const reversed = loadedMessages.reverse();
+      
+      setMessages(prev => {
+        // Keep active optimistic messages whose content is not yet visible in loaded Firestore messages
+        const optimistic = prev.filter(m => m.id.startsWith('opt-') && !reversed.some(r => r.content === m.content));
+        return [...reversed, ...optimistic];
+      });
     }, (err) => {
       setErrorMessage("Failed to load chat history. Please check your connection.");
       handleFirestoreError(err, OperationType.GET, `users/${user.uid}/messages`);
@@ -253,12 +259,23 @@ export default function TutorPage() {
         imageData = { data: base64Data, mimeType: currentImage.file.type };
       }
 
-      // Save user message to Firestore
+      // 1. Instantly append user's optimistic message to student UI chat list
       const userMessageContent = currentImage ? `[Image Attached] ${messageText}` : messageText;
-      await addDoc(collection(db, 'users', user.uid, 'messages'), {
+      const optimisticUserId = 'opt-user-' + Date.now();
+      const optimisticUserMsg: Message = {
+        id: optimisticUserId,
+        role: 'user',
+        content: userMessageContent
+      };
+      setMessages(prev => [...prev, optimisticUserMsg]);
+
+      // 2. Schedule Firestore save of user message in the background without blocking
+      addDoc(collection(db, 'users', user.uid, 'messages'), {
         role: 'user',
         content: encryptData(userMessageContent),
         timestamp: serverTimestamp()
+      }).catch(err => {
+        console.error("Optimistic user message Firestore write failed in background:", err);
       });
       
       // Add XP for engagement
@@ -304,20 +321,33 @@ export default function TutorPage() {
         }
       }
       
+      // 3. Append optimistic AI message to localized state prior to clearing stream state (prevents visual flicker or empty states)
+      const optimisticAiId = 'opt-ai-' + Date.now();
+      const optimisticAiMsg: Message = {
+        id: optimisticAiId,
+        role: 'ai',
+        content: fullText,
+        images: imageData ? [{ data: imageData.data, mimeType: imageData.mimeType }] : undefined
+      };
+      setMessages(prev => [...prev, optimisticAiMsg]);
       setStreamingMessage(null);
 
-      // Save complete AI response to Firestore
-      await addDoc(collection(db, 'users', user.uid, 'messages'), {
+      // 4. Save AI response to Firestore in background & increment prompt uses asynchronously
+      addDoc(collection(db, 'users', user.uid, 'messages'), {
         role: 'ai',
         content: encryptData(fullText),
         timestamp: serverTimestamp()
+      }).then(() => {
+        const updates: any = {
+          promptsToday: increment(promptCost)
+        };
+        updateDoc(doc(db, 'users', user.uid), updates).catch(err => {
+          console.error("Asynchronous update of prompt usage failed:", err);
+        });
+      }).catch(err => {
+        console.error("Asynchronous AI Firestore write failed in background:", err);
       });
-      
-      // Increment daily prompts
-      const updates: any = {
-        promptsToday: increment(promptCost)
-      };
-      await updateDoc(doc(db, 'users', user.uid), updates);
+
     } catch (error: any) {
       if (error.message?.includes('Limit reached')) {
         // Limit modal will be shown by StudentApp listener

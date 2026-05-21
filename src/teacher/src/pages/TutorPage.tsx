@@ -165,8 +165,14 @@ export default function TutorPage() {
           timestamp
         } as Message;
       }) as Message[];
-      // Reverse to show in chronological order
-      setMessages(loadedMessages.reverse());
+      
+      const reversed = loadedMessages.reverse();
+
+      setMessages(prev => {
+        // Keep active optimistic messages whose content is not yet visible in loaded Firestore messages
+        const optimistic = prev.filter(m => m.id.startsWith('opt-') && !reversed.some(r => r.content === m.content));
+        return [...reversed, ...optimistic];
+      });
     }, (err) => {
       setErrorMessage("Failed to load chat history. Please check your connection.");
       handleFirestoreError(err, OperationType.GET, `users/${user.uid}/messages`);
@@ -200,14 +206,25 @@ export default function TutorPage() {
     setIsTyping(true);
 
     try {
-      // Save user message to Firestore
-      await addDoc(collection(db, 'users', user.uid, 'messages'), {
+      // 1. Instantly append user's optimistic message to teacher UI chat list
+      const optimisticUserId = 'opt-user-' + Date.now();
+      const optimisticUserMsg: Message = {
+        id: optimisticUserId,
+        role: 'user',
+        content: messageText
+      };
+      setMessages(prev => [...prev, optimisticUserMsg]);
+
+      // 2. Save user message to Firestore asynchronously in background without blocking AI
+      addDoc(collection(db, 'users', user.uid, 'messages'), {
         role: 'user',
         content: encryptData(messageText),
         timestamp: serverTimestamp()
+      }).catch(err => {
+        console.error("Optimistic user message Firestore write failed in background:", err);
       });
       
-      if (addXp) await addXp(15);
+      if (addXp) addXp(15);
 
       let responseText = '';
       try {
@@ -218,15 +235,26 @@ export default function TutorPage() {
         responseText = `⚠️ AI Error: ${geminiError.message || "Failed to get a response from the AI. Please check your API key and connection."}`;
       }
       
-      // Save AI response to Firestore
-      await addDoc(collection(db, 'users', user.uid, 'messages'), {
+      // 3. Append optimistic AI message to localized state prior to clearing typing indicator
+      const optimisticAiId = 'opt-ai-' + Date.now();
+      const optimisticAiMsg: Message = {
+        id: optimisticAiId,
+        role: 'ai',
+        content: responseText
+      };
+      setMessages(prev => [...prev, optimisticAiMsg]);
+
+      // 4. Save AI response to Firestore in background asynchronously
+      addDoc(collection(db, 'users', user.uid, 'messages'), {
         role: 'ai',
         content: encryptData(responseText),
         timestamp: serverTimestamp()
+      }).catch(err => {
+        console.error("Asynchronous AI Firestore write failed in background:", err);
       });
+
     } catch (error) {
-      console.error("Firestore Error in handleSend:", error);
-      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/messages`);
+      console.error("Error in handleSend:", error);
     } finally {
       setIsTyping(false);
     }
