@@ -4,18 +4,27 @@ import {BrowserRouter} from 'react-router-dom';
 import App from './App.tsx';
 import './index.css';
 
-// Unregister any active Service Workers to prevent stale cache intercepting API routes (e.g. /api/*)
+// Unregister and destroy any active Service Workers to prevent stale cache intercepting API routes (e.g. /api/*)
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (const registration of registrations) {
-      registration.unregister().then((success) => {
-        if (success) {
-          console.log('[Service Worker] Lingering service worker unregistered successfully.');
-        }
+    let hasCleared = false;
+    if (registrations.length > 0) {
+      for (const registration of registrations) {
+        registration.unregister();
+        hasCleared = true;
+      }
+    }
+    // Also clear caches for absolute assurance
+    if (hasCleared && 'caches' in window) {
+      caches.keys().then((keys) => {
+        Promise.all(keys.map(key => caches.delete(key))).then(() => {
+          console.log('[Service Worker] Cleared registrations and caches. Performing force reload...');
+          window.location.reload();
+        });
       });
     }
   }).catch((err) => {
-    console.warn('[Service Worker] Error unregistering service workers:', err);
+    console.warn('[Service Worker] Error clearing service workers:', err);
   });
 }
 

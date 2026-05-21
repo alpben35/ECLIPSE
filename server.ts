@@ -696,6 +696,19 @@ async function callGemini(params: {
     res.status(err.status || 500).json({ error: err.message || 'An unexpected API error occurred.' });
   });
 
+  // Redirect favicon.ico to app-icon.svg to avoid returning HTML page for favicon requests
+  app.get('/favicon.ico', (req, res) => {
+    const faviconPath = path.join(process.cwd(), 'favicon.ico');
+    const rootFavicon = path.join(buildDirname, 'favicon.ico');
+    if (fs.existsSync(faviconPath)) {
+      res.sendFile(faviconPath);
+    } else if (fs.existsSync(rootFavicon)) {
+      res.sendFile(rootFavicon);
+    } else {
+      res.redirect('/app-icon.svg');
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
@@ -709,7 +722,16 @@ async function callGemini(params: {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    // Dynamically locate the static dist files whether we run relative to root or within dist
+    let distPath = path.join(process.cwd(), 'dist');
+    if (!fs.existsSync(path.join(distPath, 'index.html'))) {
+      if (fs.existsSync(path.join(process.cwd(), 'index.html'))) {
+        distPath = process.cwd();
+      } else if (fs.existsSync(path.join(buildDirname, 'index.html'))) {
+        distPath = buildDirname;
+      }
+    }
+    console.log(`[Hosting] Serving static content from: ${distPath}`);
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
