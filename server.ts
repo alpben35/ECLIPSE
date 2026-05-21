@@ -8,6 +8,19 @@ import fs from 'fs';
 import Stripe from 'stripe';
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 
+const buildDirname = typeof __dirname !== 'undefined' 
+  ? __dirname 
+  : path.dirname(fileURLToPath(import.meta.url));
+
+if (process.cwd() !== buildDirname && fs.existsSync(buildDirname)) {
+  try {
+    process.chdir(buildDirname);
+    console.log(`[CWD Fix] Changed working directory to: ${buildDirname}`);
+  } catch (err: any) {
+    console.error(`[CWD Fix] Failed to change working directory: ${err.message}`);
+  }
+}
+
 dotenv.config();
 
 let stripeClient: Stripe | null = null;
@@ -68,10 +81,6 @@ const safetySettings = [
     threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
   },
 ];
-
-const buildDirname = typeof __dirname !== 'undefined' 
-  ? __dirname 
-  : path.dirname(fileURLToPath(import.meta.url));
 
 // Initialize Firebase Admin
 let db: admin.firestore.Firestore;
@@ -635,6 +644,7 @@ async function callGemini(params: {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
+      root: buildDirname,
       server: { 
         middlewareMode: true,
         hmr: false
