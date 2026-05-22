@@ -29,7 +29,7 @@ export async function askTutor(
 
     const contentType = response.headers.get('Content-Type') || '';
     if (contentType.includes('text/html')) {
-      throw new Error("Express server routing issue. The API returned an HTML page instead of JSON. Ensure your server-side Node/Express app is running and GEMINI_API_KEY is configured in your environment.");
+      throw new Error("The Eclipse backend is starting up or active hot-reloading is underway. Please wait 5 seconds and reload this tab to re-establish a secure connection.");
     }
 
     if (!response.ok) {
@@ -86,7 +86,7 @@ export async function askTutorStream(
 
     const contentType = response.headers.get('Content-Type') || '';
     if (contentType.includes('text/html')) {
-      throw new Error("Express server routing issue. The API returned an HTML page instead of JSON/event-stream. Ensure your server-side Node/Express app is running and GEMINI_API_KEY is configured in your environment.");
+      throw new Error("The Eclipse backend is starting up or active hot-reloading is underway. Please wait 5 seconds and reload this tab to re-establish a secure connection.");
     }
 
     if (!response.ok) {
@@ -169,7 +169,7 @@ export async function summarizeChat(messages: { role: string, content: string }[
 
     const contentType = response.headers.get('Content-Type') || '';
     if (contentType.includes('text/html')) {
-      throw new Error("Express server routing issue. The API returned an HTML page instead of JSON. Ensure your server-side Node/Express app is running and GEMINI_API_KEY is configured in your environment.");
+      throw new Error("The Eclipse backend is starting up or active hot-reloading is underway. Please wait 5 seconds and reload this tab to re-establish a secure connection.");
     }
 
     if (!response.ok) throw new Error("Summary failed");

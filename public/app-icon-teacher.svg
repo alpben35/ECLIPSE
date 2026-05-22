@@ -1,0 +1,40 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Standard high-compatibility Gaussian Blur filter for the corona glow -->
+    <filter id="corona-blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="36" />
+    </filter>
+  </defs>
+
+  <style>
+    :root {
+      --bg-color: transparent;
+      --base-circle-color: #FFD700;
+      --eclipse-circle-color: #7B0000;
+      --glow-color: rgba(255, 215, 0, 0.5);
+    }
+    .base-circle {
+      fill: var(--base-circle-color);
+      transition: fill 0.3s ease;
+    }
+    .eclipse-circle {
+      fill: var(--eclipse-circle-color);
+      transition: fill 0.3s ease;
+    }
+    .glow-effect {
+      fill: var(--glow-color);
+      transition: fill 0.3s ease;
+    }
+  </style>
+
+  <!-- Ambient Corona / Glow Effect equivalent to Logo.tsx -->
+  <circle cx="256" cy="256" r="160" class="glow-effect" filter="url(#corona-blur)" />
+
+  <!-- The Base Circle -->
+  <circle cx="256" cy="256" r="210" class="base-circle" />
+
+  <!-- The Eclipse Circle, offset by 11% horizontally and scaled to 95% -->
+  <!-- 256 + (210 * 0.11) = 256 + 23.1 = 279.1 -->
+  <!-- R = 210 * 0.95 = 199.5 -->
+  <circle cx="279.1" cy="256" r="199.5" class="eclipse-circle" />
+</svg>

@@ -284,6 +284,20 @@ export default function App() {
     toggleTheme 
   }), [isDark, toggleTheme]);
 
+  const isTeacherPath = location.pathname.startsWith('/teacher');
+
+  useEffect(() => {
+    // Dynamically change favicon (gravicon) based on student vs teacher path
+    const faviconElement = document.querySelector("link[rel='icon']");
+    const alternateFaviconElement = document.querySelector("link[rel='alternate icon']");
+    const appleTouchIconElement = document.querySelector("link[rel='apple-touch-icon']");
+    const iconPath = isTeacherPath ? '/app-icon-teacher.svg' : '/app-icon.svg';
+
+    if (faviconElement) faviconElement.setAttribute('href', iconPath);
+    if (alternateFaviconElement) alternateFaviconElement.setAttribute('href', iconPath);
+    if (appleTouchIconElement) appleTouchIconElement.setAttribute('href', iconPath);
+  }, [isTeacherPath]);
+
   if (loading) {
     return (
       <div className={cn("min-h-screen flex items-center justify-center transition-colors duration-500", isDark ? "bg-black" : "bg-white")}>
@@ -399,8 +413,6 @@ export default function App() {
       </div>
     );
   }
-
-  const isTeacherPath = location.pathname.startsWith('/teacher');
 
   return (
     <AuthContext.Provider value={authContextValue}>
