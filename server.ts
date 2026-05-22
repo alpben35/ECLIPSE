@@ -862,22 +862,9 @@ Instructions:
     });
   });
 
-  // Prevent favicon.ico from ever returning an HTML page. Binds cleanly without a redirect
+  // Redirect favicon.ico to app-icon.svg to avoid returning HTML page for favicon requests
   app.get('/favicon.ico', (req, res) => {
-    const faviconPath = path.join(process.cwd(), 'favicon.ico');
-    const rootFavicon = path.join(buildDirname, 'favicon.ico');
-    const publicFavicon = path.join(process.cwd(), 'public', 'favicon.ico');
-    
-    if (fs.existsSync(faviconPath)) {
-      return res.sendFile(faviconPath);
-    } else if (fs.existsSync(rootFavicon)) {
-      return res.sendFile(rootFavicon);
-    } else if (fs.existsSync(publicFavicon)) {
-      return res.sendFile(publicFavicon);
-    }
-    
-    // Fall back to clean 204 No Content to prevent redirecting to an index.html or triggering HTML-returning routes
-    res.status(204).end();
+    res.redirect('/app-icon.svg');
   });
 
   // Robustly determine if we are running in production mode (e.g. bundled server inside dist, or with NODE_ENV=production)
@@ -916,7 +903,7 @@ Instructions:
                             ['.ico', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.css', '.js', '.json', '.map'].includes(ext);
                             
       if (isStaticOrApi) {
-        if (req.path.startsWith('/api/')) {
+        if (req.path.startsWith('/api/') || req.path === '/api') {
           return res.status(404).json({ error: `Not Found: GET ${req.path}` });
         }
         return res.status(404).send('Not Found');

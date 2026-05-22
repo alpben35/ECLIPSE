@@ -1,49 +1,47 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Background Space / Universe dark gradient -->
-    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#111827" />
-      <stop offset="100%" stop-color="#030712" />
-    </radialGradient>
-    
-    <!-- Eclipse Corona / Golden Glow -->
-    <radialGradient id="coronaGlow" cx="48%" cy="52%" r="45%">
-      <stop offset="0%" stop-color="#FFFBEB" stop-opacity="1" />
-      <stop offset="25%" stop-color="#FDE68A" stop-opacity="0.9" />
-      <stop offset="55%" stop-color="#F59E0B" stop-opacity="0.6" />
-      <stop offset="85%" stop-color="#D97706" stop-opacity="0.2" />
-      <stop offset="100%" stop-color="#78350F" stop-opacity="0" />
-    </radialGradient>
-
-    <!-- Subtle futuristic rings -->
-    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FDE68A" stop-opacity="0.8" />
-      <stop offset="50%" stop-color="#F59E0B" stop-opacity="0.3" />
-      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.7" />
-    </linearGradient>
+    <!-- Standard high-compatibility Gaussian Blur filter for the corona glow -->
+    <filter id="corona-blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="36" />
+    </filter>
   </defs>
 
-  <!-- Deep space background -->
-  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <style>
+    :root {
+      --bg-color: transparent;
+      --base-circle-color: #000000;
+      --eclipse-circle-color: #ffffff;
+      --glow-color: rgba(59, 130, 246, 0.45);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --base-circle-color: #ffffff;
+        --eclipse-circle-color: #030712;
+        --glow-color: rgba(255, 255, 255, 0.35);
+      }
+    }
+    .base-circle {
+      fill: var(--base-circle-color);
+      transition: fill 0.3s ease;
+    }
+    .eclipse-circle {
+      fill: var(--eclipse-circle-color);
+      transition: fill 0.3s ease;
+    }
+    .glow-effect {
+      fill: var(--glow-color);
+      transition: fill 0.3s ease;
+    }
+  </style>
 
-  <!-- Outer Atmosphere Nebula Glow -->
-  <circle cx="264" cy="248" r="180" fill="url(#coronaGlow)" opacity="0.95" />
+  <!-- Ambient Corona / Glow Effect equivalent to Logo.tsx -->
+  <circle cx="256" cy="256" r="160" class="glow-effect" filter="url(#corona-blur)" />
 
-  <!-- Futuristic Ring/Orbital path representing education progression -->
-  <ellipse cx="256" cy="256" rx="190" ry="70" stroke="url(#ringGrad)" stroke-width="4" stroke-dasharray="12 6" transform="rotate(-25 256 256)" opacity="0.6" />
+  <!-- The Base Circle -->
+  <circle cx="256" cy="256" r="210" class="base-circle" />
 
-  <!-- The Eclipsing Moon/Disc (Black velvet void) -->
-  <circle cx="248" cy="260" r="120" fill="#030712" />
-  <circle cx="248" cy="260" r="118" stroke="#FBBF24" stroke-width="2" opacity="0.8" />
-
-  <!-- Sparkle of Wisdom / Eclipse Diamond Ring Effect -->
-  <g transform="translate(340, 160)">
-    <!-- Light center -->
-    <circle cx="0" cy="0" r="14" fill="#FFFFFF" />
-    <circle cx="0" cy="0" r="32" fill="#FFF" opacity="0.3" filter="blur(4px)" />
-    <!-- Vertical flare -->
-    <path d="M-4,-40 L4,-40 L2,40 L-2,40 Z" fill="#FFF" />
-    <!-- Horizontal flare -->
-    <path d="M-40,-4 L-40,4 L40,2 L40,-2 Z" fill="#FFF" />
-  </g>
+  <!-- The Eclipse Circle, offset by 9% horizontally and scaled to 95% -->
+  <!-- 256 + (210 * 0.09) = 256 + 18.9 = 274.9 -->
+  <!-- R = 210 * 0.95 = 199.5 -->
+  <circle cx="274.9" cy="256" r="199.5" class="eclipse-circle" />
 </svg>
