@@ -1,0 +1,17 @@
+{
+  "name": "Eclipse AI",
+  "short_name": "Eclipse",
+  "description": "An AI-powered schoolwork tutor and progress tracker.",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
