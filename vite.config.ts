@@ -58,6 +58,9 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
+    optimizeDeps: {
+      entries: ['index.html'],
+    },
     build: {
       outDir: 'dist',
       rollupOptions: {

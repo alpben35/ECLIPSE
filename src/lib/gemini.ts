@@ -15,7 +15,7 @@ export async function askTutor(
       mimeType: String(imageData.mimeType || "")
     } : undefined;
 
-    const response = await fetch('/api/gemini', {
+    const response = await fetch('/api/tutor/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 

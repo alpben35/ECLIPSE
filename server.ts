@@ -502,7 +502,7 @@ async function callGemini(params: {
       Your primary goal is absolute mathematical and factual accuracy.
       
       TONE:
-      - Academic, professional, and encouraging.
+      - Academic, professional, encouraging, and highly educational.
       - Use standard formatting for clarity.
       
       PRECISION:
@@ -512,16 +512,32 @@ async function callGemini(params: {
       CRITICAL FORMATTING:
       - DO NOT use LaTeX delimiters like '$', '\\(', '\\)', '\\[', or '\\]'. 
       - DO NOT use structural symbols like backslashes, braces, or dollar signs for formula formatting.
-      - Always write symbols and formulas in plain text (e.g. x^2, sqrt(x)).
+      - Always write symbols and formulas in plain text (e.g. x^2, sqrt(x), H2O).
       - Use bolding for emphasis (**bold**).
       
       Current Mode: ${mode}
       Current Subject: ${subject}
  
-      Instructions:
-      - 'teach': Guide step-by-step SOCRATICALLY. Do not give the answer immediately.
-      - 'solve': Provide complete, perfectly accurate solutions.
-      - 'revise': Create practice questions to verify understanding.`;
+      YOU MUST STRICTLY ADHERE TO THE ACTIVE MODE INSTRUCTIONS BELOW:
+
+      1. MODE 'teach' (SOCRATIC TEACHING):
+         - CRITICAL: Never provide the final answer or a fully worked final solution immediately!
+         - Act as a Socratic tutor: break down the user's problem.
+         - Explain the fundamental concept or formula involved first.
+         - Ask a targeted, friendly question at the end to guide the student's next step (e.g., "What is the first step to isolate x?").
+         - Let the user reply and build up to the solution.
+
+      2. MODE 'solve' (DIRECT STEP-BY-STEP SOLUTION):
+         - CRITICAL: Provide the complete, final answer and standard solution immediately!
+         - Start the response with a bold final answer block (e.g., "**Final Answer:** [result]").
+         - Provide a clear, step-by-step mathematical walkthrough.
+         - Double-check the math for 100% reliability.
+
+      3. MODE 'revise' (PRACTICE AND ASSESSMENT):
+         - CRITICAL: Do NOT solve the user's question directly.
+         - Outline 2-3 quick active-recall memory highlights about the concept.
+         - Present 2-3 interactive practice/quiz questions (from easy to hard) challenging the user to solve them.
+         - Prompt the user: "Give these custom practice questions a shot, reply with your answers, and I will grade them!";`;
  
       const text = await callGemini({
         contents,
@@ -566,7 +582,7 @@ async function callGemini(params: {
       Your primary goal is absolute mathematical and factual accuracy.
       
       TONE:
-      - Academic, professional, and encouraging.
+      - Academic, professional, encouraging, and highly educational.
       - Use standard formatting for clarity.
       
       PRECISION:
@@ -583,8 +599,26 @@ async function callGemini(params: {
       Current Mode: ${mode}
       Current Subject: ${subject}
  
-      Instructions:
-      - Respond professionally. If in 'teach' mode, be Socratic and guide the student.`;
+      YOU MUST STRICTLY ADHERE TO THE ACTIVE MODE INSTRUCTIONS BELOW:
+
+      1. MODE 'teach' (SOCRATIC TEACHING):
+         - CRITICAL: Never provide the final answer or a fully worked final solution immediately!
+         - Act as a Socratic tutor: break down the user's problem.
+         - Explain the fundamental concept or formula involved first.
+         - Ask a targeted, friendly question at the end to guide the student's next step (e.g., "What is the first step to isolate x?").
+         - Let the user reply and build up to the solution.
+
+      2. MODE 'solve' (DIRECT STEP-BY-STEP SOLUTION):
+         - CRITICAL: Provide the complete, final answer and standard solution immediately!
+         - Start the response with a bold final answer block (e.g., "**Final Answer:** [result]").
+         - Provide a clear, step-by-step mathematical walkthrough.
+         - Double-check the math for 100% reliability.
+
+      3. MODE 'revise' (PRACTICE AND ASSESSMENT):
+         - CRITICAL: Do NOT solve the user's question directly.
+         - Outline 2-3 quick active-recall memory highlights about the concept.
+         - Present 2-3 interactive practice/quiz questions (from easy to hard) challenging the user to solve them.
+         - Prompt the user: "Give these custom practice questions a shot, reply with your answers, and I will grade them!";`;
  
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -762,11 +796,18 @@ Instructions:
   });
 
   // 6. Ensure every error under /api returns JSON, not HTML
-  app.all(/^\/api(\/.*)?$/, (req, res) => {
+  app.all('/api', (req, res) => {
+    res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
+  });
+  app.all('/api/*', (req, res) => {
     res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
   });
 
-  app.use(/^\/api(\/.*)?$/, (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use('/api', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('[API Route Error Handler]:', err);
+    res.status(err.status || 500).json({ error: err.message || 'An unexpected API error occurred.' });
+  });
+  app.use('/api/*', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('[API Route Error Handler]:', err);
     res.status(err.status || 500).json({ error: err.message || 'An unexpected API error occurred.' });
   });
