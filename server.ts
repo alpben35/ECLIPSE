@@ -470,8 +470,13 @@ async function callGemini(params: {
 }
 
 // AI Proxy Routes
-    app.post('/api/tutor/ask', async (req, res) => {
+  app.post('/api/tutor/ask', async (req, res) => {
     try {
+      const apiKeyValue = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!apiKeyValue) {
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      }
+
       const { prompt, mode, subject, history, imageData } = req.body;
       
       const contents = (history || []).map((m: any) => ({
@@ -533,6 +538,11 @@ async function callGemini(params: {
  
   app.post('/api/tutor/ask-stream', async (req, res) => {
     try {
+      const apiKeyValue = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!apiKeyValue) {
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      }
+
       const { prompt, mode, subject, history, imageData } = req.body;
  
       const contents = (history || []).map((m: any) => ({
@@ -602,6 +612,11 @@ async function callGemini(params: {
  
   app.post('/api/tutor/summarize', async (req, res) => {
     try {
+      const apiKeyValue = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!apiKeyValue) {
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      }
+
       const { messages } = req.body;
       const contents = messages.map((m: any) => ({
         role: m.role === 'user' ? 'user' : 'model',
@@ -624,6 +639,11 @@ async function callGemini(params: {
  
   app.post('/api/tutor/analyze-paper', async (req, res) => {
     try {
+      const apiKeyValue = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!apiKeyValue) {
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      }
+
       const { base64Data, mimeType, subject } = req.body;
       const text = await callGemini({
         contents: [
@@ -742,11 +762,11 @@ Instructions:
   });
 
   // 6. Ensure every error under /api returns JSON, not HTML
-  app.all('/api/*', (req, res) => {
+  app.all(/^\/api(\/.*)?$/, (req, res) => {
     res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
   });
 
-  app.use('/api', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use(/^\/api(\/.*)?$/, (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('[API Route Error Handler]:', err);
     res.status(err.status || 500).json({ error: err.message || 'An unexpected API error occurred.' });
   });
@@ -789,6 +809,9 @@ Instructions:
     console.log(`[Hosting] Serving static content from: ${distPath}`);
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      if (req.path === '/api' || req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: `Not Found: GET ${req.path}` });
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
