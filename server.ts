@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 const buildDirname = typeof __dirname !== 'undefined' 
   ? __dirname 
-  : path.dirname(fileURLToPath(import.meta.url));
+  : path.dirname(fileURLToPath((import.meta as any)['url']));
 
 // 1. dotenv loads .env correctly before any API code or SDK initialization runs
 try {
