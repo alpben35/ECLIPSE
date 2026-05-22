@@ -138,10 +138,8 @@ const safetySettings = [
   },
 ];
 
-// Initialize Firebase Admin
-let db: admin.firestore.Firestore;
+// Initialize Firebase Admin safely on startup (file load only)
 let firebaseConfig: any = {};
-
 try {
   // Look for config in multiple locations to support both dev and bundled production
   const possiblePaths = [
@@ -157,23 +155,37 @@ try {
       break;
     }
   }
+} catch (configErr: any) {
+  console.warn(`[Firebase Admin] Handled config load failure: ${configErr.message}`);
+}
 
-  if (!admin.apps.length) {
-    const projectId = firebaseConfig.projectId || process.env.GOOGLE_CLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID;
-    console.log(`[Firebase Admin] Initializing with Project ID: ${projectId || 'Default'}...`);
-    admin.initializeApp({
-      projectId: projectId
-    });
+let dbClient: admin.firestore.Firestore | null = null;
+
+function getDb(): admin.firestore.Firestore {
+  if (!dbClient) {
+    try {
+      if (!admin.apps.length) {
+        const projectId = firebaseConfig.projectId || process.env.GOOGLE_CLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID;
+        console.log(`[Firebase Admin] Initializing with Project ID: ${projectId || 'Default'}...`);
+        admin.initializeApp({
+          projectId: projectId
+        });
+      }
+      
+      const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+      dbClient = getFirestore(admin.app(), databaseId);
+      console.log(`[Firebase Admin] Initialized. Project: ${admin.app().options.projectId}, Database: ${databaseId}`);
+    } catch (error: any) {
+      console.error('[Firebase Admin] Initialization failed:', error.message);
+      if (!admin.apps.length) {
+        try {
+          admin.initializeApp();
+        } catch (e) {}
+      }
+      dbClient = getFirestore();
+    }
   }
-  
-  const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-  db = getFirestore(admin.app(), databaseId);
-  
-  console.log(`[Firebase Admin] Initialized. Project: ${admin.app().options.projectId}, Database: ${databaseId}`);
-} catch (error: any) {
-  console.error('[Firebase Admin] Initialization failed:', error.message);
-  if (!admin.apps.length) admin.initializeApp();
-  db = getFirestore();
+  return dbClient;
 }
 
 async function startServer() {
@@ -181,6 +193,12 @@ async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
 
   app.set('trust proxy', 1);
+
+  // Request logging middleware for /api routes to track integration hits
+  app.use('/api', (req, res, next) => {
+    console.log(`[API Request] ${req.method} ${req.originalUrl || req.url}`);
+    next();
+  });
 
   // 3. GET /api/health returning JSON
   app.get('/api/health', (req, res) => {
@@ -220,7 +238,7 @@ async function startServer() {
           const tierId = dataObject.metadata?.tierId || 'premium';
           
           if (userId) {
-            await db.collection('users').doc(userId).update({
+            await getDb().collection('users').doc(userId).update({
               stripeCustomerId: dataObject.customer,
               tier: tierId, 
               subscriptionStatus: 'active',
@@ -233,7 +251,7 @@ async function startServer() {
         case 'invoice.paid': {
           const customerId = dataObject.customer;
           if (customerId) {
-            const users = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+            const users = await getDb().collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
             if (!users.empty) {
               await users.docs[0].ref.update({
                 subscriptionStatus: 'active',
@@ -246,7 +264,7 @@ async function startServer() {
         case 'invoice.payment_failed': {
           const customerId = dataObject.customer;
           if (customerId) {
-            const users = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+            const users = await getDb().collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
             if (!users.empty) {
               await users.docs[0].ref.update({ subscriptionStatus: 'past_due' });
             }
@@ -256,7 +274,7 @@ async function startServer() {
         case 'customer.subscription.deleted': {
           const customerId = dataObject.customer;
           if (customerId) {
-            const users = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+            const users = await getDb().collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
             if (!users.empty) {
               await users.docs[0].ref.update({
                 tier: 'free',
@@ -844,17 +862,22 @@ Instructions:
     });
   });
 
-  // Redirect favicon.ico to app-icon.svg to avoid returning HTML page for favicon requests
+  // Prevent favicon.ico from ever returning an HTML page. Binds cleanly without a redirect
   app.get('/favicon.ico', (req, res) => {
     const faviconPath = path.join(process.cwd(), 'favicon.ico');
     const rootFavicon = path.join(buildDirname, 'favicon.ico');
+    const publicFavicon = path.join(process.cwd(), 'public', 'favicon.ico');
+    
     if (fs.existsSync(faviconPath)) {
-      res.sendFile(faviconPath);
+      return res.sendFile(faviconPath);
     } else if (fs.existsSync(rootFavicon)) {
-      res.sendFile(rootFavicon);
-    } else {
-      res.redirect('/app-icon.svg');
+      return res.sendFile(rootFavicon);
+    } else if (fs.existsSync(publicFavicon)) {
+      return res.sendFile(publicFavicon);
     }
+    
+    // Fall back to clean 204 No Content to prevent redirecting to an index.html or triggering HTML-returning routes
+    res.status(204).end();
   });
 
   // Robustly determine if we are running in production mode (e.g. bundled server inside dist, or with NODE_ENV=production)
@@ -887,8 +910,16 @@ Instructions:
     console.log(`[Hosting] Serving static content from: ${distPath}`);
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      if (req.path === '/api' || req.path.startsWith('/api/')) {
-        return res.status(404).json({ error: `Not Found: GET ${req.path}` });
+      const ext = path.extname(req.path).toLowerCase();
+      const isStaticOrApi = req.path === '/api' || 
+                            req.path.startsWith('/api/') || 
+                            ['.ico', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.css', '.js', '.json', '.map'].includes(ext);
+                            
+      if (isStaticOrApi) {
+        if (req.path.startsWith('/api/')) {
+          return res.status(404).json({ error: `Not Found: GET ${req.path}` });
+        }
+        return res.status(404).send('Not Found');
       }
       res.sendFile(path.join(distPath, 'index.html'));
     });

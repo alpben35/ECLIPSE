@@ -65,27 +65,26 @@ console.error = safeLoggingWrapper(console.error);
 console.warn = safeLoggingWrapper(console.warn);
 console.log = safeLoggingWrapper(console.log);
 
-// Unregister and destroy any active Service Workers to prevent stale cache intercepting API routes (e.g. /api/*)
+// Unconditionally unregister active Service Workers and clear caches to prevent stale cache intercepting API routes (e.g. /api/*)
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
-    let hasCleared = false;
-    if (registrations.length > 0) {
-      for (const registration of registrations) {
-        registration.unregister();
-        hasCleared = true;
-      }
-    }
-    // Also clear caches for absolute assurance
-    if (hasCleared && 'caches' in window) {
-      caches.keys().then((keys) => {
-        Promise.all(keys.map(key => caches.delete(key))).then(() => {
-          console.log('[Service Worker] Cleared registrations and caches. Performing force reload...');
-          window.location.reload();
-        });
-      });
+    for (const registration of registrations) {
+      registration.unregister();
+      console.log('[Service Worker] Successfully unregistered stale service worker.');
     }
   }).catch((err) => {
-    console.warn('[Service Worker] Error clearing service workers:', err);
+    console.warn('[Service Worker] Error listing registrations:', err);
+  });
+}
+
+if ('caches' in window) {
+  caches.keys().then((keys) => {
+    for (const key of keys) {
+      caches.delete(key);
+      console.log(`[Cache Storage] Deleted cache database: ${key}`);
+    }
+  }).catch((err) => {
+    console.warn('[Cache Storage] Error clearing caches:', err);
   });
 }
 
