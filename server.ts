@@ -163,12 +163,9 @@ async function startServer() {
 
   // 3. GET /api/health returning JSON
   app.get('/api/health', (req, res) => {
-    const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    res.status(200).json({
-      status: 'ok',
-      apiKeyConfigured: !!key,
-      environment: process.env.NODE_ENV || 'development',
-      timestamp: new Date().toISOString()
+    res.json({
+      ok: true,
+      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)
     });
   });
 
@@ -726,9 +723,10 @@ async function callGemini(params: {
  
   app.post('/api/gemini', async (req, res) => {
     try {
-      const apiKeyValue = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-      if (!apiKeyValue) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+        return res.status(500).json({
+          error: 'Missing GEMINI_API_KEY in environment variables'
+        });
       }
 
       const { contents, systemInstruction, model, prompt, mode, subject, history, imageData } = req.body;
@@ -790,26 +788,28 @@ Instructions:
 
       res.json({ text });
     } catch (error: any) {
-      console.error("[Gemini Proxy Error]", error);
-      res.status(500).json({ error: error.message || "Gemini processing failed" });
+      console.error('Gemini API error:', error);
+      res.status(500).json({
+        error: 'Gemini API failed',
+        details: error.message
+      });
     }
   });
 
-  // 6. Ensure every error under /api returns JSON, not HTML
-  app.all('/api', (req, res) => {
-    res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
-  });
-  app.all('/api/*', (req, res) => {
-    res.status(404).json({ error: `Not Found: ${req.method} ${req.url}` });
-  });
-
+  // API Error Handler
   app.use('/api', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('[API Route Error Handler]:', err);
-    res.status(err.status || 500).json({ error: err.message || 'An unexpected API error occurred.' });
+    res.status(err.status || 500).json({
+      error: 'API Error',
+      details: err.message || 'An unexpected API error occurred.'
+    });
   });
-  app.use('/api/*', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('[API Route Error Handler]:', err);
-    res.status(err.status || 500).json({ error: err.message || 'An unexpected API error occurred.' });
+
+  // API 404 should return JSON
+  app.use('/api', (req, res) => {
+    res.status(404).json({
+      error: 'API route not found'
+    });
   });
 
   // Redirect favicon.ico to app-icon.svg to avoid returning HTML page for favicon requests
