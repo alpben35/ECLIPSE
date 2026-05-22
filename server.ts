@@ -825,8 +825,13 @@ Instructions:
     }
   });
 
+  // Robustly determine if we are running in production mode (e.g. bundled server inside dist, or with NODE_ENV=production)
+  const isProduction = process.env.NODE_ENV === 'production' || 
+                       buildDirname.endsWith('dist') ||
+                       (fs.existsSync(path.join(buildDirname, 'index.html')) && !fs.existsSync(path.join(buildDirname, 'server.ts')));
+
   // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       root: buildDirname,
