@@ -60,6 +60,7 @@ export default defineConfig(({mode}) => {
     },
     optimizeDeps: {
       entries: ['index.html'],
+      include: []
     },
     build: {
       outDir: 'dist',

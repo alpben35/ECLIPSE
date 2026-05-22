@@ -469,9 +469,10 @@ async function callGemini(params: {
 // AI Proxy Routes
   app.post('/api/tutor/ask', async (req, res) => {
     try {
-      const apiKeyValue = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-      if (!apiKeyValue) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+        return res.status(500).json({
+          error: 'Missing GEMINI_API_KEY in environment variables'
+        });
       }
 
       const { prompt, mode, subject, history, imageData } = req.body;
@@ -551,9 +552,10 @@ async function callGemini(params: {
  
   app.post('/api/tutor/ask-stream', async (req, res) => {
     try {
-      const apiKeyValue = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-      if (!apiKeyValue) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+        return res.status(500).json({
+          error: 'Missing GEMINI_API_KEY in environment variables'
+        });
       }
 
       const { prompt, mode, subject, history, imageData } = req.body;
@@ -643,9 +645,10 @@ async function callGemini(params: {
  
   app.post('/api/tutor/summarize', async (req, res) => {
     try {
-      const apiKeyValue = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-      if (!apiKeyValue) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+        return res.status(500).json({
+          error: 'Missing GEMINI_API_KEY in environment variables'
+        });
       }
 
       const { messages } = req.body;
@@ -670,9 +673,10 @@ async function callGemini(params: {
  
   app.post('/api/tutor/analyze-paper', async (req, res) => {
     try {
-      const apiKeyValue = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-      if (!apiKeyValue) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+        return res.status(500).json({
+          error: 'Missing GEMINI_API_KEY in environment variables'
+        });
       }
 
       const { base64Data, mimeType, subject } = req.body;
