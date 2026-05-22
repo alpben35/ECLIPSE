@@ -73,14 +73,35 @@ function getStripe() {
 }
 
 let genAIClient: GoogleGenAI | null = null;
+
+function hasGeminiKey(): boolean {
+  let key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (key === 'undefined' || key === 'null' || !key || key.trim().length === 0) {
+    key = undefined;
+  }
+  if (!key && firebaseConfig && firebaseConfig.apiKey) {
+    const fallbackKey = firebaseConfig.apiKey;
+    if (fallbackKey !== 'undefined' && fallbackKey !== 'null' && fallbackKey.trim().length > 0) {
+      return true;
+    }
+  }
+  return Boolean(key);
+}
+
 function getAI() {
   if (!genAIClient) {
     let key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (key === 'undefined' || key === 'null' || !key || key.trim().length === 0) {
+      key = undefined;
+    }
     
     // Robust fallback to project's API key from firebase-applet-config.json if environment variable is missing
     if (!key && firebaseConfig && firebaseConfig.apiKey) {
-      console.log("[Gemini Helper] Environment API key not found. Using API key from firebase-applet-config.json as fallback.");
-      key = firebaseConfig.apiKey;
+      const fallbackKey = firebaseConfig.apiKey;
+      if (fallbackKey !== 'undefined' && fallbackKey !== 'null' && fallbackKey.trim().length > 0) {
+        console.log("[Gemini Helper] Environment API key not found. Using API key from firebase-applet-config.json as fallback.");
+        key = fallbackKey;
+      }
     }
 
     if (!key) {
@@ -469,9 +490,9 @@ async function callGemini(params: {
 // AI Proxy Routes
   app.post('/api/tutor/ask', async (req, res) => {
     try {
-      if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+      if (!hasGeminiKey()) {
         return res.status(500).json({
-          error: 'Missing GEMINI_API_KEY in environment variables'
+          error: 'Missing GEMINI_API_KEY in environment variables and no fallback key is configured'
         });
       }
 
@@ -552,9 +573,9 @@ async function callGemini(params: {
  
   app.post('/api/tutor/ask-stream', async (req, res) => {
     try {
-      if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+      if (!hasGeminiKey()) {
         return res.status(500).json({
-          error: 'Missing GEMINI_API_KEY in environment variables'
+          error: 'Missing GEMINI_API_KEY in environment variables and no fallback key is configured'
         });
       }
 
@@ -645,9 +666,9 @@ async function callGemini(params: {
  
   app.post('/api/tutor/summarize', async (req, res) => {
     try {
-      if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+      if (!hasGeminiKey()) {
         return res.status(500).json({
-          error: 'Missing GEMINI_API_KEY in environment variables'
+          error: 'Missing GEMINI_API_KEY in environment variables and no fallback key is configured'
         });
       }
 
@@ -673,9 +694,9 @@ async function callGemini(params: {
  
   app.post('/api/tutor/analyze-paper', async (req, res) => {
     try {
-      if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+      if (!hasGeminiKey()) {
         return res.status(500).json({
-          error: 'Missing GEMINI_API_KEY in environment variables'
+          error: 'Missing GEMINI_API_KEY in environment variables and no fallback key is configured'
         });
       }
 
@@ -727,9 +748,9 @@ async function callGemini(params: {
  
   app.post('/api/gemini', async (req, res) => {
     try {
-      if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+      if (!hasGeminiKey()) {
         return res.status(500).json({
-          error: 'Missing GEMINI_API_KEY in environment variables'
+          error: 'Missing GEMINI_API_KEY in environment variables and no fallback key is configured'
         });
       }
 
@@ -803,9 +824,16 @@ Instructions:
   // API Error Handler
   app.use('/api', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('[API Route Error Handler]:', err);
+    if (res.headersSent) {
+      console.warn('[API Route Error Handler] Headers already sent. Ending response.');
+      if (!res.writableEnded) {
+        res.end();
+      }
+      return;
+    }
     res.status(err.status || 500).json({
       error: 'API Error',
-      details: err.message || 'An unexpected API error occurred.'
+      details: err.message || String(err) || 'An unexpected API error occurred.'
     });
   });
 
@@ -865,6 +893,31 @@ Instructions:
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Global safety/fallback error handler to catch ALL unhandled errors cleanly
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('[Global Catch-All Error Handler]:', err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    if (req.path.startsWith('/api/') || req.path === '/api') {
+      return res.status(err.status || 500).json({
+        error: 'Server Error',
+        details: err.message || String(err) || 'An unexpected server error occurred.'
+      });
+    }
+    res.status(err.status || 500).send(`
+      <!DOCTYPE html>
+      <html>
+        <head><title>System Error</title></head>
+        <body style="font-family:sans-serif;padding:3rem;background:#030712;color:#f3f4f6;text-align:center;">
+          <h2 style="color:#ef4444;">Application Error</h2>
+          <p style="margin:1rem 0;color:#9ca3af;">${err.message || 'An unexpected error occurred.'}</p>
+          <a href="/" style="display:inline-block;padding:0.5rem 1rem;background:#3b82f6;color:white;border-radius:0.375rem;text-decoration:none;">Go back home</a>
+        </body>
+      </html>
+    `);
+  });
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
