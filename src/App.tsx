@@ -51,8 +51,48 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [maintenance, setMaintenance] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
+  const [backendReady, setBackendReady] = useState(false);
   const isOnline = useOnlineStatus();
   const location = useLocation();
+
+  useEffect(() => {
+    let isMounted = true;
+    let pollInterval: any = null;
+
+    const checkBackend = async () => {
+      try {
+        const response = await fetch('/api/health');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.ok === true && data.status === "ok") {
+            if (isMounted) {
+              setBackendReady(true);
+            }
+            if (pollInterval) {
+              clearInterval(pollInterval);
+            }
+            return true;
+          }
+        }
+      } catch (err) {
+        console.log('[Backend Health] Polling server status...', err);
+      }
+      return false;
+    };
+
+    checkBackend().then((ready) => {
+      if (!ready && isMounted) {
+        pollInterval = setInterval(checkBackend, 1500);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Sync dark mode class with document root
@@ -297,6 +337,10 @@ export default function App() {
     if (alternateFaviconElement) alternateFaviconElement.setAttribute('href', iconPath);
     if (appleTouchIconElement) appleTouchIconElement.setAttribute('href', iconPath);
   }, [isTeacherPath]);
+
+  if (!backendReady) {
+    return <SplashScreen />;
+  }
 
   if (loading) {
     return (

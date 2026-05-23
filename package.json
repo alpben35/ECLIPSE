@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --platform=node --packages=external --bundle --format=cjs --sourcemap --outfile=dist/server.cjs && node build-apphosting.js",
+    "build": "vite build && esbuild server.ts --platform=node --packages=external --bundle --format=cjs --outfile=dist/server.cjs && node build-apphosting.js",
     "start": "node dist/server.cjs",
     "deploy-rules": "npx firebase-tools deploy --only firestore:rules,storage",
     "deploy": "npm run build && npx firebase-tools deploy",
@@ -22,7 +22,7 @@
     "@capacitor/core": "^6.0.0",
     "@capacitor/ios": "^6.0.0",
     "@capgo/capacitor-purchases": "^6.0.0",
-    "@google/genai": "^1.51.0",
+    "@google/genai": "^2.6.0",
     "@google/generative-ai": "^0.24.1",
     "@tailwindcss/vite": "^4.1.14",
     "@types/canvas-confetti": "^1.9.0",
@@ -60,8 +60,6 @@
     "typescript": "~5.8.2",
     "vite": "^5.4.15",
     "vite-plugin-pwa": "^0.20.5"
-  },
-  "devDependencies": {
   },
   "overrides": {
     "@capacitor/core": "$@capacitor/core",
