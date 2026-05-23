@@ -29,7 +29,7 @@ export async function askTutor(
 
     const contentType = response.headers.get('Content-Type') || '';
     if (contentType.includes('text/html')) {
-      throw new Error("The Eclipse backend is starting up or active hot-reloading is underway. Please wait 5 seconds and reload this tab to re-establish a secure connection.");
+      throw new Error("Tutor service is preparing. Please try again in a moment.");
     }
 
     if (!response.ok) {
@@ -87,7 +87,7 @@ export async function askTutorStream(
 
     const contentType = response.headers.get('Content-Type') || '';
     if (contentType.includes('text/html')) {
-      throw new Error("The Eclipse backend is starting up or active hot-reloading is underway. Please wait 5 seconds and reload this tab to re-establish a secure connection.");
+      throw new Error("Tutor service is preparing. Please try again in a moment.");
     }
 
     if (!response.ok) {
@@ -170,7 +170,7 @@ export async function summarizeChat(messages: { role: string, content: string }[
 
     const contentType = response.headers.get('Content-Type') || '';
     if (contentType.includes('text/html')) {
-      throw new Error("The Eclipse backend is starting up or active hot-reloading is underway. Please wait 5 seconds and reload this tab to re-establish a secure connection.");
+      throw new Error("Tutor service is preparing. Please try again in a moment.");
     }
 
     if (!response.ok) throw new Error("Summary failed");

@@ -63,10 +63,16 @@ export default function App() {
       try {
         const response = await fetch('/api/health');
         if (response.ok) {
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('text/html')) {
+            console.log('[Backend Health] Received HTML instead of JSON health status. Polling again...');
+            return false;
+          }
           const data = await response.json();
-          if (data && data.ok === true && data.status === "ok") {
+          if (data && data.ok === true) {
             if (isMounted) {
               setBackendReady(true);
+              setShowSplash(false);
             }
             if (pollInterval) {
               clearInterval(pollInterval);
