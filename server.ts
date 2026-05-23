@@ -11,6 +11,7 @@ const buildDirname = typeof __dirname !== 'undefined'
 try {
   dotenv.config({ path: path.resolve(process.cwd(), '.env') });
   dotenv.config({ path: path.resolve(buildDirname, '.env') });
+  dotenv.config({ path: path.resolve(buildDirname, '..', '.env') });
 } catch (envErr: any) {
   console.warn(`[Dotenv] Error attempting to load .env manually: ${envErr.message}`);
 }
