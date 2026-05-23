@@ -51,7 +51,7 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [maintenance, setMaintenance] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
-  const [backendReady, setBackendReady] = useState(true);
+  const [backendReady, setBackendReady] = useState(false);
   const isOnline = useOnlineStatus();
   const location = useLocation();
 
@@ -61,27 +61,53 @@ export default function App() {
 
     const checkBackend = async () => {
       try {
-        const response = await fetch('/api/health');
-        if (response.ok) {
-          const contentType = response.headers.get('content-type') || '';
-          if (contentType.includes('text/html')) {
-            console.log('[Backend Health] Received HTML instead of JSON health status. Polling again...');
-            return false;
+        // 1. Check health API first
+        const healthRes = await fetch('/api/health');
+        if (!healthRes.ok) {
+          console.log('[Backend Health] /api/health returned non-200. Retrying...');
+          return false;
+        }
+        const healthCt = healthRes.headers.get('content-type') || '';
+        if (healthCt.includes('text/html')) {
+          console.log('[Backend Health] Received HTML instead of JSON from health route. Polling again...');
+          return false;
+        }
+        const healthData = await healthRes.json();
+        if (!healthData || healthData.ok !== true) {
+          return false;
+        }
+
+        // 2. Also prove that /api/tutor/ask responds with valid JSON (ready tutor state)
+        const tutorRes = await fetch('/api/tutor/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ probe: true })
+        });
+
+        if (!tutorRes.ok) {
+          console.log('[Backend Health] /api/tutor/ask probe returned non-200. Retrying...');
+          return false;
+        }
+        const tutorCt = tutorRes.headers.get('content-type') || '';
+        if (tutorCt.includes('text/html')) {
+          console.log('[Backend Health] /api/tutor/ask probe received HTML. Polling again...');
+          return false;
+        }
+
+        const tutorData = await tutorRes.json();
+        if (tutorData && tutorData.ok === true) {
+          if (isMounted) {
+            setBackendReady(true);
+            setShowSplash(false);
           }
-          const data = await response.json();
-          if (data && data.ok === true) {
-            if (isMounted) {
-              setBackendReady(true);
-              setShowSplash(false);
-            }
-            if (pollInterval) {
-              clearInterval(pollInterval);
-            }
-            return true;
+          if (pollInterval) {
+            clearInterval(pollInterval);
           }
+          console.log('[Backend Health & Tutor Probe] Both verified ready. App fully unlocked!');
+          return true;
         }
       } catch (err) {
-        console.log('[Backend Health] Polling server status...', err);
+        console.log('[Backend Health & Tutor Probe] Polling server status offline...', err);
       }
       return false;
     };

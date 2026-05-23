@@ -527,8 +527,16 @@ async function callGemini(params: {
 }
 
 // AI Proxy Routes
+  app.get('/api/tutor/ask', (req, res) => {
+    res.json({ ok: true, status: 'ready', type: 'tutor-probe' });
+  });
+
   app.post('/api/tutor/ask', async (req, res) => {
     try {
+      if (req.body?.probe === true) {
+        return res.json({ ok: true, status: 'ready', type: 'tutor-probe' });
+      }
+
       if (!hasGeminiKey()) {
         return res.status(500).json({
           error: 'Missing GEMINI_API_KEY in environment variables and no fallback key is configured'

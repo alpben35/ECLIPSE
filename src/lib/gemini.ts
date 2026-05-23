@@ -15,7 +15,7 @@ export async function askTutor(
       mimeType: String(imageData.mimeType || "")
     } : undefined;
 
-    const response = await fetch('/api/gemini', {
+    const response = await fetch('/api/tutor/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -29,7 +29,7 @@ export async function askTutor(
 
     const contentType = response.headers.get('Content-Type') || '';
     if (contentType.includes('text/html')) {
-      throw new Error("Tutor service is preparing. Please try again in a moment.");
+      throw new Error("Tutor service is preparing. Please try again in external environment.");
     }
 
     if (!response.ok) {
@@ -72,7 +72,7 @@ export async function askTutorStream(
       mimeType: String(imageData.mimeType || "")
     } : undefined;
 
-    const response = await fetch('/api/gemini?stream=true', {
+    const response = await fetch('/api/tutor/ask-stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -87,7 +87,7 @@ export async function askTutorStream(
 
     const contentType = response.headers.get('Content-Type') || '';
     if (contentType.includes('text/html')) {
-      throw new Error("Tutor service is preparing. Please try again in a moment.");
+      throw new Error("Tutor service streaming is preparing. Please try again in external environment.");
     }
 
     if (!response.ok) {
@@ -170,7 +170,7 @@ export async function summarizeChat(messages: { role: string, content: string }[
 
     const contentType = response.headers.get('Content-Type') || '';
     if (contentType.includes('text/html')) {
-      throw new Error("Tutor service is preparing. Please try again in a moment.");
+      throw new Error("Tutor service summarize is preparing. Please try again.");
     }
 
     if (!response.ok) throw new Error("Summary failed");
