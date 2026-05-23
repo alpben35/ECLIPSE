@@ -27,17 +27,30 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 // Moved to constants.ts
 
 // --- Components ---
-const TutorPage = React.lazy(() => import('@/pages/TutorPage'));
-const ProgressPage = React.lazy(() => import('@/pages/ProgressPage'));
-const LandingPage = React.lazy(() => import('@/pages/LandingPage'));
-const AdminPage = React.lazy(() => import('@/pages/AdminPage'));
-const IdeaPage = React.lazy(() => import('@/pages/IdeaPage'));
-const RankPage = React.lazy(() => import('@/pages/RankPage'));
-const AuthPage = React.lazy(() => import('@/pages/AuthPage'));
-const PrivacyPolicy = React.lazy(() => import('@/pages/PrivacyPolicy'));
-const SubscriptionPage = React.lazy(() => import('@/pages/SubscriptionPage'));
-const TeacherApp = React.lazy(() => import('./teacher/src/TeacherApp'));
-const StudentApp = React.lazy(() => import('./StudentApp'));
+function lazyWithRetry(importFunc: () => Promise<any>) {
+  return React.lazy(() =>
+    importFunc().catch((err) => {
+      console.error("Dynamic import failed, reloading page to get pristine bundles:", err);
+      // Wait a tiny moment and trigger force reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+      return { default: () => null };
+    })
+  );
+}
+
+const TutorPage = lazyWithRetry(() => import('@/pages/TutorPage'));
+const ProgressPage = lazyWithRetry(() => import('@/pages/ProgressPage'));
+const LandingPage = lazyWithRetry(() => import('@/pages/LandingPage'));
+const AdminPage = lazyWithRetry(() => import('@/pages/AdminPage'));
+const IdeaPage = lazyWithRetry(() => import('@/pages/IdeaPage'));
+const RankPage = lazyWithRetry(() => import('@/pages/RankPage'));
+const AuthPage = lazyWithRetry(() => import('@/pages/AuthPage'));
+const PrivacyPolicy = lazyWithRetry(() => import('@/pages/PrivacyPolicy'));
+const SubscriptionPage = lazyWithRetry(() => import('@/pages/SubscriptionPage'));
+const TeacherApp = lazyWithRetry(() => import('./teacher/src/TeacherApp'));
+const StudentApp = lazyWithRetry(() => import('./StudentApp'));
 import SplashScreen from './components/PWA/SplashScreen';
 import AddToHomeScreen from './components/PWA/AddToHomeScreen';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
@@ -112,6 +125,19 @@ export default function App() {
       return false;
     };
 
+    // Backup helper: after 2.2 seconds, force backendReady to be true and dismiss splash screen.
+    // This completely prevents the possibility of a permanent lockout/hang on the illuminating page in any custom domain environment.
+    const fallbackTimeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('[Backend Health] Backup override triggered. Hard setting backendReady to true to prevent lockout.');
+        setBackendReady(true);
+        setShowSplash(false);
+        if (pollInterval) {
+          clearInterval(pollInterval);
+        }
+      }
+    }, 2200);
+
     checkBackend().then((ready) => {
       if (!ready && isMounted) {
         pollInterval = setInterval(checkBackend, 1500);
@@ -123,6 +149,7 @@ export default function App() {
       if (pollInterval) {
         clearInterval(pollInterval);
       }
+      clearTimeout(fallbackTimeout);
     };
   }, []);
 

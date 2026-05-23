@@ -99,6 +99,18 @@ window.addEventListener('error', (e) => {
   }
 }, true);
 
+// Handle failed dynamic imports (which throws unhandled rejections)
+window.addEventListener('unhandledrejection', (e) => {
+  const reasonStr = String(e.reason || e.reason?.message || '');
+  const isChunkError = /Failed to fetch dynamically imported module/i.test(reasonStr) ||
+                       /Loading chunk/i.test(reasonStr) ||
+                       /Loading CSS chunk/i.test(reasonStr);
+  if (isChunkError) {
+    console.warn('[Chunk Reloader] Unhandled chunk loading issue detected. Performing a force refresh...');
+    window.location.reload();
+  }
+});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
