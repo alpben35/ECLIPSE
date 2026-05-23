@@ -62,6 +62,7 @@
     "vite-plugin-pwa": "^0.20.5"
   },
   "overrides": {
+    "node-domexception": "file:./node-domexception-shim",
     "@capacitor/core": "$@capacitor/core",
     "@capacitor/android": "$@capacitor/android",
     "@capacitor/ios": "$@capacitor/ios",
