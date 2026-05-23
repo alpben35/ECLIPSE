@@ -51,7 +51,7 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [maintenance, setMaintenance] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
-  const [backendReady, setBackendReady] = useState(false);
+  const [backendReady, setBackendReady] = useState(true);
   const isOnline = useOnlineStatus();
   const location = useLocation();
 
@@ -344,9 +344,8 @@ export default function App() {
     if (appleTouchIconElement) appleTouchIconElement.setAttribute('href', iconPath);
   }, [isTeacherPath]);
 
-  if (!backendReady) {
-    return <SplashScreen />;
-  }
+  // Backend is treated as ready by default to prevent blocking real users on loading/offline pages
+  // Splash screen handles its own 1.5s automatic fade-out overlay over the mounted app
 
   if (loading) {
     return (
