@@ -411,6 +411,9 @@ async function callGemini(params: {
   let lastError: any = null;
   const maxRounds = 3; // Number of times to cycle through the entire sequence of engines
   
+  let accumulatedText = "";
+  let previouslySentLength = 0;
+
   for (let round = 0; round < maxRounds; round++) {
     for (let modelIdx = 0; modelIdx < modelSequence.length; modelIdx++) {
       const currentModelName = modelSequence[modelIdx];
@@ -438,8 +441,19 @@ async function callGemini(params: {
           
           for await (const chunk of stream) {
             if (chunk.text) {
+              const textChunk = chunk.text;
+              accumulatedText += textChunk;
               yieldedAny = true;
-              params.onChunk(chunk.text);
+              
+              if (previouslySentLength > 0) {
+                if (accumulatedText.length > previouslySentLength) {
+                  const newPart = accumulatedText.slice(previouslySentLength);
+                  previouslySentLength = 0; // successfully caught up
+                  params.onChunk(newPart);
+                }
+              } else {
+                params.onChunk(textChunk);
+              }
             }
           }
           return;
@@ -454,14 +468,6 @@ async function callGemini(params: {
       } catch (error: any) {
         lastError = error;
         
-        // If we already successfully yielded text to the client mid-stream,
-        // we MUST NOT retry with a new model or connection because doing so
-        // would repeat early segments. Bubble the error up to let the stream close naturally.
-        if (yieldedAny) {
-          console.error(`[Gemini Helper] Stream disconnected mid-way after yielding content on ${currentModelName}. Bubbling error to prevent duplicate outputs.`);
-          throw error;
-        }
-
         const errMessage = error.message || "";
         const errStatus = error.status || error.code || error.error?.code || "";
         
@@ -494,20 +500,34 @@ async function callGemini(params: {
                       errMessage.includes('404') || 
                       errMessage.includes('NOT_FOUND');
 
-        const isTemporaryError = is503 || is429 || is404;
+        const is500 = errStatus === 500 ||
+                      errStatus === 'INTERNAL' ||
+                      errMessage.includes('INTERNAL') ||
+                      errMessage.includes('Internal error encountered') ||
+                      String(errStatus).includes('500');
+
+        const isStreamDisconnect = yieldedAny;
+
+        const isTemporaryError = is503 || is429 || is404 || is500 || isStreamDisconnect;
+
+        if (isStreamDisconnect && accumulatedText.length > previouslySentLength) {
+          previouslySentLength = accumulatedText.length;
+          console.warn(`[Gemini Helper] Stream disconnected mid-way after yielding ${previouslySentLength} chars on ${currentModelName}. Attempting to recover and resume...`);
+        }
+        accumulatedText = ""; // Reset accumulated text since we'll recreate it from the next stream try
 
         if (isTemporaryError) {
           // If there is another model available in this sequence, immediately try it without sleeping!
           if (modelIdx < modelSequence.length - 1) {
             const nextModelName = modelSequence[modelIdx + 1];
-            console.warn(`[Gemini Helper] Model ${currentModelName} failed (${is503 ? '503 Overloaded' : is429 ? '429 Rate Limit' : '404 Not Found'}). Immediately pivoting to fallback ${nextModelName}...`);
+            console.warn(`[Gemini Helper] Model ${currentModelName} failed/disconnected (${is503 ? '503 Overloaded' : is429 ? '429 Rate' : is404 ? '404' : is500 ? '500 Internal' : 'Stream Disconnect'}). Immediately pivoting to fallback ${nextModelName}...`);
             continue;
           }
           
           // If all models in the sequence failed, apply exponential backoff before the next round begins
           if (round < maxRounds - 1 && modelIdx === modelSequence.length - 1) {
             const delay = Math.pow(2, round) * 1500 + Math.random() * 1000;
-            console.warn(`[Gemini Helper] Entire model sequence busy in Round ${round + 1}. Backing off for ${Math.round(delay)}ms before starting Round ${round + 2}...`);
+            console.warn(`[Gemini Helper] Entire model sequence busy/disconnected in Round ${round + 1}. Backing off for ${Math.round(delay)}ms...`);
             await new Promise(r => setTimeout(r, delay));
             break; // Breaks out of the model sequence loop to trigger the next backoff round
           }
@@ -706,7 +726,10 @@ async function callGemini(params: {
       res.end();
     } catch (error: any) {
       console.error("[AI Stream Proxy Error]", error);
-      res.status(500).write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+      if (!res.headersSent) {
+        res.status(500);
+      }
+      res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
       res.end();
     }
   });
@@ -916,11 +939,12 @@ Instructions:
     });
   });
 
-  // API 404 should return JSON
+  // API 404 should return JSON and never fall through to anything else
+  app.use('/api/*', (req, res) => {
+    res.status(404).json({ error: 'API route not found' });
+  });
   app.use('/api', (req, res) => {
-    res.status(404).json({
-      error: 'API route not found'
-    });
+    res.status(404).json({ error: 'API route not found' });
   });
 
   // Redirect favicon.ico to app-icon.svg to avoid returning HTML page for favicon requests
@@ -972,6 +996,11 @@ Instructions:
         }
       }
     }));
+
+    // Prevent missing build files or old hashed JS/CSS assets from returning index.html (MIME HTML error)
+    app.use('/assets', (req, res) => {
+      res.status(404).set('Content-Type', 'text/plain').send('Asset not found');
+    });
 
     app.get('*', (req, res) => {
       const ext = path.extname(req.path).toLowerCase();
