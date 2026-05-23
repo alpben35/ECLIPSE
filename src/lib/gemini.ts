@@ -15,7 +15,7 @@ export async function askTutor(
       mimeType: String(imageData.mimeType || "")
     } : undefined;
 
-    const response = await fetch('/api/tutor/ask', {
+    const response = await fetch('/api/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -72,7 +72,7 @@ export async function askTutorStream(
       mimeType: String(imageData.mimeType || "")
     } : undefined;
 
-    const response = await fetch('/api/tutor/ask-stream', {
+    const response = await fetch('/api/gemini?stream=true', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -80,7 +80,8 @@ export async function askTutorStream(
         mode, 
         subject: String(subject || ""), 
         history: sanitizedHistory, 
-        imageData: sanitizedImageData 
+        imageData: sanitizedImageData,
+        isStream: true
       })
     });
 

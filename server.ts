@@ -773,7 +773,8 @@ async function callGemini(params: {
         });
       }
 
-      const { contents, systemInstruction, model, prompt, mode, subject, history, imageData } = req.body;
+      const { contents, systemInstruction, model, prompt, mode, subject, history, imageData, isStream } = req.body;
+      const shouldStream = isStream || req.query.stream === 'true';
 
       let finalContents = contents;
       let finalSystemInstruction = systemInstruction;
@@ -823,20 +824,51 @@ Instructions:
 - 'revise': Create practice questions to verify understanding.`;
       }
 
-      const text = await callGemini({
-        contents: finalContents || [{ role: 'user', parts: [{ text: prompt || '' }] }],
-        systemInstruction: finalSystemInstruction,
-        model: model || 'gemini-3.5-flash',
-        temperature: 0.1
-      });
+      const modelName = model || 'gemini-3.5-flash';
 
-      res.json({ text });
+      if (shouldStream) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+
+        await callGemini({
+          contents: finalContents || [{ role: 'user', parts: [{ text: prompt || '' }] }],
+          systemInstruction: finalSystemInstruction,
+          model: modelName,
+          isStream: true,
+          onChunk: (text) => {
+            res.write(`data: ${JSON.stringify({ text })}\n\n`);
+          }
+        });
+
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      } else {
+        const text = await callGemini({
+          contents: finalContents || [{ role: 'user', parts: [{ text: prompt || '' }] }],
+          systemInstruction: finalSystemInstruction,
+          model: modelName,
+          temperature: 0.1
+        });
+
+        res.json({ text });
+      }
     } catch (error: any) {
       console.error('Gemini API error:', error);
-      res.status(500).json({
-        error: 'Gemini API failed',
-        details: error.message
-      });
+      const isStream = req.body.isStream || req.query.stream === 'true';
+      if (isStream) {
+        if (!res.headersSent) {
+          res.setHeader('Content-Type', 'text/event-stream');
+        }
+        res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+        res.end();
+      } else {
+        res.status(500).json({
+          error: 'Gemini API failed',
+          details: error.message
+        });
+      }
     }
   });
 
