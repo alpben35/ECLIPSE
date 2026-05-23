@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs && node build-apphosting.js",
-    "start": "node -e \"const fs = require('fs'); if (!fs.existsSync('dist/server.cjs')) { console.log('🚀 dist/server.cjs not found. Building app first...'); require('child_process').execSync('npm run build', { stdio: 'inherit' }); } require('child_process').spawnSync('node', ['dist/server.cjs'], { stdio: 'inherit' });\"",
+    "build": "vite build && esbuild server.ts --platform=node --packages=external --bundle --format=cjs --sourcemap --outfile=dist/server.cjs && node build-apphosting.js",
+    "start": "node dist/server.cjs",
     "deploy-rules": "npx firebase-tools deploy --only firestore:rules,storage",
     "deploy": "npm run build && npx firebase-tools deploy",
     "preview": "vite preview",
