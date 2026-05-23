@@ -3,6 +3,15 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import dotenv from 'dotenv';
 
+// Global error handlers added early to capture any initialization issues
+process.on('uncaughtException', (err) => {
+  console.error('🔥 [UNCAUGHT EXCEPTION]:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔥 [UNHANDLED REJECTION] at:', promise, 'reason:', reason);
+});
+
 const buildDirname = typeof __dirname !== 'undefined' 
   ? __dirname 
   : path.dirname(fileURLToPath((import.meta as any)['url']));
@@ -191,7 +200,7 @@ function getDb(): admin.firestore.Firestore {
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = 3000;
 
   app.set('trust proxy', 1);
 
@@ -970,17 +979,22 @@ Instructions:
     `);
   });
 
+  console.log(`[Startup] Attempting to listen on port ${PORT}...`);
   const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Express backend running at http://localhost:${PORT}`);
-    console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
+    console.log(`✅ Express backend running successfully on port ${PORT}`);
+    console.log(`✅ Health check endpoint active at: http://localhost:${PORT}/api/health`);
   });
 
-  server.on("error", (err) => {
-    console.error("Server failed to start:", err);
+  server.on("error", (err: any) => {
+    console.error("❌ [Server Listen Error] Failed to bind/listen:", err);
+    if (err.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use by another process. Please check busy ports.`);
+    }
+    process.exit(1);
   });
 }
 
 startServer().catch(err => {
-  console.error('[Server Startup Error]', err);
+  console.error('❌ [Server Startup Exception]', err);
   process.exit(1);
 });
