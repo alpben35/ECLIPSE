@@ -57,7 +57,7 @@ const safeLoggingWrapper = (originalConsoleFn: (...args: any[]) => void) => {
       }
       return arg;
     });
-    originalConsoleFn(...safeArgs);
+    originalConsoleFn.apply(console, safeArgs);
   };
 };
 
