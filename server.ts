@@ -958,7 +958,21 @@ Instructions:
       }
     }
     console.log(`[Hosting] Serving static content from: ${distPath}`);
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      maxAge: '1y',
+      setHeaders: (res, filePath) => {
+        const base = path.basename(filePath).toLowerCase();
+        if (base === 'index.html' || base.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        } else {
+          // All other assets are hashed/versioned in Vite
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      }
+    }));
+
     app.get('*', (req, res) => {
       const ext = path.extname(req.path).toLowerCase();
       const isStaticOrApi = req.path === '/api' || 
@@ -971,6 +985,11 @@ Instructions:
         }
         return res.status(404).send('Not Found');
       }
+
+      // Explicitly set cache-control to prevent the browser/CDN from caching index.html
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

@@ -20,17 +20,29 @@ import LimitReachedModal from './components/LimitReachedModal';
 import ProfileSettingsModal from './components/ProfileSettingsModal';
 
 // --- Components ---
-const TutorPage = React.lazy(() => import('./pages/TutorPage'));
-const ProgressPage = React.lazy(() => import('./pages/ProgressPage'));
-const LandingPage = React.lazy(() => import('./pages/LandingPage'));
-const AdminPage = React.lazy(() => import('./pages/AdminPage'));
-const IdeaPage = React.lazy(() => import('./pages/IdeaPage'));
-const RankPage = React.lazy(() => import('./pages/RankPage'));
-const GroupsPage = React.lazy(() => import('./pages/GroupsPage'));
-const GroupDetailPage = React.lazy(() => import('./pages/GroupDetailPage'));
-const AuthPage = React.lazy(() => import('./pages/AuthPage'));
-const SubscriptionPage = React.lazy(() => import('./pages/SubscriptionPage'));
-const DnsPage = React.lazy(() => import('./pages/DnsPage'));
+function lazyWithRetry(importFunc: () => Promise<any>) {
+  return React.lazy(() =>
+    importFunc().catch((err) => {
+      console.error("Dynamic import failed in StudentApp, reloading:", err);
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+      return { default: () => null };
+    })
+  );
+}
+
+const TutorPage = lazyWithRetry(() => import('./pages/TutorPage'));
+const ProgressPage = lazyWithRetry(() => import('./pages/ProgressPage'));
+const LandingPage = lazyWithRetry(() => import('./pages/LandingPage'));
+const AdminPage = lazyWithRetry(() => import('./pages/AdminPage'));
+const IdeaPage = lazyWithRetry(() => import('./pages/IdeaPage'));
+const RankPage = lazyWithRetry(() => import('./pages/RankPage'));
+const GroupsPage = lazyWithRetry(() => import('./pages/GroupsPage'));
+const GroupDetailPage = lazyWithRetry(() => import('./pages/GroupDetailPage'));
+const AuthPage = lazyWithRetry(() => import('./pages/AuthPage'));
+const SubscriptionPage = lazyWithRetry(() => import('./pages/SubscriptionPage'));
+const DnsPage = lazyWithRetry(() => import('./pages/DnsPage'));
 
 export default function StudentApp() {
   const { isDark, toggleTheme } = useContext(ThemeContext);
