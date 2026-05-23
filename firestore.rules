@@ -129,10 +129,20 @@ service cloud.firestore {
     }
 
     match /groups/{groupId} {
-      allow get: if isSignedIn() && (existing().isPrivate == false || request.auth.uid in existing().members);
+      allow get: if isSignedIn() && (existing().get('isPrivate', false) == false || request.auth.uid in existing().members);
       allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && (request.auth.uid in existing().members || isAdmin());
+      allow update: if isSignedIn() && (
+        request.auth.uid in existing().members || 
+        isAdmin() ||
+        (
+          existing().get('isPrivate', false) == false && 
+          incoming().diff(existing()).affectedKeys().hasOnly(['members']) &&
+          incoming().members.hasAll(existing().members) &&
+          incoming().members.size() == existing().members.size() + 1 &&
+          request.auth.uid in incoming().members
+        )
+      );
 
       match /messages/{messageId} {
         allow get, list: if isSignedIn() && (get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]));

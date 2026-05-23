@@ -277,10 +277,9 @@ export default function AuthPage() {
                       <Phone className={cn("absolute left-4 top-1/2 -translate-y-1/2 opacity-30", isDark ? "text-gold" : "text-royal-red")} size={20} />
                       <input 
                         type="tel"
-                        required
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+1 (555) 000-0000"
+                        placeholder="+1 (555) 000-0000 (Optional)"
                         className={cn(
                           "w-full pl-12 pr-4 py-4 rounded-2xl border focus:outline-none focus:ring-2 transition-all",
                           isDark ? "bg-gold/15 text-gold border-gold/40 focus:ring-gold/30" : "bg-royal-red/10 text-royal-red border-royal-red/30 focus:ring-royal-red/20 placeholder:text-royal-red/50"

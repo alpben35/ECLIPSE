@@ -99,8 +99,8 @@ export default function TeacherApp() {
                   </Link>
                   <div className="flex flex-col min-w-0">
                     <Link to="/" className="flex items-center gap-2 lg:gap-3 hover:opacity-70 transition-opacity">
-                      <span className={cn("font-bold text-lg lg:text-2xl tracking-tighter transition-colors", isDark ? "text-gold" : "text-royal-red")}>ECLIPSE</span>
-                      <span className={cn("text-base lg:text-xl handwriting inline-block transition-colors", isDark ? "text-gold" : "text-royal-red")}>Teacher</span>
+                      <span className={cn("font-bold text-base lg:text-xl tracking-tighter transition-colors", isDark ? "text-gold" : "text-royal-red")}>ECLIPSE</span>
+                      <span className={cn("text-sm lg:text-base handwriting inline-block transition-colors", isDark ? "text-gold" : "text-royal-red")}>Teacher</span>
                     </Link>
                     <button 
                       onClick={() => window.location.href = '/'}

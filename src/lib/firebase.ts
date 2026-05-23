@@ -67,8 +67,9 @@ function safeStringify(obj: any): string {
       if (value.app && value.type === 'firestore') return `[Firestore Instance]`;
       
       // Safely guard against minified or internal constructor chains (e.g. Y2, Ka, etc.)
-      if (value.constructor && (value.constructor.name === 'Y2' || value.constructor.name === 'Ka' || value.path || value.firestore)) {
-        return `[Firestore Object: ${value.constructor.name || 'Unknown'}]`;
+      const constName = value.constructor ? value.constructor.name : '';
+      if (constName && constName !== 'Object' && (constName === 'Y2' || constName === 'Ka' || value.path || value.firestore)) {
+        return `[Firestore Object: ${constName || 'Unknown'}]`;
       }
     }
     return value;

@@ -194,9 +194,9 @@ async function startServer() {
 
   app.set('trust proxy', 1);
 
-  // Request logging middleware for /api routes to track integration hits
-  app.use('/api', (req, res, next) => {
-    console.log(`[API Request] ${req.method} ${req.originalUrl || req.url}`);
+  // Request logging middleware for all incoming requests
+  app.use((req, res, next) => {
+    console.log(`[REQ] ${req.method} ${req.originalUrl || req.url}`);
     next();
   });
 
@@ -937,8 +937,13 @@ Instructions:
     `);
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Express backend running at http://localhost:${PORT}`);
+    console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
+  });
+
+  server.on("error", (err) => {
+    console.error("Server failed to start:", err);
   });
 }
 

@@ -67,7 +67,32 @@ export default function ProgressPage() {
     );
 
     const unsubScores = onSnapshot(scoresQuery, (snap) => {
-      setScores(snap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      setScores(snap.docs.map(doc => {
+        const data = doc.data();
+        let percentageNum = Number(data.percentage);
+        if (isNaN(percentageNum)) {
+          percentageNum = 0;
+        }
+
+        let dateStr = '';
+        if (data.date) {
+          if (typeof data.date.toDate === 'function') {
+            dateStr = data.date.toDate().toISOString();
+          } else {
+            const parsedDate = new Date(data.date);
+            dateStr = isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString();
+          }
+        } else {
+          dateStr = new Date().toISOString();
+        }
+
+        return {
+          ...data,
+          percentage: percentageNum,
+          date: dateStr,
+          id: doc.id
+        };
+      }));
     }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}/scores`));
 
     const unsubPapers = onSnapshot(papersQuery, (snap) => {

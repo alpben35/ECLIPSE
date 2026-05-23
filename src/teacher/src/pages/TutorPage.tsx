@@ -582,16 +582,16 @@ export default function TutorPage() {
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  p: ({ children }) => <p className="mb-4 last:mb-0 leading-relaxed">{children}</p>,
-                  ul: ({ children }) => <ul className="space-y-2 mb-4">{children}</ul>,
-                  ol: ({ children }) => <ol className="space-y-2 mb-4">{children}</ol>,
-                  li: ({ children }) => <li className="flex gap-2"><span>•</span>{children}</li>,
-                  h1: ({ children }) => <h1 className="text-2xl font-black mb-4 text-gold">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-xl font-bold mb-3 text-gold">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-lg font-bold mb-2 text-gold">{children}</h3>,
-                  code: ({ children }) => <code className="bg-gold/20 px-1.5 py-0.5 rounded font-mono text-sm text-gold">{children}</code>,
-                  pre: ({ children }) => <pre className="bg-gold/5 p-4 rounded-2xl border border-gold/10 overflow-x-auto mb-4 font-mono text-sm">{children}</pre>,
-                  blockquote: ({ children }) => <blockquote className="border-l-4 border-gold/30 pl-4 italic opacity-80 mb-4">{children}</blockquote>,
+                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                  ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+                  li: ({ children }) => <li className="mb-1">{children}</li>,
+                  h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-gold">{children}</h1>,
+                  h2: ({ children }) => <h2 className="text-base font-bold mb-2 text-gold">{children}</h2>,
+                  h3: ({ children }) => <h3 className="text-sm font-bold mb-1.5 text-gold">{children}</h3>,
+                  code: ({ children }) => <code className="bg-gold/20 px-1 rounded font-mono text-xs text-gold">{children}</code>,
+                  pre: ({ children }) => <pre className="bg-gold/5 p-3 rounded-xl border border-gold/10 overflow-x-auto mb-2 font-mono text-xs">{children}</pre>,
+                  blockquote: ({ children }) => <blockquote className="border-l-2 border-gold/30 pl-4 italic my-2 text-gold/80">{children}</blockquote>,
                 }}
               >
                 {msg.content}

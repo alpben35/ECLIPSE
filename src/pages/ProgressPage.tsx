@@ -79,9 +79,35 @@ export default function ProgressPage() {
     const unsubScores = onSnapshot(scoresQuery, (snap) => {
       setScores(snap.docs.map(doc => {
         const data = doc.data();
+        let percentageNum = 0;
+        if (data.percentage !== undefined && data.percentage !== null) {
+          // Attempt decryption if needed (identity check fallback)
+          const decrypted = decryptData(String(data.percentage));
+          percentageNum = Number(decrypted);
+          if (isNaN(percentageNum)) {
+            percentageNum = Number(data.percentage);
+          }
+        }
+        if (isNaN(percentageNum)) {
+          percentageNum = 0;
+        }
+
+        let dateStr = '';
+        if (data.date) {
+          if (typeof data.date.toDate === 'function') {
+            dateStr = data.date.toDate().toISOString();
+          } else {
+            const parsedDate = new Date(data.date);
+            dateStr = isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString();
+          }
+        } else {
+          dateStr = new Date().toISOString();
+        }
+
         return {
           ...data,
-          percentage: Number(decryptData(data.percentage)),
+          percentage: percentageNum,
+          date: dateStr,
           id: doc.id
         };
       }));
@@ -907,7 +933,7 @@ export default function ProgressPage() {
       {/* Add Score Modal */}
       <AnimatePresence>
         {isAddingScore && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -64,10 +64,6 @@ export default function AuthPage() {
         setError("Password must be at least 6 characters.");
         return;
       }
-      if (!phoneNumber) {
-        setError("Phone number is required for account security.");
-        return;
-      }
     }
 
     setLoading(true);
@@ -355,8 +351,7 @@ export default function AuthPage() {
                         <Shield size={18} className={cn("absolute left-5 top-1/2 -translate-y-1/2", isDark ? "text-white/30" : "text-black/30")} />
                         <input 
                           type="tel"
-                          required
-                          placeholder="Phone Number"
+                          placeholder="Phone Number (Optional)"
                           value={phoneNumber}
                           onChange={e => setPhoneNumber(e.target.value)}
                           className={cn(
