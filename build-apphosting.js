@@ -29,13 +29,7 @@ function copyDir(src, dest) {
 
 async function build() {
   try {
-    console.log('🚀 [Build App Hosting] Starting unified full-stack compilation...');
-
-    // 1. Compile Client Frontend with Vite
-    runCommand('npx vite build');
-
-    // 2. Compile Express Backend with Esbuild
-    runCommand('npx esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs');
+    console.log('🚀 [Build App Hosting] Starting unified full-stack packaging...');
 
     // 3. Prepare the .apphosting/ bundle directory
     const apphostingDir = path.resolve(__dirname, '.apphosting');
