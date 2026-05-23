@@ -214,6 +214,7 @@ async function startServer() {
   app.get('/api/health', (req, res) => {
     res.json({
       ok: true,
+      status: 'ok',
       hasGeminiKey: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)
     });
   });
@@ -914,10 +915,12 @@ Instructions:
                        buildDirname.endsWith('dist') ||
                        (fs.existsSync(path.join(buildDirname, 'index.html')) && !fs.existsSync(path.join(buildDirname, 'server.ts')));
 
+  let vite: any = null;
+
   // Vite middleware for development
   if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
+    vite = await createViteServer({
       root: buildDirname,
       server: { 
         middlewareMode: true,
@@ -984,6 +987,15 @@ Instructions:
     console.log(`✅ Express backend running successfully on port ${PORT}`);
     console.log(`✅ Health check endpoint active at: http://localhost:${PORT}/api/health`);
   });
+
+  if (!isProduction && vite) {
+    console.log('🔌 [WebSocket Gateway] Forwarding WebSocket upgrade requests to Vite...');
+    server.on('upgrade', (req, socket, head) => {
+      if (vite.ws) {
+        vite.ws.handleUpgrade(req, socket, head);
+      }
+    });
+  }
 
   server.on("error", (err: any) => {
     console.error("❌ [Server Listen Error] Failed to bind/listen:", err);
