@@ -26,7 +26,17 @@ try {
 }
 dotenv.config(); // fallback standard load
 
+// Standardize and trim keys to prevent invisible characters / carriage return issues
+if (process.env.GEMINI_API_KEY) {
+  process.env.GEMINI_API_KEY = process.env.GEMINI_API_KEY.trim();
+}
+if (process.env.GOOGLE_API_KEY) {
+  process.env.GOOGLE_API_KEY = process.env.GOOGLE_API_KEY.trim();
+}
+
 // 2. GEMINI_API_KEY is validated at startup
+console.log("Loaded Gemini key prefix:", process.env.GEMINI_API_KEY?.slice(0, 10));
+
 const startupApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 if (!startupApiKey) {
   console.error("❌ [Startup Validation Error] GEMINI_API_KEY is not defined in .env or system environment variables!");
