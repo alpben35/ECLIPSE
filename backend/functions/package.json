@@ -1,0 +1,19 @@
+{
+  "name": "functions-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "firebase-functions": "^6.3.0",
+    "firebase-admin": "^12.0.0",
+    "express": "^4.19.2",
+    "stripe": "^15.11.0",
+    "dotenv": "^17.4.2",
+    "@google/genai": "^2.6.0",
+    "@google/generative-ai": "^0.24.1"
+  }
+}

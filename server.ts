@@ -208,8 +208,11 @@ function getDb(): admin.firestore.Firestore {
   return dbClient;
 }
 
+export let appInstance: any = null;
+
 async function startServer() {
   const app = express();
+  appInstance = app;
   const PORT = Number(process.env.PORT) || 3000;
 
   app.set('trust proxy', 1);
@@ -1048,6 +1051,18 @@ Instructions:
     `);
   });
 
+  const isFunctions = !!(
+    process.env.FIREBASE_CONFIG ||
+    process.env.FUNCTIONS_EMULATOR ||
+    process.env.FUNCTION_NAME ||
+    process.env.FUNCTION_TARGET
+  );
+
+  if (isFunctions) {
+    console.log(`[Startup] Running in a serverless/functions context. Exporting app instead of listening.`);
+    return;
+  }
+
   console.log(`[Startup] Attempting to listen on port ${PORT}...`);
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Express backend running successfully on port ${PORT}`);
@@ -1072,7 +1087,7 @@ Instructions:
   });
 }
 
-startServer().catch(err => {
+export const startPromise = startServer().catch(err => {
   console.error('❌ [Server Startup Exception]', err);
   process.exit(1);
 });

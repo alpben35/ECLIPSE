@@ -8,7 +8,7 @@
     "build": "npm run clean && vite build && esbuild server.ts --platform=node --packages=external --bundle --format=cjs --outfile=dist/server.cjs && node build-apphosting.js",
     "start": "node dist/server.cjs",
     "deploy-rules": "npx firebase-tools deploy --only firestore:rules,storage",
-    "deploy": "npm run build && npx firebase-tools deploy",
+    "deploy": "npm run build && npx firebase-tools apphosting:rollouts:create --backend eclipse --region us-central1 --non-interactive",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
