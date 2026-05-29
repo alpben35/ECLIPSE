@@ -29,12 +29,12 @@ function copyDir(src, dest) {
 
 async function build() {
   try {
-    console.log('🚀 [Build App Hosting] Starting unified full-stack packaging...');
+    console.log('[Build App Hosting] Starting unified full-stack packaging...');
 
     // 3. Prepare the .apphosting/ bundle directory
     const apphostingDir = path.resolve(__dirname, '.apphosting');
     if (fs.existsSync(apphostingDir)) {
-      console.log('🧹 [Build App Hosting] Cleaning existing .apphosting directory...');
+      console.log('[Build App Hosting] Cleaning existing .apphosting directory...');
       fs.rmSync(apphostingDir, { recursive: true, force: true });
     }
     fs.mkdirSync(apphostingDir, { recursive: true });
@@ -45,22 +45,29 @@ runConfig:
   runCommand: node dist/server.cjs
 `;
     fs.writeFileSync(path.join(apphostingDir, 'bundle.yaml'), bundleYamlContent, 'utf8');
-    console.log('📝 [Build App Hosting] Created .apphosting/bundle.yaml configuration.');
+    console.log('[Build App Hosting] Created .apphosting/bundle.yaml configuration.');
 
     // 5. Copy the fully built dist/ assets to .apphosting/dist/
     const srcDist = path.resolve(__dirname, 'dist');
     const destDist = path.join(apphostingDir, 'dist');
     if (fs.existsSync(srcDist)) {
-      console.log('📂 [Build App Hosting] Copying dist/ assets to .apphosting/dist/...');
+      console.log('[Build App Hosting] Copying dist/ assets to .apphosting/dist/...');
       copyDir(srcDist, destDist);
     } else {
       throw new Error('CRITICAL: dist directory was not built successfully!');
     }
 
+    // Copy local override dependency if it exists
+    const srcShim = path.resolve(__dirname, 'node-domexception-shim');
+    const destShim = path.join(apphostingDir, 'node-domexception-shim');
+    if (fs.existsSync(srcShim)) {
+      console.log('[Build App Hosting] Copying local DOM override...');
+      copyDir(srcShim, destShim);
+    }
+
     // 6. Copy core runtime configuration files to .apphosting/
     const filesToCopy = [
       'package.json',
-      'package-lock.json',
       'firebase-applet-config.json',
       'apphosting.yaml'
     ];
@@ -68,16 +75,16 @@ runConfig:
     for (const filename of filesToCopy) {
       const srcPath = path.resolve(__dirname, filename);
       if (fs.existsSync(srcPath)) {
-        console.log(`📄 [Build App Hosting] Copying ${filename} to .apphosting/`);
+        console.log(`[Build App Hosting] Copying ${filename} to .apphosting/`);
         fs.copyFileSync(srcPath, path.join(apphostingDir, filename));
       } else {
-        console.warn(`⚠️ [Build App Hosting] Optional/Missing file not copied: ${filename}`);
+        console.warn(`[Build App Hosting] Optional/Missing file not copied: ${filename}`);
       }
     }
 
-    console.log('✅ [Build App Hosting] Unified full-stack app successfully bundled into .apphosting!');
+    console.log('[Build App Hosting] Unified full-stack app successfully bundled into .apphosting!');
   } catch (error) {
-    console.error('❌ [Build App Hosting] Build failed with error:', error);
+    console.error('[Build App Hosting] Build failed with error:', error);
     process.exit(1);
   }
 }

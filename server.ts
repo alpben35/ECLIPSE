@@ -217,6 +217,24 @@ async function startServer() {
 
   app.set('trust proxy', 1);
 
+  // CORS middleware supporting wildcards, specific origins, and preflight options requests
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-api-key');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    next();
+  });
+
   // Request logging middleware for all incoming requests
   app.use((req, res, next) => {
     console.log(`[REQ] ${req.method} ${req.originalUrl || req.url}`);

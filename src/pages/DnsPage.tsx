@@ -37,6 +37,7 @@ export default function DnsPage() {
 
   const [records, setRecords] = useState<DnsRecord[]>([
     { id: '1', hostName: '.domain', type: 'A', result: '199.36.158.100' },
+    { id: 'api', hostName: 'api.domain', type: 'CNAME', result: 'api.hosts.co.uk' },
     { id: '2', hostName: 'autoconfig.domain', type: 'CNAME', result: 'autoconfig.hosts.co.uk' },
     { id: '3', hostName: 'imap.domain', type: 'CNAME', result: 'imap.hosts.co.uk' },
     { id: '4', hostName: 'pop3.domain', type: 'CNAME', result: 'pop3.hosts.co.uk' },
