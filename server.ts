@@ -1104,10 +1104,11 @@ Instructions:
   });
 
   const isFunctions = !!(
-    process.env.FIREBASE_CONFIG ||
-    process.env.FUNCTIONS_EMULATOR ||
-    process.env.FUNCTION_NAME ||
-    process.env.FUNCTION_TARGET
+    (process.env.FUNCTIONS_EMULATOR ||
+     process.env.FUNCTION_NAME ||
+     process.env.FUNCTION_TARGET) &&
+    !process.env.PORT &&
+    !process.env.APP_HOSTING
   );
 
   if (isFunctions) {
