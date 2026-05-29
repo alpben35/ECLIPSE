@@ -584,11 +584,28 @@ async function callGemini(params: {
         });
       }
 
-      const { prompt, mode, subject, history, imageData } = req.body;
+      let activePrompt = req.body.prompt;
+      let activeHistory = req.body.history || [];
+      const messages = req.body.messages;
+
+      if (!activePrompt && Array.isArray(messages) && messages.length > 0) {
+        const lastMsg = messages[messages.length - 1];
+        activePrompt = lastMsg.content || lastMsg.text || '';
+        
+        const prevMsgs = messages.slice(0, -1);
+        activeHistory = prevMsgs.map((m: any) => ({
+          role: m.role || 'user',
+          content: m.content || m.text || ''
+        }));
+      }
+
+      const mode = req.body.mode || 'solve';
+      const subject = req.body.subject || 'General';
+      const imageData = req.body.imageData;
       
-      const contents = (history || []).map((m: any) => ({
-        role: m.role === 'ai' || m.role === 'model' ? 'model' : 'user',
-        parts: [{ text: m.content }]
+      const contents = (activeHistory || []).map((m: any) => ({
+        role: m.role === 'ai' || m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content || m.text || '' }]
       }));
 
       const userParts: any[] = [];
@@ -600,7 +617,7 @@ async function callGemini(params: {
           }
         });
       }
-      userParts.push({ text: prompt || "Please assist." });
+      userParts.push({ text: activePrompt || "Please assist." });
       contents.push({ role: 'user', parts: userParts });
 
       const modelName = 'gemini-3.5-flash'; 
@@ -667,11 +684,28 @@ async function callGemini(params: {
         });
       }
 
-      const { prompt, mode, subject, history, imageData } = req.body;
+      let activePrompt = req.body.prompt;
+      let activeHistory = req.body.history || [];
+      const messages = req.body.messages;
+
+      if (!activePrompt && Array.isArray(messages) && messages.length > 0) {
+        const lastMsg = messages[messages.length - 1];
+        activePrompt = lastMsg.content || lastMsg.text || '';
+        
+        const prevMsgs = messages.slice(0, -1);
+        activeHistory = prevMsgs.map((m: any) => ({
+          role: m.role || 'user',
+          content: m.content || m.text || ''
+        }));
+      }
+
+      const mode = req.body.mode || 'solve';
+      const subject = req.body.subject || 'General';
+      const imageData = req.body.imageData;
  
-      const contents = (history || []).map((m: any) => ({
-        role: m.role === 'ai' || m.role === 'model' ? 'model' : 'user',
-        parts: [{ text: m.content }]
+      const contents = (activeHistory || []).map((m: any) => ({
+        role: m.role === 'ai' || m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content || m.text || '' }]
       }));
  
       const userParts: any[] = [];
@@ -683,7 +717,7 @@ async function callGemini(params: {
           }
         });
       }
-      userParts.push({ text: prompt || "Please assist." });
+      userParts.push({ text: activePrompt || "Please assist." });
       contents.push({ role: 'user', parts: userParts });
  
       const systemPrompt = `You are Eclipse AI, a world-class academic tutor. 
