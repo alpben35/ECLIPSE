@@ -66,6 +66,35 @@ service cloud.firestore {
              data.createdAt is string;
     }
 
+    function isValidFriendRequest(data) {
+      return data.keys().hasAll(['from', 'to', 'status', 'timestamp']) &&
+             data.keys().size() == 4 &&
+             data.from == request.auth.uid &&
+             data.to is string && data.to.size() <= 128 &&
+             data.status == 'pending' &&
+             data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
+    function isValidFriendship(data) {
+      return data.keys().hasAll(['users', 'timestamp']) &&
+             data.keys().size() == 2 &&
+             data.users is list &&
+             data.users.size() == 2 &&
+             data.users[0] is string && data.users[1] is string &&
+             request.auth.uid in data.users &&
+             data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
+    function isValidGroupAssignment(data) {
+      return data.keys().hasAll(['title', 'sharedBy', 'createdAt']) &&
+             data.title is string && data.title.size() <= 2000 &&
+             data.sharedBy == request.auth.uid &&
+             data.createdAt is string &&
+             (!data.keys().hasAny(['description']) || (data.description is string && data.description.size() <= 10000)) &&
+             (!data.keys().hasAny(['dueDate']) || (data.dueDate is string && data.dueDate.size() <= 128)) &&
+             (!data.keys().hasAny(['sharedByName']) || (data.sharedByName is string && data.sharedByName.size() <= 256));
+    }
+
     // ===============================================================
     // RESOURCE MATCHES
     // ===============================================================
@@ -148,6 +177,27 @@ service cloud.firestore {
         allow get, list: if isSignedIn() && (get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]));
         allow create: if isSignedIn() && (get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]));
       }
+
+      match /assignments/{assignmentId} {
+        allow get, list: if isSignedIn() && (
+          (exists(/databases/$(database)/documents/groups/$(groupId)) && (
+            get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]) ||
+            get(/databases/$(database)/documents/groups/$(groupId)).data.get('isPrivate', false) == false
+          )) ||
+          isAdmin()
+        );
+        allow create: if isSignedIn() && (
+          (exists(/databases/$(database)/documents/groups/$(groupId)) && (
+            get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid])
+          )) ||
+          isAdmin()
+        ) && isValidGroupAssignment(incoming());
+        allow delete: if isSignedIn() && (
+          request.auth.uid == resource.data.sharedBy ||
+          (exists(/databases/$(database)/documents/groups/$(groupId)) && request.auth.uid == get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy) ||
+          isAdmin()
+        );
+      }
     }
 
     match /audit_logs/{logId} {
@@ -164,6 +214,18 @@ service cloud.firestore {
     match /sent_emails/{emailId} {
       allow read, list: if isAdmin();
       allow create: if isSignedIn();
+    }
+
+    match /friend_requests/{requestId} {
+      allow read, list: if isSignedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow create: if isSignedIn() && isValidFriendRequest(incoming());
+      allow delete: if isSignedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+    }
+
+    match /friendships/{friendshipId} {
+      allow read, list: if isSignedIn() && request.auth.uid in resource.data.users;
+      allow create: if isSignedIn() && isValidFriendship(incoming());
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.users;
     }
 
     // ===============================================================

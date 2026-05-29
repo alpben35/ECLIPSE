@@ -88,6 +88,17 @@ export default function GroupDetailPage() {
       setLoading(false);
     }, (err) => handleFirestoreError(err, OperationType.GET, `groups/${groupId}`));
 
+    return () => {
+      unsubGroup();
+    };
+  }, [groupId, user]);
+
+  useEffect(() => {
+    if (!groupId || !user || !group || group.id !== groupId) return;
+
+    const isMember = (group.members || []).includes(user.uid);
+    if (!isMember) return;
+
     const messagesQ = query(collection(db, 'groups', groupId, 'messages'), orderBy('timestamp', 'desc'), limit(100));
     const unsubMessages = onSnapshot(messagesQ, (snapshot) => {
       const loadedMessages = snapshot.docs.map(doc => {
@@ -112,15 +123,23 @@ export default function GroupDetailPage() {
 
     const assignmentsQ = query(collection(db, 'groups', groupId, 'assignments'), orderBy('createdAt', 'desc'));
     const unsubAssignments = onSnapshot(assignmentsQ, (snapshot) => {
-      setAssignments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setAssignments(snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          title: decryptData(data.title),
+          description: decryptData(data.description),
+          dueDate: data.dueDate ? decryptData(data.dueDate) : ''
+        };
+      }));
     });
 
     return () => {
-      unsubGroup();
       unsubMessages();
       unsubAssignments();
     };
-  }, [groupId, user]);
+  }, [groupId, user, group]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -261,7 +280,9 @@ export default function GroupDetailPage() {
 
     try {
       await addDoc(collection(db, 'groups', groupId, 'assignments'), {
-        ...newAssignment,
+        title: encryptData(newAssignment.title),
+        description: encryptData(newAssignment.description),
+        dueDate: newAssignment.dueDate ? encryptData(newAssignment.dueDate) : '',
         sharedBy: user.uid,
         sharedByName: profile?.displayName || 'Anonymous',
         createdAt: new Date().toISOString()
@@ -430,7 +451,7 @@ export default function GroupDetailPage() {
                         </div>
                       ) : (
                         <div className="whitespace-pre-wrap">
-                          {msg.content.split(/(@\w+)/g).map((part: string, idx: number) => 
+                          {(msg.content || '').split(/(@\w+)/g).map((part: string, idx: number) => 
                             part.startsWith('@') ? (
                               <span key={idx} className="font-bold text-orange-400">{part}</span>
                             ) : part
@@ -695,7 +716,7 @@ function MemberCard({ userId, isCreator }: { userId: string, isCreator: boolean 
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    getDoc(doc(db, 'users', userId)).then(snap => {
+    getDoc(doc(db, 'public_profiles', userId)).then(snap => {
       if (snap.exists()) setProfile(snap.data());
     });
   }, [userId]);

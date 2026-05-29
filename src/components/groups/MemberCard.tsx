@@ -15,9 +15,9 @@ export function MemberCard({ userId, isCreator, canKick, onKick, hideAvatar }: M
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    getDoc(doc(db, 'users', userId)).then(snap => {
+    getDoc(doc(db, 'public_profiles', userId)).then(snap => {
       if (snap.exists()) setProfile(snap.data());
-    }).catch(err => handleFirestoreError(err, OperationType.GET, `users/${userId}`));
+    }).catch(err => handleFirestoreError(err, OperationType.GET, `public_profiles/${userId}`));
   }, [userId]);
 
   if (!profile) return <div className="p-4 bg-black/5 dark:bg-white/5 rounded-2xl animate-pulse h-16" />;

@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "npm run clean && vite build && esbuild server.ts --platform=node --packages=external --bundle --format=cjs --outfile=dist/server.cjs && node build-apphosting.js",
+    "build": "npm run clean && vite build && esbuild server.ts --platform=node --packages=external --bundle --format=cjs --outfile=dist/server.cjs --log-override:empty-import-meta=silent && node build-apphosting.js",
     "start": "node dist/server.cjs",
     "deploy-rules": "npx firebase-tools deploy --only firestore:rules,storage",
-    "deploy": "npm run build && npx firebase-tools apphosting:rollouts:create --backend eclipse --region us-central1 --non-interactive",
+    "deploy": "npm run build && npx firebase-tools apphosting:rollouts:create --region us-central1 --non-interactive",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

@@ -138,6 +138,28 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["content", "updatedAt"]
+    },
+    "FriendRequest": {
+      "title": "Friend Request",
+      "description": "A pending friendship request between two users.",
+      "type": "object",
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["from", "to", "status", "timestamp"]
+    },
+    "Friendship": {
+      "title": "Friendship",
+      "description": "Represents a mutually established friendship between two users.",
+      "type": "object",
+      "properties": {
+        "users": { "type": "array", "items": { "type": "string" } },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["users", "timestamp"]
     }
   },
   "firestore": {
@@ -191,6 +213,14 @@
         }
       },
       "description": "System-wide maintenance and status configuration."
+    },
+    "/friend_requests/{requestId}": {
+      "schema": "FriendRequest",
+      "description": "Friend request document."
+    },
+    "/friendships/{friendshipId}": {
+      "schema": "Friendship",
+      "description": "Established friendships."
     }
   }
 }

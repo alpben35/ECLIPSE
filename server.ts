@@ -14,7 +14,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 const buildDirname = typeof __dirname !== 'undefined' 
   ? __dirname 
-  : path.dirname(fileURLToPath((import.meta as any)['url']));
+  : path.dirname(fileURLToPath(import.meta.url));
 
 // 1. dotenv loads .env correctly before any API code or SDK initialization runs
 try {

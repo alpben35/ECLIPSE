@@ -170,6 +170,17 @@ export default function GroupDetailPage() {
       }, (err) => handleFirestoreError(err, OperationType.GET, `groups/${groupId}`));
     }
 
+    return () => {
+      if (unsubGroup) unsubGroup();
+    };
+  }, [groupId, user, profile, isAdmin]);
+
+  useEffect(() => {
+    if (!groupId || !user || !group || group.id !== groupId) return;
+
+    const isMember = (group.members || []).includes(user.uid) || group.id === 'admin_council' || isAdmin;
+    if (!isMember) return;
+
     const messagesQ = query(collection(db, 'groups', groupId, 'messages'), orderBy('timestamp', 'desc'), limit(100));
     const unsubMessages = onSnapshot(messagesQ, (snapshot) => {
       const loadedMessages = snapshot.docs.map(doc => {
@@ -206,11 +217,10 @@ export default function GroupDetailPage() {
     }, (err) => handleFirestoreError(err, OperationType.GET, `groups/${groupId}/assignments`));
 
     return () => {
-      if (unsubGroup) unsubGroup();
       unsubMessages();
       unsubAssignments();
     };
-  }, [groupId, user]);
+  }, [groupId, user, group, isAdmin]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -545,7 +555,7 @@ export default function GroupDetailPage() {
                     </div>
                     <div className={cn(
                       "max-w-[80%] p-4 rounded-3xl text-sm leading-relaxed",
-                      isMe ? "bg-black text-white dark:bg-white dark:text-black rounded-tr-none shadow-md" : "bg-black/5 dark:bg-white/5 rounded-tl-none"
+                      isMe ? "bg-black text-white dark:bg-white dark:text-black rounded-tr-none shadow-md" : "bg-black/5 dark:bg-white/5 rounded-tl-none text-black dark:text-white"
                     )}>
                       {msg.type === 'image' ? (
                         <div className="space-y-2">
@@ -566,9 +576,9 @@ export default function GroupDetailPage() {
                         </div>
                       ) : (
                         <div className="whitespace-pre-wrap">
-                          {msg.content.split(/(@\w+)/g).map((part: string, idx: number) => 
+                          {(msg.content || '').split(/(@\w+)/g).map((part: string, idx: number) => 
                             part.startsWith('@') ? (
-                              <span key={idx} className="font-bold text-black/40 dark:text-white/40">{part}</span>
+                              <span key={idx} className="font-extrabold text-green-500 dark:text-green-400 bg-green-500/10 dark:bg-green-500/20 px-1.5 py-0.5 rounded-lg">{part}</span>
                             ) : part
                           )}
                         </div>
@@ -654,7 +664,7 @@ export default function GroupDetailPage() {
                     onChange={handleInputChange}
                     placeholder={isRecording ? `Recording... ${recordingTime}s` : "Type a message..."}
                     disabled={isRecording}
-                    className="w-full bg-white dark:bg-black p-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all font-medium pr-12"
+                    className="w-full bg-white dark:bg-black text-black dark:text-white p-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all font-medium pr-12 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                   />
                   {isUploading && (
                     <div className="absolute right-4 top-1/2 -translate-y-1/2">

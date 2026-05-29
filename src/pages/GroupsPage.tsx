@@ -256,15 +256,15 @@ export default function GroupsPage() {
   };
 
   const filteredGroups = groups.filter(g => {
-    const matchesSearch = g.name.toLowerCase().includes(search.toLowerCase()) || 
-                         g.description.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (g.name || '').toLowerCase().includes(search.toLowerCase()) || 
+                          (g.description || '').toLowerCase().includes(search.toLowerCase());
     const matchesSubject = filterSubject === 'All' || g.subject === filterSubject;
     const matchesGrade = filterGrade === 'All' || g.gradeLevel === filterGrade;
     return matchesSearch && matchesSubject && matchesGrade;
   });
 
-  const myGroups = filteredGroups.filter(g => g.members.includes(user?.uid));
-  const otherGroups = filteredGroups.filter(g => !g.members.includes(user?.uid));
+  const myGroups = filteredGroups.filter(g => (g.members || []).includes(user?.uid));
+  const otherGroups = filteredGroups.filter(g => !(g.members || []).includes(user?.uid));
 
   const handleDeleteGroup = async (groupId: string) => {
     if (!window.confirm("Are you sure you want to delete this group? This action cannot be undone.")) return;
@@ -333,7 +333,7 @@ export default function GroupsPage() {
                 placeholder="Search groups..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-black/5 dark:bg-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all placeholder:text-black/40 dark:placeholder:text-white/20"
+                className="w-full pl-12 pr-4 py-3 bg-black/5 dark:bg-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 text-black dark:text-white transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
               />
             </div>
             <select 
@@ -633,8 +633,8 @@ function GroupCard({ group, isMember, isAdmin, currentUserId, onJoin, onDelete }
       className="group relative bg-black/5 dark:bg-white/5 rounded-[2.5rem] p-8 border border-transparent hover:border-black/10 dark:hover:border-white/10 transition-all"
     >
       <div className="flex items-start justify-between mb-6">
-        <div className="w-14 h-14 bg-black/10 dark:bg-white/10 rounded-2xl flex items-center justify-center group-hover:bg-black dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black transition-all">
-          <Hash size={28} />
+        <div className="w-14 h-14 bg-black/10 dark:bg-white/10 rounded-2xl flex items-center justify-center group-hover:bg-black dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black transition-all font-black text-xl italic tracking-tighter">
+          {group.name ? group.name.substring(0, 2).toUpperCase() : 'TM'}
         </div>
         <div className="flex items-center gap-2">
           {group.isPrivate && (
@@ -673,14 +673,14 @@ function GroupCard({ group, isMember, isAdmin, currentUserId, onJoin, onDelete }
 
       <div className="flex items-center justify-between">
         <div className="flex -space-x-2">
-          {group.members.slice(0, 3).map((m: string, i: number) => (
+          {(group.members || []).slice(0, 3).map((m: string, i: number) => (
             <div key={i} className="w-8 h-8 rounded-full border-2 border-white dark:border-black bg-black/10 dark:bg-white/10 flex items-center justify-center text-[10px] font-bold">
-              {m.substring(0, 1)}
+              {(m || '').substring(0, 1)}
             </div>
           ))}
-          {group.members.length > 3 && (
+          {(group.members || []).length > 3 && (
             <div className="w-8 h-8 rounded-full border-2 border-white dark:border-black bg-black/5 dark:bg-white/5 flex items-center justify-center text-[10px] font-bold">
-              +{group.members.length - 3}
+              +{(group.members || []).length - 3}
             </div>
           )}
         </div>

@@ -104,15 +104,15 @@ export default function GroupsPage() {
   };
 
   const filteredGroups = groups.filter(g => {
-    const matchesSearch = g.name.toLowerCase().includes(search.toLowerCase()) || 
-                         g.description.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (g.name || '').toLowerCase().includes(search.toLowerCase()) || 
+                          (g.description || '').toLowerCase().includes(search.toLowerCase());
     const matchesSubject = filterSubject === 'All' || g.subject === filterSubject;
     const matchesGrade = filterGrade === 'All' || g.gradeLevel === filterGrade;
     return matchesSearch && matchesSubject && matchesGrade;
   });
 
-  const myGroups = filteredGroups.filter(g => g.members.includes(user?.uid));
-  const otherGroups = filteredGroups.filter(g => !g.members.includes(user?.uid));
+  const myGroups = filteredGroups.filter(g => (g.members || []).includes(user?.uid));
+  const otherGroups = filteredGroups.filter(g => !(g.members || []).includes(user?.uid));
 
     if (loading) {
     return (
@@ -352,12 +352,12 @@ function GroupCard({ group, isMember, onJoin, isDark }: { group: any, isMember: 
     >
       <div className="flex items-start justify-between mb-6">
         <div className={cn(
-          "w-14 h-14 rounded-2xl flex items-center justify-center transition-all",
+          "w-14 h-14 rounded-2xl flex items-center justify-center transition-all font-black text-xl italic tracking-tighter",
           isDark 
             ? "bg-gold/10 text-gold group-hover:bg-gold group-hover:text-royal-red" 
             : "bg-royal-red/5 text-royal-red group-hover:bg-royal-red group-hover:text-white"
         )}>
-          <Hash size={28} />
+          {group.name ? group.name.substring(0, 2).toUpperCase() : 'TM'}
         </div>
         {group.isPrivate && (
           <div className={cn("p-2 rounded-xl", isDark ? "bg-gold/5" : "bg-royal-red/5")}>
@@ -388,20 +388,20 @@ function GroupCard({ group, isMember, onJoin, isDark }: { group: any, isMember: 
 
       <div className="flex items-center justify-between">
         <div className="flex -space-x-2">
-          {group.members.slice(0, 3).map((m: string, i: number) => (
+          {(group.members || []).slice(0, 3).map((m: string, i: number) => (
             <div key={i} className={cn(
               "w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold",
               isDark ? "border-royal-red bg-gold/10 text-gold" : "border-white bg-royal-red/10 text-royal-red"
             )}>
-              {m.substring(0, 1).toUpperCase()}
+              {(m || '').substring(0, 1).toUpperCase()}
             </div>
           ))}
-          {group.members.length > 3 && (
+          {(group.members || []).length > 3 && (
             <div className={cn(
               "w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold",
               isDark ? "border-royal-red bg-gold/5 text-gold" : "border-white bg-royal-red/5 text-royal-red"
             )}>
-              +{group.members.length - 3}
+              +{(group.members || []).length - 3}
             </div>
           )}
         </div>
