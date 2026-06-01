@@ -82,6 +82,16 @@ runConfig:
       }
     }
 
+    // 7. Copy computed server.cjs bundle for cloud functions compatibility
+    const functionsServerDest = path.resolve(__dirname, 'backend/functions/server.cjs');
+    const compiledServerSource = path.resolve(__dirname, 'dist/server.cjs');
+    if (fs.existsSync(compiledServerSource)) {
+      console.log('[Build Functions] Copying dist/server.cjs into backend/functions/server.cjs...');
+      fs.copyFileSync(compiledServerSource, functionsServerDest);
+    } else {
+      console.warn('[Build Functions] Compiled server bundle not found; skipping copy to cloud functions directory.');
+    }
+
     console.log('[Build App Hosting] Unified full-stack app successfully bundled into .apphosting!');
   } catch (error) {
     console.error('[Build App Hosting] Build failed with error:', error);
