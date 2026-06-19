@@ -9,7 +9,7 @@
     "start": "node dist/server.cjs",
     "deploy-rules": "npx firebase-tools deploy --only firestore:rules,storage",
     "deploy": "npm run build && npx firebase-tools deploy",
-    "deploy-apphosting": "npm run build && npx firebase-tools apphosting:rollouts:create <backend-id> --non-interactive",
+    "deploy-apphosting": "npm run build && npx firebase-tools apphosting:rollouts:create backend-id --non-interactive",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

@@ -1,6 +1,63 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script id="early-metamask-suppression">
+      (function() {
+        function isMetamaskNoise(msg) {
+          var msgStr = String(msg || '');
+          return /metamask/i.test(msgStr) || /ethereum/i.test(msgStr) || /chrome-extension/i.test(msgStr) || /wallet/i.test(msgStr);
+        }
+
+        function checkArgs(args) {
+          if (!args) return false;
+          for (var i = 0; i < args.length; i++) {
+            var arg = args[i];
+            if (arg) {
+              if (isMetamaskNoise(arg) || isMetamaskNoise(arg.message) || isMetamaskNoise(arg.stack)) {
+                return true;
+              }
+            }
+          }
+          return false;
+        }
+
+        // Wrap console functions extremely early
+        var origLog = console.log;
+        var origWarn = console.warn;
+        var origError = console.error;
+
+        console.log = function() {
+          if (checkArgs(arguments)) return;
+          origLog.apply(console, arguments);
+        };
+        console.warn = function() {
+          if (checkArgs(arguments)) return;
+          origWarn.apply(console, arguments);
+        };
+        console.error = function() {
+          if (checkArgs(arguments)) return;
+          origError.apply(console, arguments);
+        };
+
+        // Early intercept window errors
+        window.addEventListener('error', function(e) {
+          var errMsg = String(e.message || (e.error && e.error.message) || '');
+          if (isMetamaskNoise(errMsg)) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }, true);
+
+        // Early intercept unhandled rejections
+        window.addEventListener('unhandledrejection', function(e) {
+          var reasonStr = String(e.reason || (e.reason && e.reason.message) || '');
+          if (isMetamaskNoise(reasonStr)) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }, true);
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Eclipse AI</title>

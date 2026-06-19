@@ -92,6 +92,20 @@ runConfig:
       console.warn('[Build Functions] Compiled server bundle not found; skipping copy to cloud functions directory.');
     }
 
+    // 8. Copy firebase-applet-config.json to backend/functions and dist folder for backend config & API key runtime fallback on the website
+    const configSource = path.resolve(__dirname, 'firebase-applet-config.json');
+    if (fs.existsSync(configSource)) {
+      const functionsConfigDest = path.resolve(__dirname, 'backend/functions/firebase-applet-config.json');
+      console.log('[Build Functions] Copying firebase-applet-config.json to backend/functions/firebase-applet-config.json...');
+      fs.copyFileSync(configSource, functionsConfigDest);
+
+      const distConfigDest = path.resolve(__dirname, 'dist/firebase-applet-config.json');
+      console.log('[Build App Hosting] Copying firebase-applet-config.json to dist/firebase-applet-config.json...');
+      fs.copyFileSync(configSource, distConfigDest);
+    } else {
+      console.warn('[Build App Hosting] Warn: firebase-applet-config.json not found, skipping fallback copying.');
+    }
+
     console.log('[Build App Hosting] Unified full-stack app successfully bundled into .apphosting!');
   } catch (error) {
     console.error('[Build App Hosting] Build failed with error:', error);

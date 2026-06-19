@@ -7,6 +7,15 @@ import './index.css';
 // Safe logging wrapper to prevent circular JSON stringification errors (e.g., Capacitor/Vite logging bridges)
 const safeLoggingWrapper = (originalConsoleFn: (...args: any[]) => void) => {
   return (...args: any[]) => {
+    // Suppress third-party extension or MetaMask sandbox console noise
+    const isExtensionNoise = args.some(arg => {
+      const msgStr = String(arg?.message || arg || '');
+      return /metamask/i.test(msgStr) || /ethereum/i.test(msgStr) || /chrome-extension/i.test(msgStr) || /wallet/i.test(msgStr);
+    });
+    if (isExtensionNoise) {
+      return;
+    }
+
     const safeArgs = args.map(arg => {
       if (arg instanceof Error) {
         return {
@@ -90,6 +99,12 @@ if ('caches' in window) {
 
 // Auto-reload on Chunk Load Error to prevent White Screen issues during updates
 window.addEventListener('error', (e) => {
+  const errMsg = String(e.message || e.error?.message || '');
+  if (/metamask/i.test(errMsg) || /ethereum/i.test(errMsg) || /chrome-extension/i.test(errMsg) || /wallet/i.test(errMsg)) {
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
   const isChunkError = /Loading chunk/i.test(e.message) || 
                        /Loading CSS chunk/i.test(e.message) ||
                        /SyntaxError: Unexpected token '</i.test(e.message);
@@ -102,6 +117,11 @@ window.addEventListener('error', (e) => {
 // Handle failed dynamic imports (which throws unhandled rejections)
 window.addEventListener('unhandledrejection', (e) => {
   const reasonStr = String(e.reason || e.reason?.message || '');
+  if (/metamask/i.test(reasonStr) || /ethereum/i.test(reasonStr) || /chrome-extension/i.test(reasonStr) || /wallet/i.test(reasonStr)) {
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
   const isChunkError = /Failed to fetch dynamically imported module/i.test(reasonStr) ||
                        /Loading chunk/i.test(reasonStr) ||
                        /Loading CSS chunk/i.test(reasonStr);
