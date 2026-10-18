@@ -87,7 +87,7 @@ export default function TeacherApp() {
     : 0;
 
   return (
-    <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red", isDark ? "bg-royal-red text-gold" : "bg-[#FAF7F0] text-royal-red")}>
+    <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red", isDark ? "bg-royal-red text-gold" : "bg-white text-royal-red")}>
       <AnimatePresence>
         {location.pathname !== '/teacher/auth' && !connectivity.isAuthorized && window.location.hostname !== 'localhost' && (
           <motion.div 
@@ -101,7 +101,7 @@ export default function TeacherApp() {
       </AnimatePresence>
       <div className="flex flex-col min-h-screen">
         {location.pathname !== '/teacher/auth' && (
-          <header className={cn("sticky top-0 z-50 transition-colors border-b", isDark ? "bg-royal-red border-gold/10 text-gold" : "bg-[#FAF7F0] border-royal-red/10 text-royal-red")}>
+          <header className={cn("sticky top-0 z-50 transition-colors border-b", isDark ? "bg-royal-red border-gold/10 text-gold" : "bg-white border-royal-red/10 text-royal-red")}>
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-4 lg:gap-8 min-w-0">
               <div className="flex flex-col justify-center min-w-0">
@@ -230,7 +230,7 @@ export default function TeacherApp() {
                           >
                             <div className={cn(
                               "border shadow-2xl p-6 overflow-hidden rounded-[2rem] transition-colors",
-                              isDark ? "bg-royal-red border-gold/20 text-gold" : "bg-[#FAF7F0] border-royal-red/25 text-royal-red"
+                              isDark ? "bg-royal-red border-gold/20 text-gold" : "bg-white border-royal-red/25 text-royal-red"
                             )}>
                             <div className="space-y-6">
                               <div className={cn("flex items-center gap-4 pb-6 border-b", isDark ? "border-gold/10" : "border-royal-red/10")}>
@@ -338,7 +338,7 @@ export default function TeacherApp() {
         </header>
         )}
 
-        <main className="flex-1">
+        <main className="flex-1 eclipse-content">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -411,7 +411,7 @@ export default function TeacherApp() {
               initial={{ opacity: 0, x: '100%' }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: '100%' }}
-              className={cn("fixed inset-0 z-[60] p-6 flex flex-col gap-8 transition-colors", isDark ? "bg-royal-red text-gold" : "bg-[#FAF7F0] text-royal-red")}
+              className={cn("fixed inset-0 z-[60] p-6 flex flex-col gap-8 transition-colors", isDark ? "bg-royal-red text-gold" : "bg-white text-royal-red")}
             >
               <div className="flex justify-end">
                 <button onClick={() => setIsMenuOpen(false)} className={cn("transition-colors", isDark ? "text-gold" : "text-royal-red")}><X size={32} /></button>
