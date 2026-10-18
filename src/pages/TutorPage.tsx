@@ -637,8 +637,8 @@ export default function TutorPage() {
         )}
 
         {messages.length === 0 && (!profile?.tier || profile.tier === 'free' || profile.tier === 'basic') && (
-          <Link to="/subscription" className="flex flex-wrap items-center justify-between gap-3 mb-4 p-5 rounded-2xl border border-violet-400/30 bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10">
-            <div><p className="font-semibold text-sm">Give your curiosity more room.</p><p className="text-xs opacity-70 mt-1">Serious: 40 prompts/day for £15/month. Premium: 500 for £40/month.</p></div><span className="text-sm font-semibold text-violet-700 dark:text-violet-300">Compare plans →</span>
+          <Link to="/subscription" className="flex flex-wrap items-center justify-between gap-3 mb-4 p-5 rounded-2xl border border-neutral-400/30 bg-gradient-to-r from-neutral-500/15 to-neutral-500/10">
+            <div><p className="font-semibold text-sm">Give your curiosity more room.</p><p className="text-xs opacity-70 mt-1">Serious: 40 prompts/day for £15/month. Premium: 500 for £40/month.</p></div><span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Compare plans →</span>
           </Link>
         )}
         {messages.length === 0 && !errorMessage && (
@@ -821,7 +821,7 @@ export default function TutorPage() {
               "p-2 md:p-2.5 rounded-xl transition-all border shadow-sm",
               isListening 
                 ? "bg-red-500 text-white border-red-600 shadow-lg shadow-red-500/40 animate-pulse scale-110" 
-                : "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/30"
+                : "bg-neutral-50 text-neutral-600 border-neutral-200 dark:bg-neutral-500/20 dark:text-neutral-400 dark:border-neutral-500/30 hover:bg-neutral-100 dark:hover:bg-neutral-500/30"
             )}
           >
             <Mic size={20} className="md:w-[22px] md:h-[22px]" />
@@ -847,7 +847,7 @@ export default function TutorPage() {
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="p-2 md:p-2.5 bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/30 rounded-xl transition-all shadow-sm"
+            className="p-2 md:p-2.5 bg-neutral-50 text-neutral-600 border border-neutral-200 dark:bg-neutral-500/20 dark:text-neutral-400 dark:border-neutral-500/30 hover:bg-neutral-100 dark:hover:bg-neutral-500/30 rounded-xl transition-all shadow-sm"
             title="Upload image"
           >
             <ImageIcon size={18} className="md:w-[20px] md:h-[20px]" />
