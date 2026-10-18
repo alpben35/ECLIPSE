@@ -89,12 +89,13 @@ export default function SubscriptionPage() {
   const isTeacherPortal = location.pathname.startsWith('/teacher');
 
   useEffect(() => {
+    if (!user) return;
     return onSnapshot(doc(db, 'system', 'settings'), (doc) => {
       if (doc.exists()) {
         setSettings(doc.data());
       }
     }, (err) => handleFirestoreError(err, OperationType.GET, 'system/settings'));
-  }, []);
+  }, [user?.uid]);
 
   const handleUpgrade = async (tierId: string) => {
     console.log(`[Shop] Attempting upgrade to ${tierId}...`);
@@ -291,7 +292,7 @@ export default function SubscriptionPage() {
               <p className="text-[10px] font-bold opacity-80 mb-2 truncate max-w-[200px]">
                 {profile.email}
               </p>
-              <p className="text-xs font-medium opacity-100 uppercase tracking-widest text-zinc-800 dark:text-zinc-200">
+              <p className="text-xs font-medium opacity-100 uppercase tracking-widest text-white/70">
                 {profile.tier === 'admin' ? 'Unlimited Access' : !profile.tier || profile.tier === 'free' ? 'Free account' : 'Active Subscription'}
               </p>
               
@@ -303,7 +304,7 @@ export default function SubscriptionPage() {
                     "mt-4 flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all",
                     isTeacherPortal 
                       ? "bg-white/10 hover:bg-white/20 text-white" 
-                      : "bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 text-black dark:text-white"
+                      : "bg-white/10 hover:bg-white/20 text-white"
                   )}
                 >
                   <SettingsIcon size={12} className={loading ? "animate-spin" : ""} />
@@ -368,7 +369,7 @@ export default function SubscriptionPage() {
                         "mt-1 p-0.5 rounded-full",
                         tier.highlight ? (isTeacherPortal ? "bg-royal-red/20" : "bg-black dark:bg-white") : (isTeacherPortal ? "bg-gold/20" : "bg-black/10 dark:bg-white/10")
                       )}>
-                        <Check size={12} className={tier.highlight ? (isTeacherPortal ? "text-royal-red" : "text-white") : (isTeacherPortal ? "text-gold" : "text-black dark:text-white")} />
+                        <Check size={12} className={tier.highlight ? (isTeacherPortal ? "text-royal-red" : "text-white") : (isTeacherPortal ? "text-gold" : "text-violet-300")} />
                       </div>
                       <span className="text-sm opacity-80">{feature}</span>
                     </div>
@@ -409,67 +410,15 @@ export default function SubscriptionPage() {
 
         <p className="text-center text-sm text-white/60 leading-relaxed mb-12">Paid plans are monthly subscriptions. Check your selected plan and recurring payment terms at checkout. Already subscribed? Use Manage Billing above.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className={cn("p-8 rounded-[3rem] border", themeClasses.card)}>
-            <div className="flex items-center gap-4 mb-6">
-              <div className={cn("p-3 rounded-2xl", themeClasses.card)}>
-                <ShieldCheck className={themeClasses.icon} size={24} />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold">Secure Upgrade</h3>
-                <p className="text-sm opacity-50">Request a tier change</p>
-              </div>
-            </div>
-            
-            <p className="text-sm opacity-70 leading-relaxed font-medium">
-              Click any plan above to submit an upgrade request. Our administration team will review your account and contact you within 24 hours to complete the process.
-            </p>
-            
-            <p className="mt-6 text-xs opacity-50 leading-relaxed">
-              For immediate assistance, please use the platform chat or email support@eclipseapp.co.uk.
-            </p>
+          <div className={cn("p-8 rounded-3xl border", themeClasses.card)}>
+            <ShieldCheck size={25} className="mb-5 text-violet-300" />
+            <h3 className="text-xl font-semibold mb-3">Choose with confidence.</h3>
+            <p className="text-sm opacity-70 leading-relaxed">Sign in, select a paid plan, and continue to Stripe checkout to review the subscription and payment details before purchasing.</p>
           </div>
-
-          <div className={cn("p-8 rounded-[3rem] border border-white/10 bg-white/5", themeClasses.text)}>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl shadow-lg">
-                <ShieldCheck size={24} />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold">Safe & Secure</h3>
-                <p className="text-sm opacity-50">Verified Upgrades</p>
-              </div>
-            </div>
-            <p className="text-sm opacity-70 leading-relaxed">
-              Your security is our priority. All account changes are manually verified to ensure the highest level of integrity and protection for your data.
-            </p>
-            <div className="mt-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest bg-black dark:bg-white text-white dark:text-black w-fit px-3 py-1 rounded-full">
-              Identity Verified
-            </div>
-          </div>
-
-          <div className={cn("p-8 rounded-[3rem] border border-white/10 bg-white/5 md:col-span-2", themeClasses.text)}>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl shadow-xl">
-                <Check size={24} />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold">Account Verification</h3>
-                <p className="text-sm opacity-50">Verified status & Tier management</p>
-              </div>
-            </div>
-            <p className="text-center text-sm text-white/60 leading-relaxed mb-12">Paid plans are monthly subscriptions. Check your selected plan and recurring payment terms at checkout. Already subscribed? Use Manage Billing above.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <p className="text-sm opacity-70 leading-relaxed font-medium">
-                  Your <strong className="text-black dark:text-white">Profile</strong> is securely synced across all your devices. All educational content and progress are stored in your private cloud vault.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <p className="text-sm opacity-70 leading-relaxed font-medium">
-                  Memberships are processed via <strong className="text-black dark:text-white">secure encrypted channels</strong>. Tier upgrades grant immediate access to advanced AI modules and priority servers.
-                </p>
-              </div>
-            </div>
+          <div className={cn("p-8 rounded-3xl border", themeClasses.card)}>
+            <SettingsIcon size={25} className="mb-5 text-violet-300" />
+            <h3 className="text-xl font-semibold mb-3">Your subscription, in view.</h3>
+            <p className="text-sm opacity-70 leading-relaxed">Already on a paid plan? Use Manage Billing above for your billing portal. For subscription assistance, contact support@eclipseapp.co.uk.</p>
           </div>
 
           {settings?.bankAccount && !settings.bankAccount.startsWith('acct_') && (
