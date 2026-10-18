@@ -1,4 +1,5 @@
 import React from 'react';
+import './landing.css';
 import { ArrowUpRight, ArrowRight, BookOpen, Brain, Check, Sparkles, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -10,20 +11,20 @@ const features = [
 
 export default function LandingPage() {
   return (
-    <div className="max-w-7xl mx-auto px-5 sm:px-8 pb-16">
-      <section className="grid lg:grid-cols-2 gap-14 lg:gap-20 items-center py-16 sm:py-24">
+    <div className="eclipse-marketing">
+      <section className="eclipse-hero">
         <div>
-          <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.18em] uppercase mb-7"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Illuminating education</p>
-          <h1 className="text-5xl sm:text-7xl xl:text-8xl font-semibold tracking-[-0.065em] leading-[1.04]">Less stuck.<br />More <span className="text-emerald-700 dark:text-emerald-400">lightbulb</span><br />moments.</h1>
-          <p className="text-lg sm:text-xl leading-relaxed text-neutral-600 dark:text-neutral-300 mt-7 max-w-lg">Meet Eclipse, your personal AI tutor. Work through tricky questions, understand the ideas behind them, and keep your learning moving.</p>
+          <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.18em] uppercase mb-7"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Your next chapter starts here</p>
+          <h1 className="text-5xl sm:text-7xl xl:text-8xl font-semibold tracking-[-0.065em] leading-[1.04]">Big questions.<br /><span className="eclipse-gradient-text">Brighter minds.</span></h1>
+          <p className="text-lg sm:text-xl leading-relaxed text-neutral-600 dark:text-neutral-300 mt-7 max-w-lg">Turn “I’m stuck” into “I understand.” Your AI study companion for homework, revision, and the questions you haven’t asked yet.</p>
           <div className="flex flex-wrap gap-3 mt-9">
-            <Link to="/auth" className="inline-flex items-center gap-5 rounded-full bg-black text-white dark:bg-white dark:text-black px-7 py-4 font-semibold hover:opacity-80 transition-opacity">Start learning <ArrowUpRight size={19} /></Link>
-            <a href="#how-it-works" className="inline-flex items-center gap-3 rounded-full border border-black/15 dark:border-white/20 px-6 py-4 font-medium hover:bg-black/5 dark:hover:bg-white/5">Explore Eclipse <ArrowRight size={17} /></a>
+            <Link to="/auth" className="inline-flex items-center gap-5 rounded-full bg-violet-600 text-white px-7 py-4 font-semibold hover:opacity-80 transition-opacity">Start learning free <ArrowUpRight size={19} /></Link>
+            <a href="#plans" className="inline-flex items-center gap-3 rounded-full border border-black/15 dark:border-white/20 px-6 py-4 font-medium hover:bg-black/5 dark:hover:bg-white/5">Find your plan <ArrowRight size={17} /></a>
           </div>
-          <p className="mt-6 text-sm text-neutral-500 dark:text-neutral-400">From Year 1 to university. At your pace.</p>
+          <p className="mt-6 text-sm text-neutral-500 dark:text-neutral-400">15 free AI prompts every day. Upgrade when you’re ready.</p>
         </div>
-        <div className="relative rounded-[2rem] bg-[#edf2ee] dark:bg-[#17231e] p-5 sm:p-9 lg:rotate-2">
-          <div className="flex justify-between items-center mb-6 text-xs tracking-[0.16em] uppercase text-emerald-900 dark:text-emerald-200"><span>A little clarity goes a long way</span><Sparkles size={18} /></div>
+        <div className="eclipse-demo">
+          <div className="flex justify-between items-center mb-6 text-xs tracking-[0.16em] uppercase text-emerald-900 dark:text-emerald-200"><span>THE LIGHTBULB MOMENT</span><Sparkles size={18} /></div>
           <div className="rounded-2xl bg-white dark:bg-neutral-950 shadow-xl shadow-black/5 overflow-hidden lg:-rotate-2 border border-black/5 dark:border-white/10">
             <div className="flex justify-between items-center border-b border-black/5 dark:border-white/10 p-5"><span className="font-semibold tracking-tight">Eclipse <span className="text-neutral-500 font-normal">/ Maths</span></span><span className="text-xs bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 px-3 py-1.5 rounded-full">Teach mode</span></div>
             <div className="p-5 sm:p-7 space-y-6">
@@ -37,12 +38,29 @@ export default function LandingPage() {
           <div className="flex items-center gap-2 mt-6 text-sm text-emerald-900 dark:text-emerald-200"><Check size={17} /> Understanding starts with a good question.</div>
         </div>
       </section>
+      <div className="eclipse-subjects"><span>ONE CURIOUS MIND. SO MANY POSSIBILITIES.</span><div>Mathematics <span>✦</span> Science <span>✦</span> English <span>✦</span> History <span>✦</span> And beyond</div></div>
       <section id="how-it-works" className="scroll-mt-24 border-t border-black/10 dark:border-white/10 py-16 sm:py-20">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 mb-10"><h2 className="text-3xl sm:text-5xl font-semibold tracking-[-0.05em] max-w-lg">Your next breakthrough<br />starts here.</h2><p className="text-neutral-500 dark:text-neutral-400 max-w-xs leading-relaxed">A clearer path from “I don’t get it” to “I’ve got this.”</p></div>
         <div className="grid md:grid-cols-3 gap-4">{features.map(({icon: Icon, label, title, text}) => <article key={label} className="rounded-3xl border border-black/10 dark:border-white/10 p-7 sm:p-8"><Icon size={27} strokeWidth={1.5} className="mb-10 text-emerald-700 dark:text-emerald-400" /><p className="text-[10px] font-semibold tracking-[0.16em] text-neutral-500 dark:text-neutral-400 mb-3">{label}</p><h3 className="text-2xl font-semibold tracking-tight mb-3">{title}</h3><p className="text-sm leading-7 text-neutral-600 dark:text-neutral-300">{text}</p></article>)}</div>
       </section>
+      <section id="plans" className="eclipse-pricing">
+        <div className="eclipse-section-label">A PLAN FOR YOUR AMBITION</div>
+        <h2>Start curious.<br /><span>Go further.</span></h2>
+        <p className="eclipse-pricing-intro">Try Eclipse free. Choose more daily prompts when your study sessions need room to grow.</p>
+        <div className="eclipse-price-grid">
+          <article className="eclipse-price-card"><span className="eclipse-plan-kicker">EXPLORE AT YOUR PACE</span><h3>Free</h3><p>A little help, every day.</p><div className="eclipse-price">£0<span> / month</span></div><ul><li><Check size={17} />15 AI prompts each day</li><li><Check size={17} />Access to all subjects</li><li><Check size={17} />Basic progress tracking</li></ul><Link to="/auth" className="eclipse-plan-link">Start free <ArrowUpRight size={18} /></Link></article>
+          <article className="eclipse-price-card"><span className="eclipse-plan-kicker">BUILD A STUDY HABIT</span><h3>Serious</h3><p>More room for follow-up questions.</p><div className="eclipse-price">£15<span> / month</span></div><ul><li><Check size={17} />40 AI prompts each day</li><li><Check size={17} />Access to all subjects</li><li><Check size={17} />Basic progress tracking</li></ul><Link to="/subscription" className="eclipse-plan-link">Explore Serious <ArrowUpRight size={18} /></Link></article>
+          <article className="eclipse-price-card eclipse-price-featured"><div className="eclipse-recommended">FOR DEEPER STUDY SESSIONS</div><span className="eclipse-plan-kicker">MAKE SPACE FOR MORE</span><h3>Premium</h3><p>Keep asking. Keep connecting the dots.</p><div className="eclipse-price">£40<span> / month</span></div><ul><li><Check size={17} />500 AI prompts each day</li><li><Check size={17} />Advanced analytics & diagnostics</li><li><Check size={17} />Priority support</li></ul><Link to="/subscription" className="eclipse-plan-link">Explore Premium <ArrowUpRight size={18} /></Link></article>
+        </div>
+        <p className="eclipse-price-note">Monthly subscription prices. Review the full plan details and payment terms before subscribing. <Link to="/subscription">Compare all plans →</Link></p>
+      </section>
+      <section className="eclipse-faq"><div><div className="eclipse-section-label">GOOD QUESTIONS</div><h2>A little clarity<br />before you start.</h2></div><div>
+        <details><summary>Can I try Eclipse before paying?</summary><p>Yes. The free plan includes 15 AI prompts per day and access to all subjects. Create an account to start exploring.</p></details>
+        <details><summary>Which paid plan should I choose?</summary><p>Serious offers 40 prompts per day for £15 per month. Premium offers 500 prompts per day for £40 per month, with advanced analytics and priority support. Choose the daily allowance that fits how you study.</p></details>
+        <details><summary>Does Eclipse replace my teacher?</summary><p>Eclipse is a study companion. Use it to explore explanations and practise alongside your lessons. AI can make mistakes, so check important answers with your course materials or teacher.</p></details>
+      </div></section>
       <section className="rounded-3xl bg-[#edf2ee] dark:bg-[#17231e] p-7 sm:p-12 flex flex-col md:flex-row justify-between md:items-center gap-7 mb-16"><div><p className="text-xs font-semibold tracking-[0.16em] uppercase text-emerald-700 dark:text-emerald-400 mb-3">For educators</p><h2 className="text-3xl font-semibold tracking-tight mb-3">Support the way they learn.</h2><p className="text-neutral-600 dark:text-neutral-300 max-w-lg leading-relaxed">Discover the dedicated teacher portal and explore Eclipse for your classroom.</p></div><a href="/teacher" className="inline-flex items-center gap-4 font-semibold rounded-full bg-white text-black px-6 py-4 self-start md:self-auto whitespace-nowrap">Explore teacher portal <ArrowUpRight size={18} /></a></section>
-      <section className="text-center rounded-[2rem] bg-neutral-950 text-white px-6 py-16 sm:py-20"><Sparkles className="mx-auto mb-6 text-emerald-300" size={28} /><h2 className="text-4xl sm:text-6xl font-semibold tracking-[-0.05em]">Bring your curiosity.<br />Find your clarity.</h2><p className="text-neutral-400 mt-5 mb-8">One question can be the start of something good.</p><Link to="/auth" className="inline-flex items-center gap-5 rounded-full bg-white text-black px-7 py-4 font-semibold hover:bg-emerald-100 transition-colors">Get started with Eclipse <ArrowUpRight size={18} /></Link></section>
+      <section className="text-center rounded-[2rem] eclipse-final text-white px-6 py-16 sm:py-20"><Sparkles className="mx-auto mb-6 text-emerald-300" size={28} /><h2 className="text-4xl sm:text-6xl font-semibold tracking-[-0.05em]">Your next breakthrough<br />is a question away.</h2><p className="text-neutral-400 mt-5 mb-8">One question can be the start of something good.</p><Link to="/auth" className="inline-flex items-center gap-5 rounded-full bg-white text-black px-7 py-4 font-semibold hover:bg-emerald-100 transition-colors">Start learning free <ArrowUpRight size={18} /></Link></section>
     </div>
   );
 }
