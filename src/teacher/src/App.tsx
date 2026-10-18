@@ -202,7 +202,7 @@ export default function App() {
     <AuthContext.Provider value={authContextValue}>
       <ThemeContext.Provider value={themeContextValue}>
         <ErrorBoundary>
-          <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red", isDark ? "bg-royal-red text-gold" : "bg-[#FAF7F0] text-royal-red")}>
+          <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red", isDark ? "bg-royal-red text-gold" : "bg-white text-royal-red")}>
             <Layout>
               <Routes>
                 <Route path="/" element={user ? <Navigate to="/tutor" /> : <LandingPage />} />
@@ -315,7 +315,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className={cn("sticky top-0 z-50 transition-colors border-b", isDark ? "bg-royal-red border-gold/10 text-gold" : "bg-[#FAF7F0] border-royal-red/10 text-royal-red")}>
+      <header className={cn("sticky top-0 z-50 transition-colors border-b", isDark ? "bg-royal-red border-gold/10 text-gold" : "bg-white border-royal-red/10 text-royal-red")}>
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex flex-col">
@@ -427,7 +427,7 @@ function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main className="flex-1 eclipse-content">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
