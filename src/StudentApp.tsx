@@ -87,7 +87,7 @@ export default function StudentApp() {
       { name: 'Teams', path: '/groups', icon: Users },
       { name: 'Progress', path: '/progress', icon: BarChart2 },
       { name: 'Ideas', path: '/ideas', icon: Lightbulb },
-      { name: 'Shop', path: '/subscription', icon: Zap },
+      { name: 'Plans', path: '/subscription', icon: Zap },
       { name: 'Profile', path: '#profile', icon: User },
     ];
     if (isAdminPlus || isOwner) {
@@ -415,7 +415,7 @@ export default function StudentApp() {
                   <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
                   <Route path="/ideas" element={<ProtectedRoute><IdeaPage /></ProtectedRoute>} />
                   <Route path="/ranks" element={<ProtectedRoute><RankPage /></ProtectedRoute>} />
-                  <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+                  <Route path="/subscription" element={<SubscriptionPage />} />
                   <Route path="/dns" element={<ProtectedRoute adminOnly><DnsPage /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
                   <Route path="/auth" element={user ? <Navigate to="/tutor" /> : <AuthPage />} />
