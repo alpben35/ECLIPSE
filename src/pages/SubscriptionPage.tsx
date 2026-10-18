@@ -5,7 +5,7 @@ import { AuthContext } from '../lib/contexts';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { cn } from '../lib/utils';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const TIERS = [
   {
@@ -28,7 +28,7 @@ const TIERS = [
     name: 'Eclipse Serious',
     price: '£15',
     period: '/month',
-    description: 'The standard study tier',
+    description: 'Room to build a daily study habit',
     features: [
       '40 AI prompts per day',
       'Basic progress tracking',
@@ -45,7 +45,7 @@ const TIERS = [
     name: 'Eclipse Premium',
     price: '£40',
     period: '/month',
-    description: 'Full educational power',
+    description: 'More questions. Deeper study sessions.',
     features: [
       '500 AI prompts per day',
       'Advanced analytics & diagnostics',
@@ -63,7 +63,7 @@ const TIERS = [
     name: 'Eclipse Admin',
     price: '£250',
     period: '/month',
-    description: 'The ultimate power',
+    description: 'For extensive platform access',
     features: [
       'Unlimited AI prompts',
       'Admin group chat access',
@@ -85,6 +85,7 @@ export default function SubscriptionPage() {
   const [redirectMessage, setRedirectMessage] = useState('Preparing your secure connection...');
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
   const isTeacherPortal = location.pathname.startsWith('/teacher');
 
   useEffect(() => {
@@ -98,7 +99,7 @@ export default function SubscriptionPage() {
   const handleUpgrade = async (tierId: string) => {
     console.log(`[Shop] Attempting upgrade to ${tierId}...`);
     if (!user) {
-      setStatusMessage({ type: 'error', text: 'Auth Error: No user identified. Please refresh or sign in again.' });
+      navigate('/auth');
       return;
     }
     if (tierId === profile?.tier) {
@@ -200,13 +201,13 @@ export default function SubscriptionPage() {
     badge: "bg-white text-royal-red",
     icon: "text-gold"
   } : {
-    bg: "bg-zinc-950",
+    bg: "bg-[#0d0b18]",
     text: "text-white",
-    accent: "text-white",
-    card: "bg-white/5 border-white/10",
-    cardHighlight: "bg-white text-black border-transparent shadow-2xl scale-105 z-10",
-    button: "bg-white text-black hover:scale-105",
-    buttonHighlight: "bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200",
+    accent: "text-violet-300",
+    card: "bg-[#191323] border-white/10",
+    cardHighlight: "bg-gradient-to-br from-violet-900 to-[#20162f] text-white border-violet-400 shadow-2xl shadow-violet-500/10 z-10",
+    button: "bg-white/10 text-white hover:bg-white/20",
+    buttonHighlight: "bg-violet-300 text-violet-950 hover:bg-violet-200",
     badge: "bg-black text-white dark:bg-white dark:text-black",
     icon: "text-white"
   };
@@ -270,17 +271,17 @@ export default function SubscriptionPage() {
               <ArrowRight className="rotate-180" size={18} />
               Back
             </button>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-4 italic uppercase">
-              Eclipse <span className={themeClasses.accent}>Shop</span>
+            <h1 className="text-4xl md:text-6xl font-semibold tracking-tight mb-4">
+              Invest in your<br /><span className={themeClasses.accent}>next breakthrough.</span>
             </h1>
             <p className="text-xl opacity-50 max-w-xl text-balance">
-              Level up your learning with exclusive premium features.
+              Start free. Choose more room to learn when you need it. Compare daily prompt allowances and find the plan that fits your study routine.
             </p>
           </div>
 
           {profile && (
             <div className={cn("p-8 rounded-[2rem] border flex flex-col items-center text-center min-w-[240px]", themeClasses.card)}>
-              <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-2">Current Status</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-2">Your plan</p>
               <div className="flex items-center gap-3 mb-1">
                 <Crown size={24} className={themeClasses.icon} />
                 <span className="text-3xl font-black italic uppercase tracking-tighter">
@@ -291,7 +292,7 @@ export default function SubscriptionPage() {
                 {profile.email}
               </p>
               <p className="text-xs font-medium opacity-100 uppercase tracking-widest text-zinc-800 dark:text-zinc-200">
-                {profile.tier === 'admin' ? 'Unlimited Access' : 'Active Subscription'}
+                {profile.tier === 'admin' ? 'Unlimited Access' : !profile.tier || profile.tier === 'free' ? 'Free account' : 'Active Subscription'}
               </p>
               
               {profile.tier && profile.tier !== 'free' && (
@@ -321,7 +322,7 @@ export default function SubscriptionPage() {
               ? 3 
               : tierOrder.indexOf(profile?.tier || 'free');
             const thisTierIndex = tierOrder.indexOf(tier.id);
-            const isCurrent = profile?.tier === tier.id || (tier.id === 'admin' && userTierIndex === 3 && !profile?.tier);
+            const isCurrent = !!user && (profile?.tier || 'free') === tier.id || (tier.id === 'admin' && userTierIndex === 3 && !profile?.tier);
             const isLegacy = thisTierIndex < userTierIndex;
 
             return (
@@ -343,7 +344,7 @@ export default function SubscriptionPage() {
                     "absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full",
                     themeClasses.badge
                   )}>
-                    Most Popular
+                    For deeper study
                   </div>
                 )}
 
@@ -396,7 +397,7 @@ export default function SubscriptionPage() {
                     </motion.div>
                   ) : (
                     <>
-                      {isCurrent ? 'Current Plan' : isLegacy ? 'Included' : tier.buttonText}
+                      {!user ? tier.id === 'free' ? 'Create free account' : 'Sign in to choose plan' : isCurrent ? 'Current Plan' : isLegacy ? 'Included' : tier.buttonText}
                       {(!isCurrent && !isLegacy) && <ArrowRight size={18} />}
                     </>
                   )}
@@ -406,6 +407,7 @@ export default function SubscriptionPage() {
           })}
         </div>
 
+        <p className="text-center text-sm text-white/60 leading-relaxed mb-12">Paid plans are monthly subscriptions. Check your selected plan and recurring payment terms at checkout. Already subscribed? Use Manage Billing above.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className={cn("p-8 rounded-[3rem] border", themeClasses.card)}>
             <div className="flex items-center gap-4 mb-6">
@@ -455,7 +457,8 @@ export default function SubscriptionPage() {
                 <p className="text-sm opacity-50">Verified status & Tier management</p>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <p className="text-center text-sm text-white/60 leading-relaxed mb-12">Paid plans are monthly subscriptions. Check your selected plan and recurring payment terms at checkout. Already subscribed? Use Manage Billing above.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <p className="text-sm opacity-70 leading-relaxed font-medium">
                   Your <strong className="text-black dark:text-white">Profile</strong> is securely synced across all your devices. All educational content and progress are stored in your private cloud vault.
