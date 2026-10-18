@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -635,6 +636,11 @@ export default function TutorPage() {
           </motion.div>
         )}
 
+        {messages.length === 0 && (!profile?.tier || profile.tier === 'free' || profile.tier === 'basic') && (
+          <Link to="/subscription" className="flex flex-wrap items-center justify-between gap-3 mb-4 p-5 rounded-2xl border border-violet-400/30 bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10">
+            <div><p className="font-semibold text-sm">Give your curiosity more room.</p><p className="text-xs opacity-70 mt-1">Serious: 40 prompts/day for £15/month. Premium: 500 for £40/month.</p></div><span className="text-sm font-semibold text-violet-700 dark:text-violet-300">Compare plans →</span>
+          </Link>
+        )}
         {messages.length === 0 && !errorMessage && (
           <div className="h-full flex flex-col items-center justify-center text-center gap-8 py-12">
             <motion.div 
