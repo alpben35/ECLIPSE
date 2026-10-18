@@ -202,13 +202,13 @@ export default function SubscriptionPage() {
     badge: "bg-white text-royal-red",
     icon: "text-gold"
   } : {
-    bg: "bg-[#0d0b18]",
+    bg: "bg-[#101010]",
     text: "text-white",
-    accent: "text-violet-300",
-    card: "bg-[#191323] border-white/10",
-    cardHighlight: "bg-gradient-to-br from-violet-900 to-[#20162f] text-white border-violet-400 shadow-2xl shadow-violet-500/10 z-10",
+    accent: "text-neutral-300",
+    card: "bg-[#191919] border-white/10",
+    cardHighlight: "bg-gradient-to-br from-neutral-800 to-[#202020] text-white border-neutral-400 shadow-2xl shadow-neutral-500/10 z-10",
     button: "bg-white/10 text-white hover:bg-white/20",
-    buttonHighlight: "bg-violet-300 text-violet-950 hover:bg-violet-200",
+    buttonHighlight: "bg-neutral-300 text-neutral-950 hover:bg-neutral-200",
     badge: "bg-black text-white dark:bg-white dark:text-black",
     icon: "text-white"
   };
@@ -369,7 +369,7 @@ export default function SubscriptionPage() {
                         "mt-1 p-0.5 rounded-full",
                         tier.highlight ? (isTeacherPortal ? "bg-royal-red/20" : "bg-black dark:bg-white") : (isTeacherPortal ? "bg-gold/20" : "bg-black/10 dark:bg-white/10")
                       )}>
-                        <Check size={12} className={tier.highlight ? (isTeacherPortal ? "text-royal-red" : "text-white") : (isTeacherPortal ? "text-gold" : "text-violet-300")} />
+                        <Check size={12} className={tier.highlight ? (isTeacherPortal ? "text-royal-red" : "text-white") : (isTeacherPortal ? "text-gold" : "text-neutral-300")} />
                       </div>
                       <span className="text-sm opacity-80">{feature}</span>
                     </div>
@@ -411,12 +411,12 @@ export default function SubscriptionPage() {
         <p className="text-center text-sm text-white/60 leading-relaxed mb-12">Paid plans are monthly subscriptions. Check your selected plan and recurring payment terms at checkout. Already subscribed? Use Manage Billing above.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className={cn("p-8 rounded-3xl border", themeClasses.card)}>
-            <ShieldCheck size={25} className="mb-5 text-violet-300" />
+            <ShieldCheck size={25} className="mb-5 text-neutral-300" />
             <h3 className="text-xl font-semibold mb-3">Choose with confidence.</h3>
             <p className="text-sm opacity-70 leading-relaxed">Sign in, select a paid plan, and continue to Stripe checkout to review the subscription and payment details before purchasing.</p>
           </div>
           <div className={cn("p-8 rounded-3xl border", themeClasses.card)}>
-            <SettingsIcon size={25} className="mb-5 text-violet-300" />
+            <SettingsIcon size={25} className="mb-5 text-neutral-300" />
             <h3 className="text-xl font-semibold mb-3">Your subscription, in view.</h3>
             <p className="text-sm opacity-70 leading-relaxed">Already on a paid plan? Use Manage Billing above for your billing portal. For subscription assistance, contact support@eclipseapp.co.uk.</p>
           </div>
