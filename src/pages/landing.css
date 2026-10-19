@@ -36,3 +36,14 @@
 .eclipse-preview-tabs button:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .eclipse-preview-card{min-height:365px}
 .eclipse-preview-card .font-medium{margin-top:20px}
+
+/* This illustration intentionally stays light in either site theme. */
+.eclipse-demo .eclipse-preview-card{background:#fafafa;color:#171717;color-scheme:light}
+.eclipse-preview-card :is([class~='dark:bg-neutral-900'],[class~='dark:bg-neutral-950'],[class~='dark:bg-neutral-800']){background:#ececec;color:#222}
+.eclipse-preview-card :is([class~='text-neutral-500'],[class~='dark:text-neutral-200']){color:#555}
+.eclipse-preview-card p{color:#4b4b4b}
+.eclipse-preview-card a{color:#333}
+.eclipse-preview-card>div{border-color:#d8d8d8}
+.eclipse-marketing .eclipse-hero>div>a,.eclipse-marketing .eclipse-hero>div>div>a{color:#fafafa}
+.eclipse-marketing .eclipse-hero>div>div>a:first-child{background:#fafafa;color:#171717}
+.eclipse-marketing .eclipse-price-card>p,.eclipse-marketing .eclipse-price span,.eclipse-marketing .eclipse-price-note{color:#bdbdbd}
