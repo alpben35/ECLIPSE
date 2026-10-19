@@ -1,3 +1,4 @@
+import LearningMomentum, { useLearningMomentum } from '../components/LearningMomentum';
 import { Link } from 'react-router-dom';
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -100,10 +101,9 @@ interface Message {
   images?: { data: string, mimeType: string }[];
 }
 
-let hasClearedOnRefresh = false;
-
 export default function TutorPage() {
   const { user, profile, addXp } = useContext(AuthContext);
+  const momentum = useLearningMomentum(user?.uid);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<'teach' | 'solve' | 'revise'>('teach');
@@ -119,34 +119,8 @@ export default function TutorPage() {
   const [selectedImage, setSelectedImage] = useState<{ file: File, preview: string } | null>(null);
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!user || hasClearedOnRefresh) return;
-    hasClearedOnRefresh = true;
-
-    const clearChatOnRefresh = async () => {
-      try {
-        const q = query(collection(db, 'users', user.uid, 'messages'));
-        const snapshot = await getDocs(q);
-        if (snapshot.size > 0) {
-          const batch = writeBatch(db);
-          snapshot.docs.forEach((doc) => {
-            batch.delete(doc.ref);
-          });
-          await batch.commit();
-        }
-      } catch (err) {
-        console.error("Failed to clear chat on load:", err);
-      }
-    };
-
-    clearChatOnRefresh();
-  }, [user]);
-
-  const dailyGoal = 5;
-  const questionsToday = messages.filter(m => m.role === 'user').length;
-  const goalProgress = Math.min((questionsToday / dailyGoal) * 100, 100);
 
   useEffect(() => {
     if (!user || !profile) return;
@@ -279,8 +253,7 @@ export default function TutorPage() {
         console.error("Optimistic user message Firestore write failed in background:", err);
       });
       
-      // Add XP for engagement
-      addXp(15);
+
 
       // Pass the last 10 messages for context (from captured history)
       const chatHistory = currentHistory.slice(-10).map(m => ({
@@ -322,6 +295,11 @@ export default function TutorPage() {
         }
       }
       
+      if (!fullText.trim()) throw new Error('The tutor returned an empty response. Please try again.');
+      momentum.recordSuccess(currentMode, fullText, messageText.trim().length > 0 && !messageText.startsWith('Give me one practice question about '));
+      // Reward completed exchanges rather than sends or failed requests.
+      void addXp(15).catch(err => console.error('Could not save learning XP:', err));
+
       // 3. Append optimistic AI message to localized state prior to clearing stream state (prevents visual flicker or empty states)
       const optimisticAiId = 'opt-ai-' + Date.now();
       const optimisticAiMsg: Message = {
@@ -481,6 +459,7 @@ export default function TutorPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-6rem)]">
+      <LearningMomentum momentum={momentum} busy={isTyping} subject={subject.name} onStart={(nextMode, prompt) => { setMode(nextMode); setInput(prompt); requestAnimationFrame(() => composerRef.current?.focus()); }} />
       {/* Header Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
@@ -654,8 +633,15 @@ export default function TutorPage() {
             <div className="space-y-2">
               <p className="text-2xl font-bold tracking-tight">How can I help you with {subject.name}?</p>
               <p className="text-sm opacity-50 max-w-md mx-auto">
-                I can explain complex concepts, solve specific problems, or even help with your Sparx homework.
+                Choose a starting point, then make the question your own.
               </p>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-3 w-full max-w-2xl">
+              {([
+                { label: 'Make it click', description: 'Understand an idea', mode: 'teach', prompt: `Explain a key idea in ${subject.name} with a simple example. Then check my understanding.` },
+                { label: 'Let me try', description: 'Practise one question', mode: 'revise', prompt: `Give me one practice question about ${subject.name}. Let me try before showing the answer.` },
+                { label: 'Find the next step', description: 'Work through a problem', mode: 'solve', prompt: `Help me work through this ${subject.name} problem step by step: ` },
+              ] as const).map(starter => <button key={starter.label} disabled={isTyping} onClick={() => { setMode(starter.mode); setInput(starter.prompt); requestAnimationFrame(() => composerRef.current?.focus()); }} className="text-left p-4 rounded-2xl border border-black/10 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-40"><span className="block font-semibold text-sm">{starter.label} →</span><span className="block text-xs opacity-60 mt-1">{starter.description}</span></button>)}
             </div>
           </div>
         )}
@@ -828,11 +814,13 @@ export default function TutorPage() {
           </button>
         </div>
         
-        <input 
+        <input
+          ref={composerRef}
+          aria-label="Your question for the tutor"
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSend()}
           placeholder={isListening ? "Listening..." : `Ask a question...`}
           className="w-full pl-14 md:pl-16 pr-28 md:pr-36 py-4 md:py-5 bg-black/5 dark:bg-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 transition-all text-sm md:text-base placeholder:opacity-40"
         />
@@ -855,6 +843,7 @@ export default function TutorPage() {
           
           <button 
             onClick={handleSend}
+            aria-label="Send question"
             disabled={(!input.trim() && !selectedImage) || isTyping}
             className="p-2 md:p-2.5 bg-black text-white dark:bg-white dark:text-black rounded-xl disabled:opacity-30 transition-all hover:scale-105 active:scale-95 shadow-md"
           >

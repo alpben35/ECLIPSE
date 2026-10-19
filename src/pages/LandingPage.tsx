@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './landing.css';
 import { ArrowUpRight, ArrowRight, BookOpen, Brain, Check, Sparkles, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -9,7 +9,14 @@ const features = [
   { icon: TrendingUp, label: '03 / KEEP GROWING', title: 'See how far you’ve come.', text: 'Keep your learning in view with subject-specific progress graphs and test score history.' },
 ];
 
+const previews = [
+  { subject: 'Maths', question: 'Why does ½ + ¼ equal ¾?', answer: 'Imagine a whole split into four equal pieces. One half takes up two of those pieces.', takeaway: '2 quarters + 1 quarter = 3 quarters', note: 'Same-sized pieces make fractions easier to add.' },
+  { subject: 'Science', question: 'How do plants turn sunlight into food?', answer: 'Leaves capture light energy. The plant uses this energy to turn water and carbon dioxide into glucose, releasing oxygen.', takeaway: 'Light energy → stored chemical energy', note: 'This process is called photosynthesis.' },
+  { subject: 'English', question: 'What makes a metaphor different from a simile?', answer: 'Both compare things. A simile uses “like” or “as”. A metaphor describes one thing as another to create an image.', takeaway: '“Her voice was music” is a metaphor.', note: '“Her voice was like music” is a simile.' },
+];
 export default function LandingPage() {
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const preview = previews[previewIndex];
   return (
     <div className="eclipse-marketing">
       <section className="eclipse-hero">
@@ -25,15 +32,16 @@ export default function LandingPage() {
         </div>
         <div className="eclipse-demo">
           <div className="flex justify-between items-center mb-6 text-xs tracking-[0.16em] uppercase text-neutral-900 dark:text-neutral-200"><span>THE LIGHTBULB MOMENT</span><Sparkles size={18} /></div>
-          <div className="rounded-2xl bg-white dark:bg-neutral-950 shadow-xl shadow-black/5 overflow-hidden lg:-rotate-2 border border-black/5 dark:border-white/10">
-            <div className="flex justify-between items-center border-b border-black/5 dark:border-white/10 p-5"><span className="font-semibold tracking-tight">Eclipse <span className="text-neutral-500 font-normal">/ Maths</span></span><span className="text-xs bg-neutral-50 text-neutral-800 dark:bg-neutral-950 dark:text-neutral-200 px-3 py-1.5 rounded-full">Teach mode</span></div>
-            <div className="p-5 sm:p-7 space-y-6">
-              <div className="rounded-2xl rounded-tr-sm bg-neutral-100 dark:bg-neutral-900 p-4 ml-8 text-sm leading-relaxed">Why does ½ + ¼ equal ¾?</div>
-              <div><p className="text-xs font-semibold text-neutral-700 dark:text-neutral-400 mb-3 flex items-center gap-2"><Sparkles size={14} /> LET’S MAKE IT SIMPLE</p><p className="text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">Imagine a whole split into four equal pieces. One half takes up two of those pieces.</p>
-              <div className="flex gap-2 my-5" aria-label="Three of four equal parts shaded">{[0, 1, 2, 3].map(i => <div key={i} className={`h-14 flex-1 rounded-lg ${i < 2 ? 'bg-neutral-700' : i === 2 ? 'bg-neutral-400' : 'bg-neutral-100 dark:bg-neutral-800'}`} />)}</div>
-              <p className="font-medium text-lg tracking-tight">2 quarters + 1 quarter = 3 quarters</p><p className="text-sm mt-3 text-neutral-500 dark:text-neutral-400">Same-sized pieces make fractions easier to add.</p></div>
+          <div role="group" aria-label="Choose a sample subject" className="eclipse-preview-tabs">{previews.map((sample, index) => <button key={sample.subject} aria-pressed={previewIndex === index} onClick={() => setPreviewIndex(index)}>{sample.subject}</button>)}</div>
+          <div className="eclipse-preview-card rounded-2xl bg-white dark:bg-neutral-950 shadow-xl shadow-black/5 overflow-hidden lg:-rotate-2 border border-black/5 dark:border-white/10">
+            <div className="flex justify-between items-center border-b border-black/5 dark:border-white/10 p-5"><span className="font-semibold tracking-tight">Eclipse <span className="text-neutral-500 font-normal">/ {preview.subject}</span></span><span className="text-xs bg-neutral-50 text-neutral-800 dark:bg-neutral-950 dark:text-neutral-200 px-3 py-1.5 rounded-full">Teach mode</span></div>
+            <div aria-live="polite" className="p-5 sm:p-7 space-y-6">
+              <div className="rounded-2xl rounded-tr-sm bg-neutral-100 dark:bg-neutral-900 p-4 ml-8 text-sm leading-relaxed">{preview.question}</div>
+              <div><p className="text-xs font-semibold text-neutral-700 dark:text-neutral-400 mb-3 flex items-center gap-2"><Sparkles size={14} /> LET’S MAKE IT SIMPLE</p><p className="text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">{preview.answer}</p>
+              {previewIndex === 0 && <div className="flex gap-2 my-5" aria-label="Three of four equal parts shaded">{[0, 1, 2, 3].map(i => <div key={i} className={`h-14 flex-1 rounded-lg ${i < 2 ? 'bg-neutral-700' : i === 2 ? 'bg-neutral-400' : 'bg-neutral-100 dark:bg-neutral-800'}`} />)}</div>}
+              <p className="font-medium text-lg tracking-tight">{preview.takeaway}</p><p className="text-sm mt-3 text-neutral-500 dark:text-neutral-400">{preview.note}</p></div>
             </div>
-            <div className="px-5 py-4 border-t border-black/5 dark:border-white/10 text-xs text-neutral-500">Illustrative example of learning with Eclipse</div>
+            <div className="px-5 py-4 border-t border-black/5 dark:border-white/10 text-xs text-neutral-500">Illustrative examples, not a live AI conversation. <Link to="/auth" className="underline underline-offset-4">Try your own question →</Link></div>
           </div>
           <div className="flex items-center gap-2 mt-6 text-sm text-neutral-900 dark:text-neutral-200"><Check size={17} /> Understanding starts with a good question.</div>
         </div>
