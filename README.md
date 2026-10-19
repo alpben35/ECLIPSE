@@ -1,8 +1,37 @@
-# Eclipse — AI-Powered Schoolwork Tutor & Progress Tracker
+# Eclipse AI Tutor
 
-Eclipse is a full-stack web application designed to supercharge classroom and individual learning. It features an AI-powered tutor for students (from Year 1 through University), automated schoolwork diagnostic generation, real-time student group management, class progress tracking for teachers, and local Stripe subscription checkouts.
+**Homework help, clear explanations and revision practice.**
+
+[![Eclipse AI tutor: Big questions. Brighter minds.](https://eclipseapp.co.uk/eclipse-share.png)](https://eclipseapp.co.uk/?utm_source=github&utm_medium=referral&utm_campaign=readme)
+
+## Try Eclipse online
+
+**[Start learning free →](https://eclipseapp.co.uk/?utm_source=github&utm_medium=referral&utm_campaign=readme)**
+
+Use the hosted app without downloading or configuring this repository. The free plan includes **15 AI prompts per day**. An account is required to use the tutor.
+
+- **Understand:** explore explanations and ask follow-up questions.
+- **Work through a problem:** bring a question to Solve mode.
+- **Practise and revise:** try questions and review what you have learned.
+- **See your progress:** keep track of your learning in the app.
+
+### Read a free worked example
+
+[Explore fractions, photosynthesis and metaphors →](https://eclipseapp.co.uk/homework-help.html?utm_source=github&utm_medium=referral&utm_campaign=readme)
+
+The guide is free to read without an account. It includes practice questions and expandable answers.
+
+### Plans
+
+Start free, then [compare plans](https://eclipseapp.co.uk/subscription?utm_source=github&utm_medium=referral&utm_campaign=readme) if you need a larger daily prompt allowance. Review the current prices and recurring payment terms before subscribing.
+
+AI can make mistakes. Check important answers with your teacher or course materials, and follow your school’s rules for AI use.
 
 ---
+
+## Developer documentation
+
+Eclipse is a full-stack application with student tutoring, progress tracking and a teacher portal. The instructions below are for running the source locally. They are not required to use the hosted app.
 
 ## Technical Stack
 
@@ -17,7 +46,7 @@ Eclipse is a full-stack web application designed to supercharge classroom and in
 ## Getting Started
 
 ### 1. Prerequisites
-Ensure you have **Node.js** (v18 or higher) and **npm** installed on your machine.
+Ensure you have **Node.js 22** and **npm** installed on your machine.
 
 ### 2. Dependencies
 To install the initial dependencies, run:
