@@ -13,7 +13,6 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/ui/Logo';
 
-import SupportModal from '@/components/SupportModal';
 import BugReportModal from '@/components/BugReportModal';
 import ProfileSettingsModal from '@/components/ProfileSettingsModal';
 
@@ -48,7 +47,6 @@ export default function TeacherApp() {
   const connectivity = useConnectivity();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showSupport, setShowSupport] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showProfilePopover, setShowProfilePopover] = useState(false);
@@ -67,24 +65,16 @@ export default function TeacherApp() {
     const base = [
       { name: 'Assistant', path: '/teacher/tutor', icon: MessageSquare },
       { name: 'Groups', path: '/teacher/groups', icon: Users },
-      { name: 'Class Progress', path: '/teacher/progress', icon: BarChart2 },
-      { name: 'Ideas', path: '/teacher/ideas', icon: Lightbulb },
-      { name: 'Shop', path: '/teacher/subscription', icon: Zap },
+      { name: 'Progress', path: '/teacher/progress', icon: BarChart2 },
+      { name: 'Plans', path: '/teacher/subscription', icon: Zap },
     ];
     if (isOwner || isTempOwner || isAdminPlus) {
       base.push({ name: 'Admin', path: '/teacher/admin', icon: Users });
-      base.push({ name: 'Council', path: '/teacher/groups/admin_council', icon: Shield });
     }
-    return base;
-  }, [isOwner, isTempOwner, isAdminPlus]);
+    return user ? base : base.filter(item => item.path === '/teacher/subscription');
+  }, [isOwner, isTempOwner, isAdminPlus, user]);
 
   const handleLogout = () => signOut(auth);
-
-  const xpForNextLevel = Math.max(1, Math.pow(profile?.level || 1, 2) * 100);
-  const currentLevelXp = Math.pow(Math.max(0, (profile?.level || 1) - 1), 2) * 100;
-  const progress = profile && xpForNextLevel > currentLevelXp 
-    ? Math.min(100, Math.max(0, ((profile.xp - currentLevelXp) / (xpForNextLevel - currentLevelXp)) * 100)) 
-    : 0;
 
   return (
     <div className={cn("min-h-screen transition-colors duration-500 selection:bg-gold selection:text-royal-red", isDark ? "bg-royal-red text-gold" : "bg-white text-royal-red")}>
@@ -124,50 +114,10 @@ export default function TeacherApp() {
                 </div>
               </div>
 
-              <div className={cn(
-                "hidden xl:flex items-center gap-2 px-3 py-1 rounded-full ml-4 border transition-colors",
-                isDark 
-                  ? "bg-gold/10 border-gold/20 text-gold" 
-                  : "bg-royal-red/10 border-royal-red/20 text-royal-red"
-              )}>
-                <Shield size={10} className={isDark ? "text-gold" : "text-royal-red"} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Secure Connection</span>
-              </div>
 
-              {user && (
-                <div className={cn(
-                  "hidden lg:flex items-center gap-4 pl-4 lg:pl-8 border-l",
-                  isDark ? "border-gold/10" : "border-royal-red/10"
-                )}>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
-                          {profile?.email === OWNER_EMAIL ? 'Owner' : profile?.rank || 'Welcome'}
-                        </span>
-                        <span className={cn("text-[8px] font-bold uppercase tracking-widest", isDark ? "text-gold" : "text-royal-red")}>
-                          Level {profile?.level || 1}
-                        </span>
-                      </div>
-                      <div className="flex gap-0.5">
-                        {[...Array(5)].map((_, i) => (
-                          <div key={i} className={cn("w-1 h-1 rounded-full", i < (profile?.streak % 5 || 0) ? (isDark ? "bg-gold" : "bg-royal-red") : (isDark ? "bg-gold/10" : "bg-royal-red/10"))} />
-                        ))}
-                      </div>
-                    </div>
-                    <div className={cn("w-32 h-1 rounded-full overflow-hidden", isDark ? "bg-gold/10" : "bg-royal-red/10")}>
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
-                        className={cn("h-full", isDark ? "bg-gold/40" : "bg-royal-red/40")} 
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
-            <nav className="flex items-center gap-1 sm:gap-2 lg:gap-4 xl:gap-8 overflow-x-auto no-scrollbar py-2 mx-1 lg:mx-4 flex-1 justify-start lg:justify-center min-w-0">
+            <nav className="hidden md:flex items-center gap-1 sm:gap-2 lg:gap-4 xl:gap-8 overflow-x-auto no-scrollbar py-2 mx-1 lg:mx-4 flex-1 justify-start lg:justify-center min-w-0">
               {navItems.map((item) => (
                   <Link 
                   key={item.path} 
@@ -203,6 +153,8 @@ export default function TeacherApp() {
                   <div className="relative">
                     <button 
                       onClick={() => setShowProfilePopover(!showProfilePopover)}
+                      aria-label="Account settings"
+                      aria-expanded={showProfilePopover}
                       className="relative group"
                     >
                       <img 
@@ -379,21 +331,15 @@ export default function TeacherApp() {
                   onClick={() => setShowBugReport(true)}
                   className="px-4 py-2 bg-gold/10 hover:bg-gold/20 text-gold rounded-xl text-xs font-bold transition-all border border-gold/20"
                 >
-                  Bug Report
+                  Report a problem
                 </button>
-                <button 
-                  onClick={() => setShowSupport(true)}
-                  className="px-4 py-2 bg-gold text-royal-red hover:scale-105 rounded-xl text-xs font-bold transition-all shadow-lg"
-                >
-                  Donate
-                </button>
+
               </div>
-              <p className="text-sm opacity-50">© 2024 Eclipse Teacher. Empowering educators with AI.</p>
+              <p className="text-sm opacity-50">© {new Date().getFullYear()} Eclipse Teacher.</p>
             </div>
           </footer>
         )}
 
-        <SupportModal isOpen={showSupport} onClose={() => setShowSupport(false)} isTeacher />
         <BugReportModal isOpen={showBugReport} onClose={() => setShowBugReport(false)} isTeacher />
 
         <ProfileSettingsModal 
@@ -422,10 +368,11 @@ export default function TeacherApp() {
                      {navItems.map(item => (
                        <Link key={item.path} to={item.path} onClick={() => setIsMenuOpen(false)} className={cn("transition-colors", isDark ? "text-gold" : "text-royal-red")}>{item.name}</Link>
                      ))}
+                     <button onClick={() => { setShowProfilePopover(true); setIsMenuOpen(false); }} className="text-left">Account settings</button>
                      <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} className={cn("text-left opacity-50 transition-colors", isDark ? "text-gold" : "text-royal-red")}>Sign Out</button>
                    </>
                 ) : (
-                  <Link to="/teacher/auth" onClick={() => setIsMenuOpen(false)} className={cn("transition-colors", isDark ? "text-gold" : "text-royal-red")}>Sign In</Link>
+                  <><Link to="/teacher/subscription" onClick={() => setIsMenuOpen(false)}>Plans</Link><Link to="/teacher/auth" onClick={() => setIsMenuOpen(false)} className={cn("transition-colors", isDark ? "text-gold" : "text-royal-red")}>Sign In</Link></>
                 )}
               </div>
             </motion.div>
