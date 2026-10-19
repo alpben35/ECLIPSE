@@ -1,5 +1,4 @@
 import LearningMomentum, { useLearningMomentum } from '../components/LearningMomentum';
-import { Link } from 'react-router-dom';
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -110,11 +109,11 @@ export default function TutorPage() {
   const [subject, setSubject] = useState(SUBJECTS[0]);
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [showSubjectMenu, setShowSubjectMenu] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showLearningGoal, setShowLearningGoal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<{ file: File, preview: string } | null>(null);
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
@@ -459,137 +458,23 @@ export default function TutorPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-6rem)]">
-      <LearningMomentum momentum={momentum} busy={isTyping} subject={subject.name} onStart={(nextMode, prompt) => { setMode(nextMode); setInput(prompt); requestAnimationFrame(() => composerRef.current?.focus()); }} />
-      {/* Header Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-xl">
-            <button 
-              onClick={() => setMode('teach')}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
-                mode === 'teach' 
-                  ? "bg-white dark:bg-black shadow-md ring-1 ring-black/5 dark:ring-white/10 text-black dark:text-white" 
-                  : "opacity-50 hover:opacity-80"
-              )}
-            >
-              <Brain size={16} />
-              Teach
-            </button>
-            <button 
-              onClick={() => setMode('solve')}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
-                mode === 'solve' 
-                  ? "bg-white dark:bg-black shadow-md ring-1 ring-black/5 dark:ring-white/10 text-black dark:text-white" 
-                  : "opacity-50 hover:opacity-80"
-              )}
-            >
-              <Sparkles size={16} />
-              Solve
-            </button>
-            <button 
-              onClick={() => setMode('revise')}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
-                mode === 'revise' 
-                  ? "bg-white dark:bg-black shadow-md ring-1 ring-black/5 dark:ring-white/10 text-black dark:text-white" 
-                  : "opacity-50 hover:opacity-80"
-              )}
-            >
-              <BookOpen size={16} />
-              Revise
-            </button>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-500/5 border border-green-500/10 rounded-full">
-            <Lock size={12} className="text-green-500" />
-            <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">End-to-End Encrypted</span>
-          </div>
-
-          {messages.length > 0 && (
-            <button
-              onClick={handleSummarize}
-              disabled={isSummarizing}
-              className="flex items-center gap-2 px-4 py-2 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
-            >
-              {isSummarizing ? (
-                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
-                  <ListRestart size={16} />
-                </motion.div>
-              ) : (
-                <ListRestart size={16} />
-              )}
-              Summarize
-            </button>
-          )}
-
-          {messages.length > 0 && (
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-xl text-sm font-semibold transition-all"
-            >
-              <Download size={16} />
-              Export
-            </button>
-          )}
-
-          {messages.length > 0 && (
-            <button
-              onClick={handleClearChat}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-sm font-semibold transition-all"
-            >
-              <Trash2 size={16} />
-              Clear
-            </button>
-          )}
-
-          <button
-            onClick={() => setShowCalculator(!showCalculator)}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-              showCalculator ? "bg-black text-white dark:bg-white dark:text-black" : "bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10"
-            )}
-          >
-            <CalculatorIcon size={16} />
-            Calculator
-          </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5 shrink-0">
+        <div className="flex rounded-xl bg-black/5 dark:bg-white/5 p-1" role="group" aria-label="Learning mode">
+          {([{ id: 'teach', label: 'Explain' }, { id: 'solve', label: 'Solve' }, { id: 'revise', label: 'Practise' }] as const).map(item => <button key={item.id} aria-pressed={mode === item.id} onClick={() => setMode(item.id)} className={cn('px-3 sm:px-4 py-2 text-sm rounded-lg', mode === item.id ? 'bg-white dark:bg-black shadow-sm font-semibold' : 'opacity-60 hover:opacity-100')}>{item.label}</button>)}
         </div>
-
-        <div className="relative">
-          <button 
-            onClick={() => setShowSubjectMenu(!showSubjectMenu)}
-            className="flex items-center gap-2 px-4 py-2 bg-black/5 dark:bg-white/5 rounded-xl text-sm font-medium"
-          >
-            {subject.name}
-            <ChevronDown size={16} className={cn("transition-transform", showSubjectMenu && "rotate-180")} />
-          </button>
-          
-          <AnimatePresence>
-            {showSubjectMenu && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="absolute top-full right-0 mt-2 w-64 max-h-80 overflow-y-auto bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-xl shadow-2xl z-50 p-2"
-              >
-                {SUBJECTS.map(s => (
-                  <button 
-                    key={s.id}
-                    onClick={() => { setSubject(s); setShowSubjectMenu(false); }}
-                    className={cn(
-                      "w-full text-left px-4 py-2 rounded-lg text-sm transition-colors",
-                      subject.id === s.id ? "bg-black text-white dark:bg-white dark:text-black" : "hover:bg-black/5 dark:hover:bg-white/5"
-                    )}
-                  >
-                    {s.name}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className="flex items-center gap-2">
+          <select aria-label="Subject" value={subject.id} onChange={event => { const selected = SUBJECTS.find(item => item.id === event.target.value); if (selected) setSubject(selected); }} className="max-w-[150px] bg-black/5 dark:bg-white/5 text-current py-2 px-3 border border-black/10 dark:border-white/10 rounded-xl text-sm">{SUBJECTS.map(item => <option className="bg-white text-black dark:bg-neutral-900 dark:text-white" key={item.id} value={item.id}>{item.name}</option>)}</select>
+          <details className="relative">
+            <summary className="cursor-pointer list-none px-3 py-2 rounded-xl border border-black/10 dark:border-white/10 text-sm">Tools <span aria-hidden="true">⌄</span></summary>
+            <div className="absolute right-0 top-full mt-2 min-w-[190px] rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-neutral-900 p-2 shadow-xl z-40 flex flex-col items-stretch text-sm">
+              <button className="text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5" onClick={event => { setShowCalculator(value => !value); event.currentTarget.closest('details')?.removeAttribute('open'); }}>{showCalculator ? 'Hide calculator' : 'Calculator'}</button>
+              <button className="text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5" onClick={event => { setShowLearningGoal(value => !value); event.currentTarget.closest('details')?.removeAttribute('open'); }}>{showLearningGoal ? 'Hide daily goal' : 'Daily learning goal'}</button>
+              {messages.length > 0 && <><button disabled={isSummarizing} className="text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-40" onClick={event => { void handleSummarize(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>{isSummarizing ? 'Summarising…' : 'Summarise chat'}</button><button className="text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5" onClick={event => { handleExport(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>Export chat</button><button className="text-left px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5" onClick={event => { void handleClearChat(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>Clear chat…</button></>}
+            </div>
+          </details>
         </div>
       </div>
+      {showLearningGoal && <LearningMomentum momentum={momentum} busy={isTyping} subject={subject.name} onStart={(nextMode, prompt) => { setMode(nextMode); setInput(prompt); requestAnimationFrame(() => composerRef.current?.focus()); }} />}
 
       {/* Chat Area */}
       <div 
@@ -615,23 +500,18 @@ export default function TutorPage() {
           </motion.div>
         )}
 
-        {messages.length === 0 && (!profile?.tier || profile.tier === 'free' || profile.tier === 'basic') && (
-          <Link to="/subscription" className="flex flex-wrap items-center justify-between gap-3 mb-4 p-5 rounded-2xl border border-neutral-400/30 bg-gradient-to-r from-neutral-500/15 to-neutral-500/10">
-            <div><p className="font-semibold text-sm">Give your curiosity more room.</p><p className="text-xs opacity-70 mt-1">Serious: 40 prompts/day for £15/month. Premium: 500 for £40/month.</p></div><span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Compare plans →</span>
-          </Link>
-        )}
         {messages.length === 0 && !errorMessage && (
-          <div className="h-full flex flex-col items-center justify-center text-center gap-8 py-12">
+          <div className="h-full flex flex-col items-center justify-center text-center gap-5 py-6">
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="w-20 h-20 rounded-full border-2 border-black/10 dark:border-white/10 flex items-center justify-center"
+              className="w-12 h-12 rounded-full border border-black/10 dark:border-white/10 flex items-center justify-center"
             >
-              <Sparkles size={40} className="opacity-20" />
+              <Sparkles size={24} className="opacity-30" />
             </motion.div>
             
             <div className="space-y-2">
-              <p className="text-2xl font-bold tracking-tight">How can I help you with {subject.name}?</p>
+              <p className="text-2xl font-bold tracking-tight">What are you working on?</p>
               <p className="text-sm opacity-50 max-w-md mx-auto">
                 Choose a starting point, then make the question your own.
               </p>

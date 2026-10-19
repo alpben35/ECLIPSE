@@ -1,6 +1,6 @@
 .eclipse-marketing{color:#f4f4f4;background:#0c0c0c;overflow:hidden;padding:0 clamp(20px,5vw,80px) 64px;isolation:isolate;position:relative}
 .eclipse-marketing:before{content:'';position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse at 80% 8%,#3d3d3d4d,transparent 33%),radial-gradient(ellipse at 10% 45%,#56565626,transparent 30%);pointer-events:none}
-.eclipse-hero{max-width:1200px;margin:auto;display:grid;grid-template-columns:1.1fr 1fr;gap:70px;align-items:center;min-height:700px;padding:90px 0}
+.eclipse-hero{max-width:1200px;margin:auto;display:grid;grid-template-columns:1.1fr 1fr;gap:70px;align-items:center;min-height:620px;padding:64px 0}
 .eclipse-hero h1{font-size:clamp(52px,6.5vw,94px);line-height:1.04;letter-spacing:-.065em;font-weight:650}
 .eclipse-gradient-text{background:linear-gradient(110deg,#b8b8b8,#949494 55%,#cacaca);background-clip:text;-webkit-text-fill-color:transparent}
 .eclipse-hero>div>p:first-child{color:#c0c0c0}.eclipse-hero>div>p{color:#b6b6b6}.eclipse-hero>div>p:last-child{color:#a4a4a4}

@@ -14,7 +14,6 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { cn } from './lib/utils';
 import Logo from './components/ui/Logo';
 
-import SupportModal from './components/SupportModal';
 import BugReportModal from './components/BugReportModal';
 import LimitReachedModal from './components/LimitReachedModal';
 import ProfileSettingsModal from './components/ProfileSettingsModal';
@@ -50,7 +49,6 @@ export default function StudentApp() {
   const connectivity = useConnectivity();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showSupport, setShowSupport] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showProfilePopover, setShowProfilePopover] = useState(false);
@@ -84,40 +82,17 @@ export default function StudentApp() {
   const navItems = React.useMemo(() => {
     const base = [
       { name: 'Tutor', path: '/tutor', icon: MessageSquare },
-      { name: 'Teams', path: '/groups', icon: Users },
+      { name: 'Groups', path: '/groups', icon: Users },
       { name: 'Progress', path: '/progress', icon: BarChart2 },
-      { name: 'Ideas', path: '/ideas', icon: Lightbulb },
       { name: 'Plans', path: '/subscription', icon: Zap },
-      { name: 'Profile', path: '#profile', icon: User },
     ];
     if (isAdminPlus || isOwner) {
       base.push({ name: 'Admin', path: '/admin', icon: Users });
-      base.push({ name: 'Council', path: '/groups/admin_council', icon: Shield });
     }
-    return base;
-  }, [isAdminPlus, isOwner]);
+    return user ? base : base.filter(item => item.path === '/subscription');
+  }, [isAdminPlus, isOwner, user]);
 
   const handleLogout = () => signOut(auth);
-
-  const xpForNextLevel = Math.max(1, Math.pow(profile?.level || 1, 2) * 100);
-  const currentLevelXp = Math.pow(Math.max(0, (profile?.level || 1) - 1), 2) * 100;
-  const progress = profile && xpForNextLevel > currentLevelXp 
-    ? Math.min(100, Math.max(0, (((profile.xp || 0) - currentLevelXp) / (xpForNextLevel - currentLevelXp)) * 100)) 
-    : 0;
-
-  const [easterEggs, setEasterEggs] = useState<any[]>([]);
-
-  React.useEffect(() => {
-    const handleEasterEgg = (e: any) => {
-      const id = Math.random().toString(36).substring(7);
-      setEasterEggs(prev => [...prev, { id, ...e.detail }]);
-      setTimeout(() => {
-        setEasterEggs(prev => prev.filter(egg => egg.id !== id));
-      }, 3000);
-    };
-    window.addEventListener('easter-egg-sparkle', handleEasterEgg);
-    return () => window.removeEventListener('easter-egg-sparkle', handleEasterEgg);
-  }, []);
 
   return (
     <div className={cn("min-h-screen transition-colors duration-500", isDark ? "dark bg-black text-white" : "bg-white text-black")}>
@@ -131,22 +106,7 @@ export default function StudentApp() {
             Domain {window.location.hostname} is not authorized in Firebase. Features may not work.
           </motion.div>
         )}
-        {easterEggs.map(egg => (
-          <motion.div
-            key={egg.id}
-            initial={{ opacity: 0, scale: 0.5, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: -100 }}
-            exit={{ opacity: 0, scale: 1.5, y: -200 }}
-            className="fixed bottom-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none"
-          >
-            <div 
-              style={{ color: egg.color }}
-              className="text-6xl font-black italic uppercase tracking-tighter drop-shadow-2xl whitespace-nowrap"
-            >
-              {egg.message}
-            </div>
-          </motion.div>
-        ))}
+
       </AnimatePresence>
       <div className="flex flex-col min-h-screen">
         {location.pathname !== '/auth' && (
@@ -172,42 +132,10 @@ export default function StudentApp() {
                   </div>
                 </div>
 
-                <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full ml-2 lg:ml-4">
-                  <Shield size={10} className="text-green-500" />
-                  <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">Secure Connection</span>
-                </div>
 
-              {user && (
-                <div className="hidden lg:flex items-center gap-4 pl-4 lg:pl-8 border-l border-black/10 dark:border-white/10">
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
-                          {profile?.email === OWNER_EMAIL ? 'Owner' : profile?.rank || 'Basic'}
-                        </span>
-                        <span className="text-[8px] font-bold text-black dark:text-white uppercase tracking-widest">
-                          Level {profile?.level || 1}
-                        </span>
-                      </div>
-                      <div className="flex gap-0.5">
-                        {[...Array(5)].map((_, i) => (
-                          <div key={i} className={cn("w-1 h-1 rounded-full", i < (profile?.streak % 5 || 0) ? "bg-black dark:bg-white" : "bg-black/10 dark:bg-white/10")} />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="w-32 h-1.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
-                        className="h-full bg-black dark:bg-white" 
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
-            <nav className="flex items-center gap-1 sm:gap-4 md:gap-8 overflow-x-auto no-scrollbar py-2">
+            <nav className="hidden md:flex items-center gap-1 sm:gap-4 md:gap-8 overflow-x-auto no-scrollbar py-2">
               {navItems.map((item) => {
                 const isActive = item.path === '#profile' ? showProfilePopover : location.pathname === item.path;
                 
@@ -216,6 +144,8 @@ export default function StudentApp() {
                     <button 
                       key={item.path} 
                       onClick={() => setShowProfilePopover(!showProfilePopover)}
+                      aria-label="Account settings"
+                      aria-expanded={showProfilePopover}
                       className={cn(
                         "text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-widest transition-all px-2 py-1 rounded-lg whitespace-nowrap",
                         isActive 
@@ -251,7 +181,7 @@ export default function StudentApp() {
                 className="p-2.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-all active:scale-95 shrink-0"
                 title="Toggle Theme"
               >
-                {isDark ? <Sun size={24} strokeWidth={2.5} className="text-green-500" /> : <Moon size={24} strokeWidth={2.5} className="text-green-500" />}
+                {isDark ? <Sun size={24} strokeWidth={2.5} className="text-current" /> : <Moon size={24} strokeWidth={2.5} className="text-current" />}
               </button>
               
               {user ? (
@@ -259,6 +189,8 @@ export default function StudentApp() {
                   <div className="relative shrink-0">
                     <button 
                       onClick={() => setShowProfilePopover(!showProfilePopover)}
+                      aria-label="Account settings"
+                      aria-expanded={showProfilePopover}
                       className="relative cursor-pointer group block shrink-0"
                     >
                       <img 
@@ -434,21 +366,15 @@ export default function StudentApp() {
                   onClick={() => setShowBugReport(true)}
                   className="px-4 py-2 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-xl text-xs font-bold transition-all border border-black/10 dark:border-white/10"
                 >
-                  Bug Report
+                  Report a problem
                 </button>
-                <button 
-                  onClick={() => setShowSupport(true)}
-                  className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black hover:scale-105 rounded-xl text-xs font-bold transition-all shadow-lg"
-                >
-                  Donate
-                </button>
+
               </div>
-              <p className="text-sm opacity-50">© 2024 Eclipse AI. Your ultimate study companion.</p>
+              <p className="text-sm opacity-50">© {new Date().getFullYear()} Eclipse.</p>
             </div>
           </footer>
         )}
 
-        <SupportModal isOpen={showSupport} onClose={() => setShowSupport(false)} />
         <BugReportModal isOpen={showBugReport} onClose={() => setShowBugReport(false)} />
         <LimitReachedModal 
           isOpen={limitInfo.isOpen} 
@@ -503,6 +429,7 @@ export default function StudentApp() {
                         </Link>
                       );
                     })}
+                    <button onClick={() => { setShowProfilePopover(true); setIsMenuOpen(false); }} className="text-left">Account settings</button>
                     <div className="pt-6 mt-6 border-t border-black/10 dark:border-white/10">
                       <button 
                         onClick={() => { handleLogout(); setIsMenuOpen(false); }} 
@@ -514,13 +441,16 @@ export default function StudentApp() {
                     </div>
                   </>
                 ) : (
-                  <Link 
+                  <>
+                  <Link to="/subscription" onClick={() => setIsMenuOpen(false)}>Plans</Link>
+                  <Link
                     to="/auth" 
                     onClick={() => setIsMenuOpen(false)}
                     className="text-black dark:text-white"
                   >
                     Sign In
                   </Link>
+                  </>
                 )}
               </div>
             </motion.div>
