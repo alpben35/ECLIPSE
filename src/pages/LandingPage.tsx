@@ -61,6 +61,7 @@ export default function LandingPage() {
         </div>
         <p className="eclipse-price-note">Monthly subscription prices. Review the full plan details and payment terms before subscribing. <Link to="/subscription">Compare all plans →</Link></p>
       </section>
+      <p className="py-6 text-sm text-neutral-600 dark:text-neutral-300">Want to see a worked example first? <a className="underline underline-offset-4" href="/homework-help.html">Read our free maths, science and English guide →</a></p>
       <section className="eclipse-faq"><div><div className="eclipse-section-label">GOOD QUESTIONS</div><h2>A little clarity<br />before you start.</h2></div><div>
         <details><summary>Can I try Eclipse before paying?</summary><p>Yes. The free plan includes 15 AI prompts per day and access to all subjects. Create an account to start exploring.</p></details>
         <details><summary>Which paid plan should I choose?</summary><p>Serious offers 40 prompts per day for £15 per month. Premium offers 500 prompts per day for £40 per month, with advanced analytics and priority support. Choose the daily allowance that fits how you study.</p></details>
