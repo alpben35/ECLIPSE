@@ -38,3 +38,33 @@ button,input,select,textarea{font-family:inherit}
 #root footer p{font-size:12px;line-height:1.7}
 @media(max-width:767px){#root header>div{min-height:66px;gap:12px;padding-inline:16px}#root header nav{gap:2px}#root header nav :is(a,button){font-size:12px;padding:9px 8px}.eclipse-content h1{font-size:34px}.eclipse-content [class~='p-10']{padding:24px}.eclipse-content [class~='p-12']{padding:28px}.eclipse-content [class~='gap-12']{gap:28px}.eclipse-content>div>div:is([class~='space-y-12'],[class~='space-y-16'])>:not([hidden])~:not([hidden]){margin-block-start:28px}}
 @media(prefers-reduced-motion:reduce){#root *,#root *:before,#root *:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* Keep the site toggle, native controls and default document colours in sync. */
+html{color-scheme:light;background:#fff;color:#171717;--eclipse-field-hint:#616161}
+html.dark{color-scheme:dark;background:#0b0b0b;color:#f5f5f5;--eclipse-field-hint:#b8b8b8}
+body{background:inherit;color:inherit}
+#root :is(input,textarea)::placeholder{color:var(--eclipse-field-hint);opacity:1}
+#root :is(p,label,span)[class~='opacity-20'],#root :is(p,label,span)[class~='opacity-30']{opacity:.75}
+/* Subscription surfaces establish their own readable foregrounds. */
+.eclipse-plans{--plan-bg:#fafafa;--plan-ink:#171717;--plan-card:#fff;--plan-muted:#555;--plan-border:#d5d5d5;background:var(--plan-bg);color:var(--plan-ink)}
+.dark .eclipse-plans{--plan-bg:#101010;--plan-ink:#f5f5f5;--plan-card:#1b1b1b;--plan-muted:#bdbdbd;--plan-border:#494949}
+.eclipse-plans .eclipse-plan-card{--card-bg:#fff;--card-ink:#171717;background:var(--card-bg);color:var(--card-ink);border-color:var(--plan-border)}
+.dark .eclipse-plans .eclipse-plan-card{--card-bg:#1b1b1b;--card-ink:#f5f5f5}
+.eclipse-plans .eclipse-plan-card.is-featured{--card-bg:#171717;--card-ink:#fff}
+.dark .eclipse-plans .eclipse-plan-card.is-featured{--card-bg:#f5f5f5;--card-ink:#171717}
+.eclipse-plan-card .eclipse-feature-check{background:transparent}
+.eclipse-plan-card svg{color:inherit}
+.eclipse-plan-card .eclipse-plan-action{background:var(--card-ink);color:var(--card-bg)}
+.eclipse-plan-card .eclipse-plan-badge{background:var(--card-ink);color:var(--card-bg)}
+.eclipse-plans .eclipse-plan-status,.eclipse-plans .eclipse-plan-info{background:var(--plan-card);color:var(--plan-ink);border-color:var(--plan-border)}
+.eclipse-plan-status :is(p,span,svg),.eclipse-plan-info svg{color:inherit}
+.eclipse-plans .eclipse-plan-note{color:var(--plan-muted)}
+.eclipse-plans .eclipse-plan-back{background:var(--plan-card);color:var(--plan-ink);border:1px solid var(--plan-border)}
+.eclipse-plan-status button{background:var(--plan-ink);color:var(--plan-bg)}
+.eclipse-plans .eclipse-bank-details{background:var(--plan-bg);color:var(--plan-ink);border-color:var(--plan-border)}
+.eclipse-plans h1 span{color:inherit}
+.eclipse-plan-card[class~='ring-4']{outline:2px solid var(--card-ink);outline-offset:3px;box-shadow:none}
+.eclipse-plan-card .eclipse-plan-action:disabled{opacity:.75}
+/* Text status colours must remain readable on the current canvas. */
+#root .text-red-500{color:#b91c1c}#root .text-green-500{color:#15803d}#root .text-blue-500{color:#1d4ed8}
+.dark #root .text-red-500{color:#fca5a5}.dark #root .text-green-500{color:#86efac}.dark #root .text-blue-500{color:#93c5fd}

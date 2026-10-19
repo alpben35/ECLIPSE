@@ -214,7 +214,7 @@ export default function SubscriptionPage() {
   };
 
   return (
-    <div className={cn("min-h-screen transition-colors duration-500", themeClasses.bg, themeClasses.text)}>
+    <div className={cn("eclipse-plans min-h-screen transition-colors duration-500", themeClasses.bg, themeClasses.text)}>
       <AnimatePresence>
         {redirecting && (
           <motion.div 
@@ -250,7 +250,7 @@ export default function SubscriptionPage() {
           animate={{ opacity: 1, y: 0 }}
           className={cn(
             "fixed top-12 left-1/2 -translate-x-1/2 z-[60] px-8 py-4 rounded-full font-bold shadow-2xl border flex items-center gap-4 min-w-[320px] justify-center",
-            statusMessage.type === 'success' ? "bg-green-500 text-white border-green-400" : "bg-red-500 text-white border-red-400"
+            statusMessage.type === 'success' ? "bg-green-800 text-white border-green-700" : "bg-red-800 text-white border-red-700"
           )}
         >
           {statusMessage.type === 'success' ? <Check size={20} /> : <Zap size={20} />}
@@ -265,7 +265,7 @@ export default function SubscriptionPage() {
             <button 
               onClick={() => window.history.back()}
               className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all mb-8",
+                "eclipse-plan-back flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all mb-8",
                 isTeacherPortal ? "bg-gold/10 hover:bg-gold/20" : "bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10"
               )}
             >
@@ -281,7 +281,7 @@ export default function SubscriptionPage() {
           </div>
 
           {profile && (
-            <div className={cn("p-8 rounded-[2rem] border flex flex-col items-center text-center min-w-[240px]", themeClasses.card)}>
+            <div className={cn("eclipse-plan-status p-8 rounded-[2rem] border flex flex-col items-center text-center min-w-[240px]", themeClasses.card)}>
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-2">Your plan</p>
               <div className="flex items-center gap-3 mb-1">
                 <Crown size={24} className={themeClasses.icon} />
@@ -333,7 +333,8 @@ export default function SubscriptionPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + index * 0.1 }}
                 className={cn(
-                  "relative p-8 rounded-[3rem] border flex flex-col h-full transition-all duration-500",
+                  "eclipse-plan-card relative p-8 rounded-[3rem] border flex flex-col h-full transition-all duration-500",
+                  tier.highlight && "is-featured",
                   tier.highlight 
                     ? themeClasses.cardHighlight
                     : themeClasses.card,
@@ -342,7 +343,7 @@ export default function SubscriptionPage() {
               >
                 {tier.highlight && (
                   <div className={cn(
-                    "absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full",
+                    "eclipse-plan-badge absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full",
                     themeClasses.badge
                   )}>
                     For deeper study
@@ -366,7 +367,7 @@ export default function SubscriptionPage() {
                   {tier.features.map((feature, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <div className={cn(
-                        "mt-1 p-0.5 rounded-full",
+                        "eclipse-feature-check mt-1 p-0.5 rounded-full",
                         tier.highlight ? (isTeacherPortal ? "bg-royal-red/20" : "bg-black dark:bg-white") : (isTeacherPortal ? "bg-gold/20" : "bg-black/10 dark:bg-white/10")
                       )}>
                         <Check size={12} className={tier.highlight ? (isTeacherPortal ? "text-royal-red" : "text-white") : (isTeacherPortal ? "text-gold" : "text-neutral-300")} />
@@ -383,7 +384,7 @@ export default function SubscriptionPage() {
                   }}
                   disabled={isCurrent || isLegacy || loading}
                   className={cn(
-                    "w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all",
+                    "eclipse-plan-action w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all",
                     (isCurrent || isLegacy)
                       ? (isTeacherPortal ? "bg-gold/10 cursor-default opacity-50" : "bg-black/10 dark:bg-white/10 cursor-default opacity-50")
                       : tier.highlight
@@ -408,21 +409,21 @@ export default function SubscriptionPage() {
           })}
         </div>
 
-        <p className="text-center text-sm text-white/60 leading-relaxed mb-12">Paid plans are monthly subscriptions. Check your selected plan and recurring payment terms at checkout. Already subscribed? Use Manage Billing above.</p>
+        <p className="eclipse-plan-note text-center text-sm text-white/60 leading-relaxed mb-12">Paid plans are monthly subscriptions. Check your selected plan and recurring payment terms at checkout. Already subscribed? Use Manage Billing above.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className={cn("p-8 rounded-3xl border", themeClasses.card)}>
+          <div className={cn("eclipse-plan-info p-8 rounded-3xl border", themeClasses.card)}>
             <ShieldCheck size={25} className="mb-5 text-neutral-300" />
             <h3 className="text-xl font-semibold mb-3">Choose with confidence.</h3>
             <p className="text-sm opacity-70 leading-relaxed">Sign in, select a paid plan, and continue to Stripe checkout to review the subscription and payment details before purchasing.</p>
           </div>
-          <div className={cn("p-8 rounded-3xl border", themeClasses.card)}>
+          <div className={cn("eclipse-plan-info p-8 rounded-3xl border", themeClasses.card)}>
             <SettingsIcon size={25} className="mb-5 text-neutral-300" />
             <h3 className="text-xl font-semibold mb-3">Your subscription, in view.</h3>
             <p className="text-sm opacity-70 leading-relaxed">Already on a paid plan? Use Manage Billing above for your billing portal. For subscription assistance, contact support@eclipseapp.co.uk.</p>
           </div>
 
           {settings?.bankAccount && !settings.bankAccount.startsWith('acct_') && (
-            <div className={cn("p-8 rounded-[3rem] border border-white/10 bg-white/5", themeClasses.text)}>
+            <div className={cn("eclipse-plan-info p-8 rounded-[3rem] border border-white/10 bg-white/5", themeClasses.text)}>
               <div className="flex items-center gap-4 mb-6">
                 <div className="p-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl">
                   <Building2 size={24} />
@@ -433,7 +434,7 @@ export default function SubscriptionPage() {
                 </div>
               </div>
               
-              <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-black/10 dark:border-white/10 mb-4">
+              <div className="eclipse-bank-details bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-black/10 dark:border-white/10 mb-4">
                 <p className="text-xs opacity-50 mb-1 uppercase tracking-widest font-bold">Account Details</p>
                 <p className="font-mono text-sm break-all">{settings.bankAccount}</p>
               </div>
