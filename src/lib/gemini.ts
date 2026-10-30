@@ -1,3 +1,13 @@
+import { auth } from './firebase';
+import { authenticatedTutorFetch, readTutorStream } from './tutorTransport';
+
+async function tutorFetch(url: string, init: RequestInit) {
+  await auth.authStateReady();
+  const user = auth.currentUser;
+  if (!user) throw new Error('Please sign in again to use the tutor.');
+  return authenticatedTutorFetch(url, init, forceRefresh => user.getIdToken(forceRefresh));
+}
+
 export async function askTutor(
   prompt: string, 
   mode: 'teach' | 'solve' | 'revise' | 'question' | 'test' | 'assignment', 
@@ -15,7 +25,7 @@ export async function askTutor(
       mimeType: String(imageData.mimeType || "")
     } : undefined;
 
-    const response = await fetch('/api/tutor/ask', {
+    const response = await tutorFetch('/api/tutor/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -34,12 +44,9 @@ export async function askTutor(
 
     if (!response.ok) {
       const text = await response.text();
-      try {
-        const err = JSON.parse(text);
-        throw new Error(err.error || "Tutor error");
-      } catch (e) {
-        throw new Error(text || "Tutor error");
-      }
+      let message = text || 'Tutor error';
+      try { message = JSON.parse(text).error || message; } catch { /* Non-JSON response. */ }
+      throw new Error(message);
     }
 
     const data = await response.json();
@@ -72,7 +79,7 @@ export async function askTutorStream(
       mimeType: String(imageData.mimeType || "")
     } : undefined;
 
-    const response = await fetch('/api/tutor/ask-stream', {
+    const response = await tutorFetch('/api/tutor/ask-stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -119,37 +126,8 @@ export async function askTutorStream(
       throw new Error(errorMessage || "SSE error");
     }
 
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error("Stream not supported");
+    await readTutorStream(response, onChunk);
 
-    const decoder = new TextDecoder();
-    let partialLine = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = (partialLine + chunk).split("\n");
-      partialLine = lines.pop() || "";
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith("data: ")) {
-          const dataStr = trimmed.replace("data: ", "").trim();
-          if (dataStr === "[DONE]") return;
-          try {
-            const parsed = JSON.parse(dataStr);
-            if (parsed.text) {
-              onChunk(parsed.text);
-            }
-            if (parsed.error) throw new Error(parsed.error);
-          } catch (e) {
-            // Partial JSON segment - should not happen with full lines but safety first
-          }
-        }
-      }
-    }
   } catch (error: any) {
     console.error("Streaming error:", error);
     throw error;
@@ -162,7 +140,7 @@ export async function summarizeChat(messages: { role: string, content: string }[
       role: m.role,
       content: String(m.content || "")
     }));
-    const response = await fetch('/api/tutor/summarize', {
+    const response = await tutorFetch('/api/tutor/summarize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: sanitizedMessages })
@@ -200,7 +178,7 @@ export const analyzeStudyPaper = async (imageUrl: string, subject: string): Prom
       reader.onloadend = async () => {
         try {
           const base64Data = (reader.result as string).split(',')[1];
-          const response = await fetch('/api/tutor/analyze-paper', {
+          const response = await tutorFetch('/api/tutor/analyze-paper', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ base64Data, mimeType: blob.type, subject })
