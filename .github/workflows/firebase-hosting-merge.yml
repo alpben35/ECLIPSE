@@ -18,10 +18,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install && npm run build
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm install && npm run lint && npm run test:transport && npm run test:agents && npm run test:security && npm run build
+      - name: Authenticate Firebase deployment
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0438904042 }}
+      - name: Deploy student data rules
+        run: npx firebase-tools deploy --only firestore:rules,storage --project gen-lang-client-0438904042 --non-interactive
+      - name: Install isolated agent service dependencies
+        run: npm install --prefix backend/functions
+      - name: Deploy isolated administrator audit service
+        run: npx firebase-tools deploy --only functions:projectAgents --project gen-lang-client-0438904042 --non-interactive
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0438904042 }}
           channelId: live
           projectId: gen-lang-client-0438904042
+

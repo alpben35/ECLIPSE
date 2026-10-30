@@ -1,3 +1,4 @@
+import AdminAgentHub from '../components/AdminAgentHub';
 import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'motion/react';
 import { Search, Trash2, Shield, User as UserIcon, Loader2, ArrowUp, ArrowDown, Ban, UserPlus, UserMinus, Bug, Settings, Sparkles, X, Mail, CheckCircle, Globe, ChevronRight } from 'lucide-react';
@@ -49,7 +50,7 @@ interface BugReport {
 }
 
 export default function AdminPage() {
-  const { user: currentUser, profile } = useContext(AuthContext);
+  const { user: currentUser, profile, isOwner: verifiedOwner, isAdmin: verifiedAdmin } = useContext(AuthContext);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [bugs, setBugs] = useState<BugReport[]>([]);
@@ -170,7 +171,7 @@ export default function AdminPage() {
       return;
     }
 
-    const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
+    const isOwner = verifiedOwner;
     if (!isOwner && profile?.rank !== 'Temporary Owner') {
       alert("Only owners can delete accounts.");
       return;
@@ -194,8 +195,8 @@ export default function AdminPage() {
       return;
     }
 
-    const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
-    const isTempOwner = profile?.rank === 'Temporary Owner';
+    const isOwner = verifiedOwner;
+    const isTempOwner = false;
     
     if (!isOwner && !isTempOwner) return;
 
@@ -245,7 +246,7 @@ export default function AdminPage() {
       return;
     }
 
-    const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
+    const isOwner = verifiedOwner;
     if (!isOwner && profile?.rank !== 'Temporary Owner') return;
 
     try {
@@ -260,7 +261,7 @@ export default function AdminPage() {
   const handleToggleTempOwner = async (userId: string, userEmail: string, currentRank: string) => {
     if (userEmail === OWNER_EMAIL) return;
     
-    const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
+    const isOwner = verifiedOwner;
     if (!isOwner) {
       alert("Only the primary owner can assign temporary owners.");
       return;
@@ -352,21 +353,22 @@ export default function AdminPage() {
     u.displayName?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
-  const isTempOwner = profile?.rank === 'Temporary Owner';
+  const isOwner = verifiedOwner;
+  const isTempOwner = false;
 
-  if (!isOwner && !isTempOwner) {
+  if (!verifiedAdmin) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
         <Shield className="text-red-500 opacity-20" size={64} />
         <h2 className="text-2xl font-bold">Access Denied</h2>
-        <p className="opacity-50">Only the system owners can access the Admin Console.</p>
+        <p className="opacity-50">A verified administrator account is required.</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 space-y-8">
+      <AdminAgentHub />
       <style>{`
         .admin-page {
           cursor: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iYmxhY2siLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxMCIgZmlsbD0id2hpdGUiIGZpbGwtb3BhY2l0eT0iMC44Ii8+PC9zdmc+'), auto;

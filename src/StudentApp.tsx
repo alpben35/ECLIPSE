@@ -1,3 +1,5 @@
+import SearchMetadata from './components/SearchMetadata';
+import StudyCompanion from './components/StudyCompanion';
 import React, { useState, useContext } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -45,7 +47,7 @@ const DnsPage = lazyWithRetry(() => import('./pages/DnsPage'));
 
 export default function StudentApp() {
   const { isDark, toggleTheme } = useContext(ThemeContext);
-  const { user, profile } = useContext(AuthContext);
+  const { user, profile, isAdmin: verifiedAdmin, isOwner: verifiedOwner } = useContext(AuthContext);
   const connectivity = useConnectivity();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -70,14 +72,9 @@ export default function StudentApp() {
     return () => window.removeEventListener('prompt-limit-reached', handleLimitReached);
   }, []);
 
-  const isAdminPlus = profile?.email === OWNER_EMAIL || 
-                      user?.email === OWNER_EMAIL ||
-                      profile?.rank === 'Owner' || 
-                      profile?.rank === 'Temporary Owner' || 
-                      profile?.rank === 'Admin' ||
-                      user?.uid === 'GTk39aFMkFTSARasXr2F4XgdtMM2';
+  const isAdminPlus = verifiedAdmin;
 
-  const isOwner = profile?.email === OWNER_EMAIL || user?.email === OWNER_EMAIL || profile?.rank === 'Owner' || profile?.rank === 'Temporary Owner';
+  const isOwner = verifiedOwner;
 
   const navItems = React.useMemo(() => {
     const base = [
@@ -457,6 +454,8 @@ export default function StudentApp() {
           )}
         </AnimatePresence>
       </div>
+      <SearchMetadata />
+      <StudyCompanion />
     </div>
   );
 }

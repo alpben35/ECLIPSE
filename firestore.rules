@@ -12,16 +12,26 @@ service cloud.firestore {
     function existing() { return resource.data; }
     function isVerified() { return request.auth.token.email_verified == true; }
     
-    // Primary Admin check using a trusted source
-    function isAdmin() { 
+    // Never derive privileges from a profile that the user can edit.
+    function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'alp.ben@gmail.com' || 
-        request.auth.token.email.endsWith('@eclipseapp.co.uk') ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rank in ['Owner', 'Temporary Owner', 'Admin']
-        ))
+        request.auth.token.get('admin', false) == true ||
+        (request.auth.token.get('email_verified', false) == true &&
+          request.auth.token.get('email', '') == 'alp.ben@gmail.com') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
+    }
+    function safeSelfProfile(data) {
+      return data.get('uid', request.auth.uid) == request.auth.uid &&
+        data.get('email', request.auth.token.get('email', '')) == request.auth.token.get('email', '') &&
+        !(data.get('rank', 'Student') in ['Admin', 'Supreme Admin', 'Temporary Owner', 'Owner']) &&
+        data.get('tier', 'free') == 'free' &&
+        !data.keys().hasAny(['admin', 'isAdmin', 'banned', 'stripeCustomerId', 'subscriptionStatus']);
+    }
+    function safePublicProfile(data, userId) {
+      return data.keys().hasOnly(['uid', 'username', 'displayName', 'displayName_lowercase', 'photoURL', 'level', 'rank', 'xp']) &&
+        data.get('uid', userId) == userId &&
+        !(data.get('rank', 'Student') in ['Admin', 'Supreme Admin', 'Temporary Owner', 'Owner']);
     }
 
     // ===============================================================
@@ -39,7 +49,7 @@ service cloud.firestore {
     function isValidChatMessage(data) {
       return data.keys().hasAll(['role', 'content', 'timestamp']) &&
              data.role in ['user', 'ai'] &&
-             data.content is string && data.content.size() <= 10000 &&
+             data.content is string && data.content.size() <= 50000 &&
              data.timestamp is timestamp;
     }
 
@@ -105,22 +115,25 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /admins/{userId} { allow get: if isOwner(userId); allow list, write: if false; }
+
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isOwner(userId);
+      allow create: if (isOwner(userId) && safeSelfProfile(incoming())) || isAdmin();
       allow update: if (isOwner(userId) && (
         incoming().diff(existing()).affectedKeys().hasOnly([
-          'displayName', 'theme', 'xp', 'level', 'streak', 'lastActive', 
-          'rank', 'tier', 'promptsToday', 'lastPromptDate', 'imagesToday', 
+          'displayName', 'theme', 'xp', 'level', 'streak', 'lastActive', 'rank', 'createdAt', 'joinedAt', 
+          'promptsToday', 'lastPromptDate', 'imagesToday', 
           'lastImageDate', 'consents', 'username', 'loginDays', 'photoURL', 'phone', 'updatedAt'
-        ])
+        ]) && (!incoming().diff(existing()).affectedKeys().hasAny(['rank']) || !(incoming().rank in ['Admin', 'Supreme Admin', 'Temporary Owner', 'Owner']))
       )) || isAdmin();
 
       match /messages/{messageId} {
         allow read: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId);
-        allow update, delete: if isAdmin();
+        allow create: if isOwner(userId) && isValidChatMessage(incoming());
+        allow delete: if isOwner(userId) || isAdmin();
+        allow update: if isAdmin();
       }
       
       match /scores/{scoreId} {
@@ -143,7 +156,7 @@ service cloud.firestore {
     match /public_profiles/{userId} {
       allow read: if isSignedIn();
       allow list: if isSignedIn();
-      allow create, update: if isOwner(userId) || isAdmin();
+      allow create, update: if (isOwner(userId) && safePublicProfile(incoming(), userId)) || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -158,12 +171,18 @@ service cloud.firestore {
     }
 
     match /groups/{groupId} {
-      allow get: if isSignedIn() && (existing().get('isPrivate', false) == false || request.auth.uid in existing().members);
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
+      allow get, list: if isAdmin() || (isSignedIn() && (existing().get('isPrivate', true) == false || request.auth.uid in existing().members));
+      allow create: if isSignedIn() && incoming().createdBy == request.auth.uid &&
+        incoming().members == [request.auth.uid] && incoming().isPrivate is bool &&
+        incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 200;
       allow update: if isSignedIn() && (
-        request.auth.uid in existing().members || 
+        request.auth.uid == existing().createdBy || 
         isAdmin() ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['members']) &&
+          request.auth.uid in existing().members &&
+          !(request.auth.uid in incoming().members) &&
+          existing().members.hasAll(incoming().members) &&
+          incoming().members.size() == existing().members.size() - 1) ||
         (
           existing().get('isPrivate', false) == false && 
           incoming().diff(existing()).affectedKeys().hasOnly(['members']) &&
@@ -175,7 +194,7 @@ service cloud.firestore {
 
       match /messages/{messageId} {
         allow get, list: if isSignedIn() && (get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]));
-        allow create: if isSignedIn() && (get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]));
+        allow create: if isSignedIn() && incoming().senderId == request.auth.uid && (get(/databases/$(database)/documents/groups/$(groupId)).data.members.hasAny([request.auth.uid]));
       }
 
       match /assignments/{assignmentId} {
@@ -229,6 +248,12 @@ service cloud.firestore {
     }
 
     // ===============================================================
+    // Admin agents never read student content. Runs are written by the server.
+    match /agent_runs/{runId} { allow read: if isAdmin(); allow write: if false; }
+    match /agent_messages/{messageId} { allow read: if isAdmin(); allow write: if false; }
+    match /agent_tasks/{taskId} { allow read: if isAdmin(); allow write: if false; }
+    match /agent_limits/{userId} { allow read, write: if false; }
+
     // DEFAULT DENY (LAST RESORT)
     // ===============================================================
     match /{document=**} {

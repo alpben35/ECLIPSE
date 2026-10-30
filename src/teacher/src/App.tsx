@@ -79,7 +79,7 @@ export default function App() {
               const currentRankIndex = RANKS.findIndex(r => r.name === data.rank);
               const nextRank = RANKS.find((r, i) => i > currentRankIndex && newLoginDays >= r.minDays);
               if (nextRank && data.email !== OWNER_EMAIL) {
-                updates.rank = nextRank.name;
+                // Cosmetic progression never grants access privileges.
               }
             }
 

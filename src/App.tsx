@@ -1,3 +1,4 @@
+import { useAdminAccess } from './lib/adminAccess';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -58,6 +59,7 @@ import { useOnlineStatus } from './hooks/useOnlineStatus';
 export default function App() {
   const [isDark, setIsDark] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const access = useAdminAccess(user);
   const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -363,10 +365,7 @@ export default function App() {
     }
   }, [isDark, user]);
 
-  const isAdmin = (profile?.email === OWNER_EMAIL || user?.email === OWNER_EMAIL || user?.uid === 'GTk39aFMkFTSARasXr2F4XgdtMM2') || 
-                  profile?.rank === 'Owner' || 
-                  profile?.rank === 'Temporary Owner' || 
-                  profile?.rank === 'Admin';
+  const isAdmin = access.admin;
 
   const authContextValue = React.useMemo(() => ({ 
     user, 
@@ -374,9 +373,9 @@ export default function App() {
     loading, 
     addXp,
     maintenance,
-    isOwner: profile?.email === OWNER_EMAIL || profile?.rank === 'Owner',
+    isOwner: access.owner,
     isAdmin
-  }), [user, profile, loading, addXp, maintenance, isAdmin]);
+  }), [user, profile, loading, addXp, maintenance, isAdmin, access.owner, access.loading]);
 
   const themeContextValue = React.useMemo(() => ({ 
     isDark, 

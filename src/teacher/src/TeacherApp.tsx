@@ -43,7 +43,7 @@ const DnsPage = lazyWithRetry(() => import('@/pages/DnsPage'));
 
 export default function TeacherApp() {
   const { isDark, toggleTheme } = useContext(ThemeContext);
-  const { user, profile } = useContext(AuthContext);
+  const { user, profile, isAdmin: verifiedAdmin, isOwner: verifiedOwner } = useContext(AuthContext);
   const connectivity = useConnectivity();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -51,15 +51,10 @@ export default function TeacherApp() {
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showProfilePopover, setShowProfilePopover] = useState(false);
 
-  const isOwner = profile?.email === OWNER_EMAIL || user?.email === OWNER_EMAIL || profile?.rank === 'Owner' || profile?.rank === 'Temporary Owner';
-  const isTempOwner = profile?.rank === 'Temporary Owner';
+  const isOwner = verifiedOwner;
+  const isTempOwner = false;
 
-  const isAdminPlus = profile?.email === OWNER_EMAIL || 
-                      user?.email === OWNER_EMAIL ||
-                      profile?.rank === 'Owner' || 
-                      profile?.rank === 'Temporary Owner' || 
-                      profile?.rank === 'Admin' ||
-                      user?.uid === 'GTk39aFMkFTSARasXr2F4XgdtMM2';
+  const isAdminPlus = verifiedAdmin;
 
   const navItems = React.useMemo(() => {
     const base = [

@@ -42,7 +42,8 @@ export default function AuthPage() {
       setForgotStep('success');
     } catch (err: any) {
       if (err.code === 'auth/user-not-found') {
-        setError("No account found with this email.");
+        setResetSent(true);
+        setForgotStep('success');
       } else {
         setError(err.message);
       }
@@ -60,8 +61,8 @@ export default function AuthPage() {
         setError("Passwords do not match.");
         return;
       }
-      if (password.length < 6) {
-        setError("Password must be at least 6 characters.");
+      if (password.length < 12) {
+        setError("Use a password with at least 12 characters.");
         return;
       }
     }
@@ -78,8 +79,7 @@ export default function AuthPage() {
         // Create initial profile
         await setDoc(doc(db, 'users', uid), {
           uid,
-          email,
-          phoneNumber,
+          email: userCredential.user.email,
           username: usernameVal,
           displayName: name,
           rank: 'Student',
@@ -87,7 +87,7 @@ export default function AuthPage() {
           xp: 0,
           tier: 'free',
           joinedAt: new Date().toISOString()
-        });
+        }, { merge: true });
 
         // Initialize public profile
         await setDoc(doc(db, 'public_profiles', uid), {
@@ -160,7 +160,7 @@ export default function AuthPage() {
             Eclipse <span className="opacity-50">AI</span>
           </h1>
           <p className={cn("text-sm px-4 opacity-70", isDark ? "text-white" : "text-black")}>
-            Master your future with the most powerful AI tutor ever built. Sign in to continue your journey.
+            Ask questions, understand the steps and practise at your pace. Sign in to continue.
           </p>
         </div>
 
@@ -347,19 +347,7 @@ export default function AuthPage() {
                           )}
                         />
                       </div>
-                      <div className="relative">
-                        <Shield size={18} className={cn("absolute left-5 top-1/2 -translate-y-1/2", isDark ? "text-white/30" : "text-black/30")} />
-                        <input 
-                          type="tel"
-                          placeholder="Phone Number (Optional)"
-                          value={phoneNumber}
-                          onChange={e => setPhoneNumber(e.target.value)}
-                          className={cn(
-                            "w-full pl-12 pr-6 py-4 rounded-2xl focus:outline-none focus:ring-1 transition-all font-bold",
-                            isDark ? "bg-white/5 text-white focus:ring-white/20" : "bg-black/5 text-black focus:ring-black/20"
-                          )}
-                        />
-                      </div>
+
                     </>
                   )}
                   <div className="relative">

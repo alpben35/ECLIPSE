@@ -1,5 +1,15 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /auth
+Disallow: /admin
+Disallow: /tutor
+Disallow: /groups
+Disallow: /progress
+Disallow: /teacher/auth
+Disallow: /teacher/admin
+Disallow: /teacher/tutor
+Disallow: /teacher/groups
+Disallow: /teacher/progress
 
 Sitemap: https://eclipseapp.co.uk/sitemap.xml

@@ -4,7 +4,7 @@ import { AuthContext } from '../lib/contexts';
 import { OWNER_EMAIL } from '../constants';
 
 export function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
-  const { user, profile } = useContext(AuthContext);
+  const { user, loading, isAdmin } = useContext(AuthContext);
   const location = useLocation();
   
   if (!user) {
@@ -14,9 +14,7 @@ export function ProtectedRoute({ children, adminOnly = false }: { children: Reac
     return <Navigate to="/auth" />;
   }
   
-  const isOwner = profile?.email === OWNER_EMAIL || profile?.rank === 'Owner';
-  const isTempOwner = profile?.rank === 'Temporary Owner';
-  
-  if (adminOnly && !isOwner && !isTempOwner) return <Navigate to="/tutor" />;
+  if (loading) return <p role="status" className="p-8 text-center">Checking account access…</p>;
+  if (adminOnly && !isAdmin) return <Navigate to={location.pathname.startsWith('/teacher') ? '/teacher/tutor' : '/tutor'} />;
   return <>{children}</>;
 }
