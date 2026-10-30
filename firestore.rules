@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // ===============================================================
     // GLOBALS & HELPERS
     // ===============================================================
@@ -11,7 +11,7 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isVerified() { return request.auth.token.email_verified == true; }
-    
+
     // Never derive privileges from a profile that the user can edit.
     function isAdmin() {
       return isSignedIn() && (
@@ -123,8 +123,8 @@ service cloud.firestore {
       allow create: if (isOwner(userId) && safeSelfProfile(incoming())) || isAdmin();
       allow update: if (isOwner(userId) && (
         incoming().diff(existing()).affectedKeys().hasOnly([
-          'displayName', 'theme', 'xp', 'level', 'streak', 'lastActive', 'rank', 'createdAt', 'joinedAt', 
-          'promptsToday', 'lastPromptDate', 'imagesToday', 
+          'displayName', 'theme', 'xp', 'level', 'streak', 'lastActive', 'rank', 'createdAt', 'joinedAt',
+          'promptsToday', 'lastPromptDate', 'imagesToday',
           'lastImageDate', 'consents', 'username', 'loginDays', 'photoURL', 'phone', 'updatedAt'
         ]) && (!incoming().diff(existing()).affectedKeys().hasAny(['rank']) || !(incoming().rank in ['Admin', 'Supreme Admin', 'Temporary Owner', 'Owner']))
       )) || isAdmin();
@@ -135,13 +135,13 @@ service cloud.firestore {
         allow delete: if isOwner(userId) || isAdmin();
         allow update: if isAdmin();
       }
-      
+
       match /scores/{scoreId} {
         allow read: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId);
         allow delete: if isOwner(userId) || isAdmin();
       }
-      
+
       match /papers/{paperId} {
         allow read: if isOwner(userId) || isAdmin();
         allow write: if isOwner(userId) || isAdmin();
@@ -176,7 +176,7 @@ service cloud.firestore {
         incoming().members == [request.auth.uid] && incoming().isPrivate is bool &&
         incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 200;
       allow update: if isSignedIn() && (
-        request.auth.uid == existing().createdBy || 
+        request.auth.uid == existing().createdBy ||
         isAdmin() ||
         (incoming().diff(existing()).affectedKeys().hasOnly(['members']) &&
           request.auth.uid in existing().members &&
@@ -184,7 +184,7 @@ service cloud.firestore {
           existing().members.hasAll(incoming().members) &&
           incoming().members.size() == existing().members.size() - 1) ||
         (
-          existing().get('isPrivate', false) == false && 
+          existing().get('isPrivate', false) == false &&
           incoming().diff(existing()).affectedKeys().hasOnly(['members']) &&
           incoming().members.hasAll(existing().members) &&
           incoming().members.size() == existing().members.size() + 1 &&
@@ -221,7 +221,7 @@ service cloud.firestore {
 
     match /audit_logs/{logId} {
       allow get, list: if isAdmin();
-      allow create: if isSignedIn(); 
+      allow create: if isSignedIn();
     }
 
     match /bugs/{bugId} {

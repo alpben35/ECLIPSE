@@ -21,3 +21,9 @@ Security tests use demo-only Firebase emulators, never production student record
 A signed-in owner must verify the production admin view and a real tutor conversation. Test Stripe in test mode before processing money. Review existing administrator assignments, existing shared download links, retention, account deletion, and the privacy/age-consent process before describing the service as fully audited or compliant. Files already shared using Firebase download-token URLs can remain reachable by anyone possessing those URLs until their tokens are revoked; tighter SDK rules do not revoke old URLs.
 
 Higgsfield artwork was attempted but rejected because the account requires a Basic plan or higher. The current companions are original CSS illustrations with optional tips, pause controls and reduced-motion support. No paid plan was purchased.
+
+## Dependency and deployment follow-up
+
+The browser project's lockfile was refreshed with patched Capacitor 6.2.3 platform packages, Express 4.22.3, proxy-addr 2.0.8 and websocket-driver 0.7.5. Firebase and native build CLIs are development tooling. Other advisory findings require further review; this is not a clean penetration-test certificate. The production Firebase function has its own dependency manifest.
+
+Storage deployments target the configured bucket explicitly, avoiding unnecessary default-bucket discovery privileges. No IAM grants are performed by the workflow. If the service account lacks actual rules or Functions deployment rights, deployment must stop and an owner must provide appropriately scoped access.
