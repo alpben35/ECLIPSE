@@ -3,7 +3,7 @@ const admin=require('firebase-admin');
 const {getFirestore}=require('firebase-admin/firestore');
 const {runChecks,PROJECTS}=require('./project-checks.cjs');
 const {BOTS,botById,proposalStatus,mayApproveFinancial}=require('./bot-team.cjs');
-exports.projectAgents=onRequest({region:'us-central1',memory:'256MiB',timeoutSeconds:90,maxInstances:2,cors:['https://eclipseapp.co.uk','https://www.eclipseapp.co.uk']},async(req,res)=>{
+exports.projectAgents=onRequest({region:'us-central1',memory:'256MiB',timeoutSeconds:90,maxInstances:2,concurrency:4,cors:['https://eclipseapp.co.uk','https://www.eclipseapp.co.uk']},async(req,res)=>{
  res.set('Cache-Control','no-store');
  try{
   if(!admin.apps.length)admin.initializeApp();

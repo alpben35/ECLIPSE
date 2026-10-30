@@ -28,3 +28,5 @@
 @keyframes companion-wave { 0%,85%,100%{transform:rotate(-30deg)} 90%{transform:rotate(-50deg)} 95%{transform:rotate(-20deg)} }
 @media(prefers-reduced-motion:reduce) { .study-companion *, .study-companion *:before { animation:none!important; } }
 @media(max-width:640px) { .study-companion { right:10px; bottom:max(12px,env(safe-area-inset-bottom)); } .companion-toggle { width:58px;height:65px; }.companion-robot { transform:scale(.88); } }
+
+@media(max-width:640px){.study-companion.companion-tutor{bottom:110px}}

@@ -7,6 +7,7 @@ export default function StudyCompanion({ variant = 'eclipse' }: Props) {
   const [tip, setTip] = useState(0);
   const [paused, setPaused] = useState(false);
   const food = variant === 'dionysus';
+  const tutor = typeof window !== 'undefined' && window.location.pathname.includes('/tutor');
   const tips = food ? [
     'Looking for a dish? Search the sample menu, then narrow it down by category.',
     'Your bag keeps your choices together. You can change quantities before trying a demo order.',
@@ -18,7 +19,7 @@ export default function StudyCompanion({ variant = 'eclipse' }: Props) {
     'Try explaining the idea in your own words, then ask Eclipse for a practice question.',
   ];
   const label = food ? 'Kitchen tips' : 'Study tips';
-  return <aside className={`study-companion ${food ? 'companion-food' : ''} ${paused ? 'companion-paused' : ''}`} aria-label={label}>
+  return <aside className={`study-companion ${food ? 'companion-food' : ''} ${paused ? 'companion-paused' : ''} ${tutor ? 'companion-tutor' : ''}`} aria-label={label}>
     {open && <section id={`companion-${variant}-tips`} className="companion-bubble" aria-label={label}>
       <header><strong>{label}</strong><button type="button" onClick={() => setOpen(false)} aria-label="Close tips">×</button></header>
       <p>{tips[tip]}</p>

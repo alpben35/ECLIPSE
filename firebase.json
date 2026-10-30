@@ -3,9 +3,12 @@
     "database": "ai-studio-2a66ed90-2fcf-4fc3-abef-a32720185065",
     "rules": "firestore.rules"
   },
-  "storage": {
-    "rules": "storage.rules"
-  },
+  "storage": [
+    {
+      "bucket": "gen-lang-client-0438904042.firebasestorage.app",
+      "rules": "storage.rules"
+    }
+  ],
   "functions": {
     "source": "backend/functions"
   },
