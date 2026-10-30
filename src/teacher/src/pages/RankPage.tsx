@@ -30,41 +30,7 @@ export default function RankPage() {
   const userRank = profile?.email === OWNER_EMAIL ? 'Owner' : profile?.rank || 'Welcome';
 
   const handlePurchase = async () => {
-    if (!user || !profile || !selectedRank) return;
-
-    setIsProcessing(true);
-    try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        rank: selectedRank.name
-      });
-      
-      const duration = 5 * 1000;
-      const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 200, colors: ['#7B0000', '#FFD700'] };
-
-      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-      const interval: any = setInterval(function() {
-        const timeLeft = animationEnd - Date.now();
-
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
-        }
-
-        const particleCount = 50 * (timeLeft / duration);
-        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
-        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
-      }, 250);
-
-      setShowSuccess(true);
-      setTimeout(() => {
-        window.location.reload();
-      }, 4000);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
-    } finally {
-      setIsProcessing(false);
-    }
+    window.location.assign('/subscription');
   };
 
   const calculatePrice = (targetIndex: number) => {
@@ -99,12 +65,12 @@ export default function RankPage() {
         <h1 className={cn("text-6xl font-black tracking-tighter italic", isDark ? "" : "text-royal-red")}>TEACHER ASCENSION</h1>
         <p className={cn("opacity-50 max-w-xl mx-auto text-lg leading-relaxed", isDark ? "" : "text-black")}>
           The hierarchy of Eclipse Teacher is built on professional excellence. 
-          Ascend to unlock deeper levels of authority and influence in the classroom.
+          Administrative access is assigned separately and cannot be purchased.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {RANKS.filter(r => r.name !== 'Temporary Owner' && r.name !== 'Owner').map((rank, index) => {
+        {RANKS.filter(r => !['Admin', 'Supreme Admin', 'Temporary Owner', 'Owner'].includes(r.name)).map((rank, index) => {
           const isCurrent = rank.name === profile?.rank;
           const isLocked = index < currentRankIndex;
           const isAvailable = index > currentRankIndex;

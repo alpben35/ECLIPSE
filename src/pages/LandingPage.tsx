@@ -27,9 +27,10 @@ export default function LandingPage() {
 
   return (
     <div className="eclipse-marketing">
+      <nav aria-label="Eclipse resources" style={{display:'flex',justifyContent:'flex-end',gap:20,fontSize:12,paddingBottom:16}}><a href="/about-eclipse.html">About Eclipse</a><a href="/homework-help.html">Homework help guide</a></nav>
       <section className="eclipse-hero" aria-labelledby="eclipse-hero-title">
         <div className="eclipse-hero-copy">
-          <p className="eclipse-eyebrow"><span aria-hidden="true" /> YOUR AI STUDY COMPANION</p>
+          <p className="eclipse-eyebrow"><span aria-hidden="true" /> ECLIPSE · YOUR AI STUDY COMPANION</p>
           <h1 id="eclipse-hero-title">Homework help.<br /><span>That makes sense.</span></h1>
           <p className="eclipse-hero-intro">A tricky question doesn’t have to end your study session. Explore clear explanations, work through problems and practise with Eclipse.</p>
           <div className="eclipse-hero-actions">

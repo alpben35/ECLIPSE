@@ -104,7 +104,7 @@ export default function AuthPage() {
           microphone: consentMic,
           camera: consentCam
         }
-      });
+      }, { merge: true });
 
       // Create public profile
       await setDoc(doc(db, 'public_profiles', user.uid), {

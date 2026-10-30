@@ -1,8 +1,23 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+    function owner(userId) { return request.auth != null && request.auth.uid == userId; }
+    function safeUpload() {
+      return request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('(image/(jpeg|png|webp|gif)|application/pdf|audio/(webm|ogg|mp4|mpeg|wav))');
     }
+    function groupMember(groupId) {
+      return request.auth != null &&
+        request.auth.uid in firestore.get(/databases/ai-studio-2a66ed90-2fcf-4fc3-abef-a32720185065/documents/groups/$(groupId)).data.members;
+    }
+    match /users/{userId}/{path=**} {
+      allow read, delete: if owner(userId);
+      allow create, update: if owner(userId) && safeUpload();
+    }
+    match /groups/{groupId}/{path=**} {
+      allow read: if groupMember(groupId);
+      allow create, update: if groupMember(groupId) && safeUpload();
+    }
+    match /{path=**} { allow read, write: if false; }
   }
 }

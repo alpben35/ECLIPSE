@@ -12,7 +12,10 @@
     "deploy-apphosting": "npm run build && npx firebase-tools apphosting:rollouts:create backend-id --non-interactive",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:transport": "node --import tsx --test src/lib/tutorTransport.test.ts",
+    "test:agents": "node --test tests/project-checks.test.cjs",
+    "test:security": "firebase emulators:exec --only firestore,storage --project demo-eclipse --config firebase.test.json \"node tests/security.test.mjs\""
   },
   "engines": {
     "node": "22"
@@ -77,5 +80,8 @@
     "@capacitor/cli": "^6.0.0",
     "@capacitor/android": "^6.0.0",
     "@capacitor/ios": "^6.0.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4"
   }
 }

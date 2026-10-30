@@ -39,3 +39,6 @@ exports.api = onRequest({
     });
   }
 });
+
+// Isolated admin audit service. Deploy separately from the existing tutor API.
+exports.projectAgents = require('./project-agents.cjs').projectAgents;

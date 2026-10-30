@@ -128,11 +128,11 @@ export default function SubscriptionPage() {
         userEmail: user.email || profile?.email
       };
       
-      console.log(`[Shop] Sending request to /api/create-checkout-session`, payload);
+      // Identity is authenticated server-side; do not log customer details.
 
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user.getIdToken()}` },
         body: JSON.stringify(payload)
       });
 
@@ -176,7 +176,7 @@ export default function SubscriptionPage() {
       setLoading(true);
       const response = await fetch('/api/create-portal-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user.getIdToken()}` },
         body: JSON.stringify({ customerId: profile.stripeCustomerId })
       });
 
@@ -317,7 +317,7 @@ export default function SubscriptionPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-20 max-w-7xl mx-auto">
-          {TIERS.map((tier, index) => {
+          {TIERS.filter(tier => tier.id !== 'admin').map((tier, index) => {
             const tierOrder = ['free', 'serious', 'premium', 'admin'];
             const userTierIndex = (profile?.tier === 'admin' || profile?.rank === 'Owner' || profile?.rank === 'Admin' || profile?.rank === 'Temporary Owner') 
               ? 3 
