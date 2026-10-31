@@ -33,6 +33,7 @@ function lazyWithRetry(importFunc: () => Promise<any>) {
   );
 }
 
+const EclipseAgentPage = lazyWithRetry(() => import('./pages/EclipseAgentPage'));
 const TutorPage = lazyWithRetry(() => import('./pages/TutorPage'));
 const ProgressPage = lazyWithRetry(() => import('./pages/ProgressPage'));
 const LandingPage = lazyWithRetry(() => import('./pages/LandingPage'));
@@ -79,6 +80,7 @@ export default function StudentApp() {
   const navItems = React.useMemo(() => {
     const base = [
       { name: 'Tutor', path: '/tutor', icon: MessageSquare },
+      { name: 'Agent', path: '/agent', icon: Wand2 },
       { name: 'Groups', path: '/groups', icon: Users },
       { name: 'Progress', path: '/progress', icon: BarChart2 },
       { name: 'Plans', path: '/subscription', icon: Zap },
@@ -338,6 +340,7 @@ export default function StudentApp() {
               }>
                 <Routes>
                   <Route path="/" element={user ? <Navigate to="/tutor" /> : <LandingPage />} />
+                  <Route path="/agent" element={<ProtectedRoute><EclipseAgentPage /></ProtectedRoute>} />
                   <Route path="/tutor" element={<ProtectedRoute><TutorPage /></ProtectedRoute>} />
                   <Route path="/groups" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
                   <Route path="/groups/:groupId" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />

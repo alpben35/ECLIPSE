@@ -21,6 +21,10 @@
     ],
     "rewrites": [
       {
+        "source": "/api/eclipse-agent",
+        "function": "eclipseAgent"
+      },
+      {
         "source": "/api/admin/agents",
         "function": "projectAgents"
       },

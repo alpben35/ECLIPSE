@@ -15,7 +15,8 @@
     "lint": "tsc --noEmit",
     "test:transport": "node --import tsx --test src/lib/tutorTransport.test.ts",
     "test:agents": "node --test tests/project-checks.test.cjs",
-    "test:security": "firebase emulators:exec --only firestore,storage --project demo-eclipse --config firebase.test.json \"node tests/security.test.mjs\""
+    "test:security": "firebase emulators:exec --only firestore,storage --project demo-eclipse --config firebase.test.json \"node tests/security.test.mjs\"",
+    "test:eclipse-agent": "node --test tests/eclipse-agent.test.cjs"
   },
   "engines": {
     "node": "22"
