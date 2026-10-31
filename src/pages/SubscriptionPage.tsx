@@ -409,6 +409,13 @@ export default function SubscriptionPage() {
           })}
         </div>
 
+        <section className="mb-8 rounded-3xl border border-black/15 dark:border-white/15 p-6 text-black dark:text-white" aria-label="Eclipse Agent preview">
+          <h2 className="text-xl font-semibold mb-2">Meet Eclipse Agent</h2>
+          <p className="text-sm leading-relaxed opacity-80">Study explanations, practice, revision planning and drafts. Planned for every paid plan, including existing paid Admin subscriptions. The preview is awaiting activation and is not currently a live subscription benefit.</p>
+          <p className="text-sm leading-relaxed opacity-80 mt-3">Proposed separate agent allowance: Serious 10 requests/day; Premium and legacy paid Admin 25/day, resetting at midnight UTC. Service capacity limits also apply. A started request uses an allowance even if generation fails. No continuous background runs, third-party account access or guaranteed task completion.</p>
+          <button type="button" onClick={() => navigate('/agent')} className="mt-4 underline underline-offset-4 font-semibold">Explore the agent preview</button>
+        </section>
+
         <p className="eclipse-plan-note text-center text-sm text-white/60 leading-relaxed mb-12">Paid plans are monthly subscriptions. Check your selected plan and recurring payment terms at checkout. Already subscribed? Use Manage Billing above.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className={cn("eclipse-plan-info p-8 rounded-3xl border", themeClasses.card)}>
