@@ -89,7 +89,7 @@ export default function EclipseAgentPage() {
       {memoryNotice&&<p role="status">{memoryNotice}</p>}
     </aside>
     <section className="ea-chat" aria-label="Agent conversation"><div role="log" aria-live="polite" aria-relevant="additions">{messages.length===0?<div className="ea-welcome"><h2>What are we working on?</h2><p>Paste a question, describe a goal, or start with one of the ideas above.</p></div>:messages.map((m,i)=><article key={i} className={`ea-message ea-${m.role}`}><strong>{m.role==='user'?'You':'Eclipse'}</strong><ReactMarkdown>{m.text}</ReactMarkdown></article>)}</div>
-      {busy&&<p role="status"><LoaderCircle size={16}/> Working on your next step…</p>}
+      {busy&&<p role="status" className="ea-working"><span className="ea-thinking-dots" aria-hidden="true"><i/><i/><i/></span> Processing your request…</p>}
       {error&&<p className="ea-error" role="alert">{error} <Link to="/subscription">View plans</Link></p>}
       <form onSubmit={send}><label htmlFor="agent-task">Your task</label><textarea id="agent-task" ref={composer} maxLength={4000} rows={3} value={prompt} disabled={busy} onChange={e=>setPrompt(e.target.value)} placeholder="For example: explain simultaneous equations, then let me try one."/><div className="ea-compose-footer"><span>{prompt.length}/4,000</span><button type="submit" disabled={busy||!status?.enabled||!prompt.trim()||status.remaining===0}>{busy?'Thinking…':'Ask Eclipse'}<ArrowUp size={16}/></button></div></form>
     </section>
