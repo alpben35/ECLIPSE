@@ -10,7 +10,11 @@ Server verifies a revoked-token-aware Firebase identity, verified email matching
 
 Proposed limits: Serious 10 agent requests/day, Premium/legacy paid Admin 25. Separate from tutor prompts. Atomic Firestore reservation enforces per-user and global capacity, plus one in-flight request per user. UTC daily reset. Failed provider attempts consume quota to prevent unlimited retries and unbounded costs. Global cap must be explicitly configured between 1 and 1,000; default zero. Global count is a request limit, not a currency budget.
 
-No new student conversations are stored by the agent. Up to eight recent messages are sent with the new prompt to Gemini. They clear on leaving the page. Provider retention and existing privacy notice require review before public activation. Do not log prompts or credentials.
+Memory is optional and off by default on each page entry. The user can explicitly enable/restore it. A server-only Firestore document at `eclipse_agent_memory/{verifiedUid}` retains the last four exchanges and up to twenty computed answers. No request-body user ID is used. A later visit can restore the conversation. With memory off, new exchanges are not saved by this agent. Pause stops using saved context without deleting it; Forget removes saved answers/history and leaves only a revision counter to prevent in-flight writes restoring cleared content. Saved memory remains until forgotten, subject to the rolling bounds. Provider retention is separate and must be reviewed before activation. Do not log prompts or credentials.
+
+Authenticated users can retrieve or forget their own memory even if their subscription expires or model generation is paused. These operations never call the AI provider. AI generation with memory enabled uses the server's saved conversation, not client-provided history. Storage failures return the answer with an explicit unsaved indicator. Direct Firestore client access is denied by rules.
+
+The Python SQLite class remains available for local workflows. `backend/functions/session-memory.cjs` supplies its persistent website equivalent through Firestore, including item-code answer retrieval and replacement.
 
 ## Activation deliberately blocked
 
@@ -36,4 +40,4 @@ Current purchase page directs customers to Stripe to review recurring terms. Can
 
 ## Validation
 
-Run `npm run lint`, `npm run test:eclipse-agent`, existing transport/agent suites and `npm run build`. Pure tests cover verified ownership, wrong identities, inactive plans, unknown prices, all paid tiers, malformed input, quota expiry, concurrent request lock and global cap. Live Stripe, Gemini and authenticated student sessions are intentionally not exercised without a dedicated test setup and usage approval.
+Run `npm run lint`, `npm run test:eclipse-agent`, existing transport/agent suites and `npm run build`. Five additional Firestore-memory tests cover restoration across instances, account isolation, bounded storage, revision-safe forgetting and storage failure. Pure agent tests cover verified ownership, wrong identities, inactive plans, unknown prices, all paid tiers, malformed input, quota expiry, concurrent request lock and global cap. Live Stripe, Gemini and authenticated student sessions are intentionally not exercised without a dedicated test setup and usage approval.

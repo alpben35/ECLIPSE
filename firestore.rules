@@ -254,6 +254,9 @@ service cloud.firestore {
     match /agent_tasks/{taskId} { allow read: if isAdmin(); allow write: if false; }
     match /agent_limits/{userId} { allow read, write: if false; }
 
+    // Agent memory is accessible only through the authenticated server endpoint.
+    match /eclipse_agent_memory/{userId} { allow read, write: if false; }
+
     // DEFAULT DENY (LAST RESORT)
     // ===============================================================
     match /{document=**} {

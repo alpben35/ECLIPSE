@@ -3,7 +3,7 @@ const MODES = ['explain', 'practice', 'plan', 'draft'];
 function input(body) {
   if (!body || !MODES.includes(body.mode) || typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 4000) throw new Error('INPUT');
   const history = body.history ?? [];
-  if (!Array.isArray(history) || history.length > 8 || history.some(m => !m || !['user','model'].includes(m.role) || typeof m.text !== 'string' || m.text.length > 4000)) throw new Error('INPUT');
+  if (!Array.isArray(history) || history.length > 8 || history.some(m => !m || !['user','model'].includes(m.role) || typeof m.text !== 'string' || m.text.length > 12000)) throw new Error('INPUT');
   return { mode: body.mode, prompt: body.prompt.trim(), history };
 }
 function paidTier(user, customer, subscriptions, prices) {

@@ -17,4 +17,4 @@ The schema and `store_context`/`retrieve_context` methods match the supplied cla
 
 `python -m unittest discover -s tests -p 'test_session_memory.py'`
 
-Cloud Functions run Node.js with ephemeral local disks. Integrating persistent multi-user memory into the deployed agent requires a separate authenticated Firestore implementation, retention controls and UI/privacy updates. This module does not change the deployed agent's session-only conversation behaviour.
+Cloud Functions run Node.js with ephemeral local disks. The website equivalent is implemented in `backend/functions/session-memory.cjs` and connected to the authenticated Eclipse Agent endpoint. Website users can explicitly enable/restore memory or forget it. The server stores bounded per-user context in Firestore; this Python module remains a local-only component. Both await the agent release described in `docs/eclipse-agent-release.md`.
